@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 // не зависел от того, куда Prisma генерирует клиент.
 export {
   ListingLifecycle,
+  MigrationBatchStatus,
   ObservationStateValue,
   Prisma,
   PrismaClient,
@@ -17,7 +18,9 @@ export {
 export type {
   ActivityLog,
   Company,
+  ColumnMappingSchema,
   ListingObservation,
+  MigrationBatch,
   ObservationState,
   OwnerContact,
   OwnerContactPhone,

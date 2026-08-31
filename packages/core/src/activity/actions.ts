@@ -34,6 +34,10 @@ export const ACTIVITY = {
   LISTING_PUBLISHED: 'LISTING_PUBLISHED',
   /// Своё же объявление вернулось обратно и привязано к исходному объекту.
   SELF_PUBLICATION_LINKED: 'SELF_PUBLICATION_LINKED',
+  // Миграция базы агентства
+  MIGRATION_APPLIED: 'MIGRATION_APPLIED',
+  MIGRATION_ROLLED_BACK: 'MIGRATION_ROLLED_BACK',
+
   PUBLISH_PROFILE_CREATED: 'PUBLISH_PROFILE_CREATED',
   PUBLISH_PROFILE_UPDATED: 'PUBLISH_PROFILE_UPDATED',
   PUBLISH_PROFILE_DELETED: 'PUBLISH_PROFILE_DELETED',
@@ -50,6 +54,7 @@ export const ENTITY = {
   SOURCE_LISTING: 'SourceListing',
   PUBLISH_PROFILE: 'PublishProfile',
   PUBLICATION: 'Publication',
+  MIGRATION_BATCH: 'MigrationBatch',
 } as const;
 
 export type ActivityEntity = (typeof ENTITY)[keyof typeof ENTITY];

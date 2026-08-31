@@ -56,6 +56,8 @@ model Company {
   propertyLinks    PropertyLink[]
   properties       Property[]
   publications     Publication[]
+  migrationBatches MigrationBatch[]
+  mappingSchemas   ColumnMappingSchema[]
 
   @@map("companies")
 }
@@ -423,6 +425,10 @@ model Property {
   origin   PropertyOrigin
   originAt DateTime       @default(now())
 
+  /// Заполнено только при origin = legacy_import. Без обратной ссылки отмена
+  /// импорта превращается в поиск по дате создания — то есть в угадывание.
+  migrationBatchId String? @db.Uuid
+
   ownerContactId String? @db.Uuid
 
   transactionType TransactionType
@@ -457,11 +463,12 @@ model Property {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  pipelineStatus PipelineStatus @relation(fields: [pipelineStatusId], references: [id])
-  ownerContact   OwnerContact?  @relation(fields: [ownerContactId], references: [id], onDelete: SetNull)
-  propertyLink   PropertyLink?  @relation(fields: [propertyLinkId], references: [id], onDelete: SetNull)
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team           Team            @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  pipelineStatus PipelineStatus  @relation(fields: [pipelineStatusId], references: [id])
+  ownerContact   OwnerContact?   @relation(fields: [ownerContactId], references: [id], onDelete: SetNull)
+  propertyLink   PropertyLink?   @relation(fields: [propertyLinkId], references: [id], onDelete: SetNull)
+  migrationBatch MigrationBatch? @relation(fields: [migrationBatchId], references: [id], onDelete: SetNull)
 
   sourceListings    SourceListing[]
   observationStates ObservationState[]
@@ -471,6 +478,9 @@ model Property {
   @@index([companyId, teamId, updatedAt(sort: Desc)])
   @@index([companyId, propertyLinkId])
   @@index([companyId, teamId, ownerContactId])
+  /// Отдельный фильтр «архив агентства» в списке объектов (L15, риск R-34).
+  @@index([companyId, origin])
+  @@index([migrationBatchId])
   /// Дедупликация 4 уровня: нечёткое сравнение адресов. Индекс по триграммам
   /// строится только по хранимой колонке — поэтому addressNormalized
   /// отдельное поле, а не вычисление на лету.
@@ -732,4 +742,89 @@ model Publication {
   /// работает даже без подтверждения агента (Q31).
   @@index([companyId, externalUrl])
   @@map("publications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Миграция базы агентства (фаза 4В)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Сохранённое сопоставление «колонка файла → поле системы» (L4).
+///
+/// Второй файл того же агентства ложится на готовую схему. Реальные выгрузки
+/// делают из одной и той же таблицы, и заставлять сопоставлять заново каждый
+/// раз — верный способ, чтобы агентство бросило миграцию на середине.
+model ColumnMappingSchema {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  name      String
+
+  /// { "Цена $": "price", "ფართობი": "area", "тел": "ownerPhone" }
+  /// Колонки, помеченные пропуском, тоже хранятся: молча выброшенная
+  /// колонка — та, про которую потом будут спорить, была ли она в файле.
+  mapping Json
+
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  batches MigrationBatch[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("column_mapping_schemas")
+}
+
+enum MigrationBatchStatus {
+  /// Файл загружен, колонки определены, сопоставления ещё нет.
+  draft
+  /// Сопоставление задано, предпросмотр доступен. В базу ничего не записано.
+  previewed
+  /// Объекты созданы.
+  applied
+  /// Импорт отменён целиком.
+  rolled_back
+}
+
+/// Один заход миграции.
+///
+/// Существует ради двух вещей, которые без него не работают: отмены целиком
+/// одной операцией (L9) и отчёта о том, что именно было отклонено и почему.
+model MigrationBatch {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  /// Команда, которой достанутся перенесённые объекты: владение — команда.
+  teamId    String @db.Uuid
+
+  fileName        String
+  mappingSchemaId String? @db.Uuid
+
+  status MigrationBatchStatus @default(draft)
+
+  /// Заголовки колонок как они есть в файле, включая пустые и дублирующиеся.
+  detectedColumns String[]
+  /// Разобранные строки файла. Хранятся до применения, чтобы предпросмотр
+  /// и запись работали с одними и теми же данными, а не перечитывали файл.
+  rawRows         Json?
+
+  totalRows    Int  @default(0)
+  acceptedRows Int?
+  rejectedRows Int?
+
+  /// Причины отклонения по номерам строк. ПЕРСОНАЛЬНЫХ ДАННЫХ НЕТ
+  /// (правило 10): строка описывается номером и кодом причины,
+  /// а не содержимым.
+  report Json?
+
+  createdByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  appliedAt       DateTime?
+  rolledBackAt    DateTime?
+
+  company       Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  mappingSchema ColumnMappingSchema? @relation(fields: [mappingSchemaId], references: [id], onDelete: SetNull)
+  properties    Property[]
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@map("migration_batches")
 }
