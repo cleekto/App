@@ -1,13 +1,16 @@
 // Cleekto — схема базы данных.
 //
-// Модели появляются с фазы 3 по документу docs/architecture/erd.md.
-// На фазе 2 схема содержит только подключение и расширения PostgreSQL:
-// первая миграция обязана доказать, что конвейер работает, а не заморозить
-// доменные решения раньше, чем фаза 3 их примет.
+// Источник: docs/architecture/erd.md. Фаза 3 добавляет арендаторов, доступ
+// и журнал действий. Объекты, объявления и контакты собственников приедут
+// в фазе 4 — их здесь нет намеренно.
 //
-// ПРАВИЛО 9: применённые миграции не редактируются. Прежде чем добавлять
-// модели, перечитай erd.md §10 и §11 — три вещи добавлены в проект схемы
-// «на вырост», и после первой миграции их правка запрещена.
+// ПРАВИЛО 9: применённые миграции не редактируются. Изменение схемы — это
+// всегда новая миграция, а не правка существующей.
+//
+// ПРАВИЛО 5: companyId продублирован почти везде, хотя часто выводится через
+// team. Это осознанная денормализация: любой запрос фильтруется по companyId
+// напрямую, без join. Забытый join — утечка между арендаторами; забытый
+// `where companyId` виден в коде глазами.
 
 datasource db {
   provider = "postgresql"
@@ -19,7 +22,7 @@ datasource db {
   // Мимо пулера — нужно Prisma для миграций.
   directUrl = env("DIRECT_URL")
 
-  // pg_trgm  — нечёткое сравнение адресов, дедупликация 4 уровня.
+  // pg_trgm  — нечёткое сравнение адресов, дедупликация 4 уровня (фаза 4).
   // pgcrypto — gen_random_uuid() для первичных ключей.
   extensions = [pgcrypto, pg_trgm]
 }
@@ -27,4 +30,250 @@ datasource db {
 generator client {
   provider        = "prisma-client-js"
   previewFeatures = ["postgresqlExtensions"]
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Арендаторы
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Граница арендатора. Жёсткая: данные двух компаний не сравниваются
+/// и не показываются ни при какой проверке (инвариант 9).
+model Company {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String
+  /// Язык по умолчанию для новых пользователей: ka | en | ru (ADR-0008).
+  locale    String   @default("en")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teams            Team[]
+  users            User[]
+  teamMembers      TeamMember[]
+  pipelineStatuses PipelineStatus[]
+  activityLog      ActivityLog[]
+  publishProfiles  PublishProfile[]
+
+  @@map("companies")
+}
+
+/// Команда — область дедупликации при создании объекта и область видимости
+/// агента (решение владельца 2026-08-31, ADR-0006).
+model Team {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  members TeamMember[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("teams")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Доступ
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Три роли, справочник создаётся сидом (Q28, C-09).
+/// Кастомных ролей в MVP нет, но таблица — а не перечисление в коде —
+/// позволит добавить их без миграции живой базы агентства.
+enum RoleCode {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+model Role {
+  id   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  code RoleCode @unique
+  name String
+
+  users User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId    String @db.Uuid
+  roleId       String @db.Uuid
+  email        String
+  passwordHash String
+  fullName     String
+
+  /// Язык интерфейса. Живёт на пользователе, а не на компании: в тбилисском
+  /// агентстве работают люди с разными родными языками (ADR-0008).
+  locale String @default("en")
+
+  /// Пользователь не удаляется, а отключается: за ним числятся записи
+  /// журнала, и физическое удаление разрушило бы историю.
+  isActive Boolean @default(true)
+
+  /// Счётчик для отзыва refresh-токенов. Растёт при смене пароля
+  /// и при отключении пользователя (ADR-0003).
+  tokenVersion Int @default(0)
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company         Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  role            Role             @relation(fields: [roleId], references: [id])
+  teamMemberships TeamMember[]
+  refreshTokens   RefreshToken[]
+  activityLog     ActivityLog[]
+  publishProfiles PublishProfile[]
+
+  /// Email уникален внутри компании, а не глобально: один человек может
+  /// работать в двух агентствах, и запрет на это был бы нашей выдумкой.
+  @@unique([companyId, email])
+  @@index([companyId])
+  @@index([email])
+  @@map("users")
+}
+
+/// Членство в команде.
+///
+/// Отдельная таблица, а не поле `User.teamId`, — так требует промпт §3.Ф3.
+/// В MVP действует ограничение «одна команда на пользователя»: область
+/// дедупликации — команда, и при двух командах у одного агента было бы
+/// непонятно, чья команда владеет созданным объектом.
+///
+/// Ограничение снимается изменением одного уникального индекса, когда
+/// владелец решит иначе, — и это дешевле, чем добавлять таблицу в живую базу.
+model TeamMember {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  teamId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team    Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Одна команда на пользователя — ограничение MVP, см. комментарий выше.
+  @@unique([userId])
+  @@unique([teamId, userId])
+  @@index([companyId])
+  @@index([teamId])
+  @@map("team_members")
+}
+
+/// Refresh-токены с ротацией. Хранится хеш, а не сам токен: утечка базы
+/// не должна давать доступ к живым сессиям.
+model RefreshToken {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime
+  /// Отозван при ротации или при выходе.
+  revokedAt DateTime?
+  /// Токен, выданный взамен этого. Повторное использование отозванного
+  /// токена — признак кражи, и по цепочке видно, что произошло.
+  replacedById String?  @db.Uuid
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Воронка и журнал
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Инвариант 4: статусы воронки не захардкожены.
+/// Сид создаёт пять статусов на компанию (промпт §5Б.4).
+model PipelineStatus {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  code      String
+  name      String
+  sortOrder Int
+  /// IN_BASE и IN_PROGRESS защищены от удаления: на них завязаны переходы,
+  /// а не только отображение.
+  isSystem   Boolean @default(false)
+  colorToken String?
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, code])
+  @@index([companyId, sortOrder])
+  @@map("pipeline_statuses")
+}
+
+/// Инвариант 7: пишется при каждом значимом действии, с первого дня.
+/// Фундамент KPI, аналитики и будущей геймификации.
+///
+/// ПРАВИЛО 10: персональных данных в before/after нет. Смена телефона
+/// собственника пишется как факт изменения с маской, а не со значением.
+model ActivityLog {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  teamId    String? @db.Uuid
+  /// Пусто, если действие выполнила система, а не человек.
+  userId     String? @db.Uuid
+  entityType String
+  entityId   String? @db.Uuid
+
+  /// Строка, а не перечисление: набор действий растёт с каждой фазой,
+  /// и enum потребовал бы миграции ради каждой новой записи.
+  /// Значения — константы в packages/core, они же проверяются тестом.
+  action String
+
+  /// Заполняются для смены статуса и переназначения агента (Q30).
+  /// Снимок объекта на каждое действие дал бы таблицу больше всей базы.
+  before Json?
+  after  Json?
+
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([companyId, entityType, entityId])
+  @@index([companyId, userId, createdAt(sort: Desc)])
+  @@map("activity_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Публикация
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Лицо агентства в публичном объявлении (I13).
+///
+/// Заводится здесь, а не в фазе публикации, по требованию промпта §3.Ф3
+/// и потому, что телефоны профилей участвуют в двух проверках уровня компании:
+/// исключение из дедупликации по телефону (I20) и признак самоимпорта (Q31).
+model PublishProfile {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String  @db.Uuid
+  /// Заполнен — личный профиль агента; пуст — общий профиль компании.
+  userId      String? @db.Uuid
+  displayName String
+
+  /// Номер как ввёл человек.
+  phoneOriginal String
+  /// E.164. Нужен не для показа, а для сравнения: без нормализованного вида
+  /// проверка самоимпорта не сработает.
+  phoneNormalized String
+
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  /// Исключение своих номеров из дедупликации уровней 2–3 (I20).
+  @@index([companyId, phoneNormalized])
+  @@map("publish_profiles")
 }

@@ -1,6 +1,19 @@
 import { PrismaClient } from '@prisma/client';
 
-export { PrismaClient };
+// Типы и перечисления схемы переэкспортируются отсюда, чтобы остальной код
+// не зависел от того, куда Prisma генерирует клиент.
+export { Prisma, PrismaClient, RoleCode } from '@prisma/client';
+export type {
+  ActivityLog,
+  Company,
+  PipelineStatus,
+  PublishProfile,
+  RefreshToken,
+  Role,
+  Team,
+  TeamMember,
+  User,
+} from '@prisma/client';
 
 /**
  * Один клиент на процесс.

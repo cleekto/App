@@ -1,0 +1,36 @@
+/**
+ * Действия, попадающие в `ActivityLog` (инвариант 7).
+ *
+ * Константы, а не enum в базе: набор растёт с каждой фазой, и enum потребовал
+ * бы миграции ради каждой новой записи. Опечатку ловит тип, а полноту
+ * покрытия — тест.
+ */
+export const ACTIVITY = {
+  // Компания и доступ
+  COMPANY_REGISTERED: 'COMPANY_REGISTERED',
+  USER_CREATED: 'USER_CREATED',
+  USER_DEACTIVATED: 'USER_DEACTIVATED',
+  USER_LOGGED_IN: 'USER_LOGGED_IN',
+  USER_LOGGED_OUT: 'USER_LOGGED_OUT',
+  /// Повторное использование отозванного refresh-токена — признак кражи.
+  REFRESH_REUSE_DETECTED: 'REFRESH_REUSE_DETECTED',
+  TEAM_CREATED: 'TEAM_CREATED',
+  ASSIGNED_TO_TEAM: 'ASSIGNED_TO_TEAM',
+
+  // Публикация
+  PUBLISH_PROFILE_CREATED: 'PUBLISH_PROFILE_CREATED',
+  PUBLISH_PROFILE_UPDATED: 'PUBLISH_PROFILE_UPDATED',
+  PUBLISH_PROFILE_DELETED: 'PUBLISH_PROFILE_DELETED',
+} as const;
+
+export type ActivityAction = (typeof ACTIVITY)[keyof typeof ACTIVITY];
+
+/** Тип сущности, к которой относится запись журнала. */
+export const ENTITY = {
+  COMPANY: 'Company',
+  USER: 'User',
+  TEAM: 'Team',
+  PUBLISH_PROFILE: 'PublishProfile',
+} as const;
+
+export type ActivityEntity = (typeof ENTITY)[keyof typeof ENTITY];
