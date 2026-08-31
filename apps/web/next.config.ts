@@ -12,11 +12,22 @@ const config: NextConfig = {
   outputFileTracingRoot: resolve(dirname(fileURLToPath(import.meta.url)), '../..'),
 
   // Пакеты монорепозитория поставляются исходниками на TypeScript.
-  transpilePackages: ['@cleekto/contracts', '@cleekto/i18n', '@cleekto/db'],
+  transpilePackages: ['@cleekto/contracts', '@cleekto/core', '@cleekto/i18n', '@cleekto/db'],
 
-  // Prisma не бандлится: клиент подгружает бинарный движок по пути,
-  // который бандлер переписать не может.
-  serverExternalPackages: ['@prisma/client'],
+  // Не бандлятся: оба пакета подгружают нативные бинарники по пути,
+  // который бандлер переписать не может. Webpack пытается разобрать .node
+  // как исходник и падает.
+  serverExternalPackages: ['@prisma/client', '@node-rs/argon2'],
+
+  // serverExternalPackages не действует на зависимости пакетов из
+  // transpilePackages: @cleekto/core транспилируется, и argon2 утягивается
+  // в бандл вместе с ним. Помечаем внешним напрямую.
+  webpack: (config, { isServer }) => {
+    if (isServer) {
+      config.externals = [...(config.externals ?? []), '@node-rs/argon2'];
+    }
+    return config;
+  },
 
   typescript: {
     // Ошибки типов роняют сборку. Правило 4: «готово» — это зелёный typecheck.
