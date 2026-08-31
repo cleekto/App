@@ -30,6 +30,7 @@ cp .env.example .env          # значения по умолчанию раб�
 pnpm db:up                    # поднять PostgreSQL в Docker
 pnpm db:generate              # сгенерировать клиент Prisma
 pnpm db:migrate               # применить миграции
+pnpm db:seed                  # тестовые данные: две компании
 
 pnpm dev                      # http://localhost:3000
 ```
@@ -59,6 +60,7 @@ pnpm db:up              # поднять PostgreSQL
 pnpm db:down            # остановить
 pnpm db:generate        # клиент Prisma
 pnpm db:migrate         # применить миграции (разработка)
+pnpm db:seed            # тестовые данные: две компании, роли, статусы воронки
 pnpm db:studio          # просмотр базы в браузере
 ```
 
@@ -72,6 +74,7 @@ apps/
   extension/    Chrome MV3
 packages/
   contracts/    Схемы запросов и ответов. Общие для веба и расширения
+  core/         Доменная логика: сценарии, права, аутентификация. О HTTP не знает
   i18n/         Словари ka · en · ru и форматтеры
   db/           Prisma: схема, миграции, клиент
 scripts/
@@ -79,13 +82,14 @@ scripts/
 docs/           Спецификация, архитектура, решения, дизайн
 ```
 
-Пакеты `core` и `adapters` появятся в фазах 3–5 вместе со своим содержимым. Пустых каталогов «на будущее» в репозитории нет намеренно.
+Пакет `adapters` появится в фазе 5 вместе с адаптерами площадок. Пустых каталогов «на будущее» в репозитории нет намеренно.
 
 **Зависимости идут только вниз, циклы запрещены:**
 
 ```text
-apps/web        → contracts, db, i18n
+apps/web        → contracts, core, db, i18n
 apps/extension  → contracts, i18n
+packages/core   → contracts, db
 packages/db     → (ничего)
 packages/contracts, packages/i18n → (ничего)
 ```
@@ -117,6 +121,16 @@ packages/contracts, packages/i18n → (ничего)
 
 ## Состояние
 
-Фаза 2 из 10: фундамент. Бизнес-логики пока нет — есть монорепозиторий, база, миграции, health-эндпоинт, CI и каркас трёх языков.
+Фаза 3 из 10: домен, доступ, изоляция. Есть аутентификация, три роли, серверная проверка прав, журнал действий и изоляция арендаторов с негативными тестами. Объектов, объявлений и дедупликации ещё нет — они в фазе 4.
+
+Тестовые учётные записи после `pnpm db:seed` (пароль у всех `cleekto-local-dev-password`):
+
+```text
+admin@tbilisi-estate.test     ADMIN    Tbilisi Estate
+manager@tbilisi-estate.test   MANAGER  команда Vake
+agent1@tbilisi-estate.test    AGENT    команда Vake
+admin@batumi-property.test    ADMIN    Batumi Property — вторая компания,
+                                        она существует для проверки изоляции
+```
 
 Что и в каком порядке делается дальше — `docs/MASTER_PROMPT.md` §3 и `docs/progress.md`.

@@ -105,10 +105,9 @@ pnpm db:up              # PostgreSQL в Docker
 pnpm db:down
 pnpm db:generate        # клиент Prisma
 pnpm db:migrate         # применить миграции
+pnpm db:seed            # тестовые данные: 2 компании — для проверки изоляции
 pnpm db:studio
 ```
-
-`pnpm db:seed` появится в фазе 3 вместе с сущностями: сеять пока нечего.
 
 Команды идут через `scripts/with-env.mjs` — он подаёт единый корневой `.env`
 инструментам, которые ищут его в разных местах. Поэтому `next` и `prisma`
