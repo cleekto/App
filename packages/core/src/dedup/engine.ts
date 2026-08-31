@@ -56,9 +56,21 @@ export interface DedupMatch {
 
 export type PhoneExclusion = 'publish_profile' | 'agency_threshold' | null;
 
+export interface SelfPublication {
+  propertyId: string;
+  publicationId: string;
+  /** Чем опознали: подтверждённым идентификатором или запасным признаком. */
+  matchedBy: 'external_id' | 'external_url' | 'publish_profile_phone';
+}
+
 export interface DedupOutcome {
   /** Точное совпадение по ключу идемпотентности в СВОЕЙ команде. */
   exact: { sourceListingId: string; propertyId: string } | null;
+  /**
+   * Своё же объявление вернулось обратно (§5.5). Область — КОМПАНИЯ:
+   * разместить могла соседняя команда.
+   */
+  selfPublication: SelfPublication | null;
   /** Совпадения своей команды, отсортированы по убыванию уверенности. */
   teamMatches: DedupMatch[];
   /** Совпадения других команд компании. Мягкая пометка, не блокировка. */
@@ -73,8 +85,19 @@ export async function analyze(ctx: AuthContext, input: DedupInput): Promise<Dedu
 
   const exact = await findExact(ctx, input);
   if (exact !== null) {
-    return { exact, teamMatches: [], companyMatches: [], verdict: 'EXACT', phoneExcluded: null };
+    return {
+      exact,
+      selfPublication: null,
+      teamMatches: [],
+      companyMatches: [],
+      verdict: 'EXACT',
+      phoneExcluded: null,
+    };
   }
+
+  // Петля «своё объявление вернулось обратно» проверяется ДО обычного поиска
+  // кандидатов: если объявление разместили мы, дальше искать нечего.
+  const selfPublication = await findSelfPublication(ctx, input);
 
   const phoneExcluded = await classifyPhones(ctx, input.facts.phones);
   const usablePhones = phoneExcluded === null ? input.facts.phones : [];
@@ -86,7 +109,14 @@ export async function analyze(ctx: AuthContext, input: DedupInput): Promise<Dedu
     config.candidates.maxCandidates,
   );
   if (candidateIds.length === 0) {
-    return { exact: null, teamMatches: [], companyMatches: [], verdict: 'NONE', phoneExcluded };
+    return {
+      exact: null,
+      selfPublication,
+      teamMatches: [],
+      companyMatches: [],
+      verdict: 'NONE',
+      phoneExcluded,
+    };
   }
 
   const matches = await scoreCandidates(ctx, input, candidateIds, usablePhones);
@@ -96,6 +126,7 @@ export async function analyze(ctx: AuthContext, input: DedupInput): Promise<Dedu
 
   return {
     exact: null,
+    selfPublication,
     teamMatches,
     companyMatches,
     // Совпадение в другой команде не влияет на вердикт: конкуренция между
@@ -135,6 +166,87 @@ async function findExact(
     }));
 
   return found === null ? null : { sourceListingId: found.id, propertyId: found.propertyId };
+}
+
+// ── Петля «своё объявление вернулось обратно» (§5.5) ─────────────────────────
+
+/**
+ * Опубликованное нами объявление живёт на площадке. Через день его импортирует
+ * агент — свой или из соседней команды.
+ *
+ * Без защиты это даёт второй `Property` с телефоном АГЕНТСТВА в поле контакта
+ * собственника. Дальше хуже: этот номер становится ключом дедупликации уровней
+ * 2–3, и все объекты агентства начинают выглядеть дублями друг друга. Один
+ * такой объект отравляет дедупликацию всей команды (риск R-31).
+ *
+ * ОБЛАСТЬ — КОМПАНИЯ, не команда: разместить объявление могла соседняя команда,
+ * и её публикация — тоже публикация нашего агентства (инвариант 9).
+ *
+ * Три признака вместо одного, потому что первый работает не всегда.
+ */
+async function findSelfPublication(
+  ctx: AuthContext,
+  input: DedupInput,
+): Promise<SelfPublication | null> {
+  // Пункт 1: подтверждённый идентификатор. Самый надёжный признак —
+  // и самый ненадёжный по доступности: он появляется только после того,
+  // как агент нажал «подтвердить» (инвариант 13).
+  if (input.externalId !== null) {
+    const byExternalId = await prisma.publication.findFirst({
+      where: {
+        companyId: ctx.companyId,
+        source: input.source,
+        externalId: input.externalId,
+      },
+      select: { id: true, propertyId: true },
+    });
+
+    if (byExternalId !== null) {
+      return {
+        propertyId: byExternalId.propertyId,
+        publicationId: byExternalId.id,
+        matchedBy: 'external_id',
+      };
+    }
+  }
+
+  // Пункт 2: адрес размещённого объявления. Работает и по записям в статусе
+  // `filled` — то есть когда агент подтверждение НЕ нажал, а объявление
+  // на площадке уже живёт. Это ровно тот случай, ради которого признак
+  // и добавлен (Q31, C-19).
+  const byUrl = await prisma.publication.findFirst({
+    where: {
+      companyId: ctx.companyId,
+      source: input.source,
+      externalUrl: input.canonicalUrl,
+    },
+    select: { id: true, propertyId: true },
+  });
+
+  if (byUrl !== null) {
+    return { propertyId: byUrl.propertyId, publicationId: byUrl.id, matchedBy: 'external_url' };
+  }
+
+  // Пункт 3: наш собственный контактный номер в объявлении. Работает без
+  // подтверждения и без ссылки: если в объявлении наш рабочий телефон,
+  // это почти наверняка наша публикация.
+  if (input.facts.phones.length > 0) {
+    const profile = await prisma.publishProfile.findFirst({
+      where: { companyId: ctx.companyId, phoneNormalized: { in: [...input.facts.phones] } },
+      select: { id: true },
+    });
+
+    if (profile !== null) {
+      // Номер профиля опознан, но какой именно объект — неизвестно:
+      // под одним номером у агентства десятки объявлений. Привязывать
+      // наугад нельзя, поэтому объект здесь не назначается — сработает
+      // только исключение телефона из признаков (`classifyPhones`),
+      // и объект создастся как новый, но без ложных совпадений.
+      return null;
+    }
+  }
+
+  return null;
 }
 
 // ── Пригодность телефона как признака ────────────────────────────────────────

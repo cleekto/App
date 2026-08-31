@@ -55,6 +55,7 @@ model Company {
   ownerContacts    OwnerContact[]
   propertyLinks    PropertyLink[]
   properties       Property[]
+  publications     Publication[]
 
   @@map("companies")
 }
@@ -274,8 +275,9 @@ model PublishProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  publications Publication[]
 
   @@index([companyId])
   /// Исключение своих номеров из дедупликации уровней 2–3 (I20).
@@ -463,6 +465,7 @@ model Property {
 
   sourceListings    SourceListing[]
   observationStates ObservationState[]
+  publications      Publication[]
 
   @@index([companyId, teamId, pipelineStatusId])
   @@index([companyId, teamId, updatedAt(sort: Desc)])
@@ -655,4 +658,78 @@ model ObservationState {
   @@unique([observationId, teamId])
   @@index([companyId, teamId, state])
   @@map("observation_states")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Публикация (фаза 4Б)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Жизненный цикл публикации.
+///
+/// `published` ставится ТОЛЬКО по подтверждению агента (инвариант 13):
+/// расширение не знает, нажал ли он «Опубликовать» — форму отправляет
+/// площадка. Отсюда же дыра в защите от самоимпорта, закрываемая
+/// запасными признаками (Q31, §5.5).
+enum PublicationStatus {
+  /// Черновик собран на сервере, форма ещё не заполнялась.
+  draft
+  /// Форма заполнена расширением. Отправил ли её агент — неизвестно.
+  filled
+  /// Агент подтвердил, что объявление размещено. Есть externalUrl.
+  published
+  /// Объявление снято с площадки. Ставит человек: фонового опроса нет (Q32).
+  expired
+}
+
+/// Публикация объекта на площадке.
+///
+/// СТАТУС ПУБЛИКАЦИИ И СТАТУС ВОРОНКИ — РАЗНЫЕ ВЕЩИ, и смешивать их нельзя
+/// (J13, J14). Объект переходит в «Принято в работу» по факту ЗАПОЛНЕНИЯ
+/// формы, потому что расширение не знает о нажатии «Опубликовать».
+/// Статус воронки отражает работу агента, `Publication` — факт на площадке:
+/// первое нужно воронке, второе — защите от самоимпорта.
+model Publication {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  teamId    String @db.Uuid
+
+  propertyId       String @db.Uuid
+  publishProfileId String @db.Uuid
+
+  source Source
+  status PublicationStatus @default(draft)
+
+  /// Версия заполнения формы. ОТДЕЛЬНАЯ от parserVersion: разметка страницы
+  /// объявления и форма размещения ломаются независимо (инвариант 6, I9).
+  formVersion String?
+
+  /// Появляются только после подтверждения агентом.
+  externalId  String?
+  externalUrl String?
+
+  /// Что заполнить не удалось и почему: no_value, no_mapping,
+  /// field_not_found, manual_only. Частичное заполнение — штатный режим
+  /// (правило 14), поэтому список пустым не бывает почти никогда.
+  unfilledFields Json?
+
+  filledAt          DateTime?
+  publishedAt       DateTime?
+  confirmedByUserId String?   @db.Uuid
+
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  publishProfile PublishProfile @relation(fields: [publishProfileId], references: [id])
+
+  @@index([companyId, propertyId])
+  /// Защита от самоимпорта, пункт 1: сравнение source + externalId
+  /// с публикациями компании (§5.5).
+  @@index([companyId, source, externalId])
+  /// Пункт 2: сравнение канонического адреса с записями в статусе filled —
+  /// работает даже без подтверждения агента (Q31).
+  @@index([companyId, externalUrl])
+  @@map("publications")
 }

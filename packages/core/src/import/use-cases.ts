@@ -139,6 +139,13 @@ export async function importListing(ctx: AuthContext, input: ImportInput): Promi
     return handleExact(ctx, input, dedup, observation.id);
   }
 
+  // Своё же объявление вернулось обратно (§5.5). Привязка ВСЕГДА, никогда
+  // новый объект: иначе телефон агентства попадёт в базу как телефон
+  // собственника и отравит дедупликацию всей команды (риск R-31).
+  if (dedup.selfPublication !== null) {
+    return linkSelfPublication(ctx, input, dedup, observation.id, canonicalUrl);
+  }
+
   const acknowledged = new Set(input.acknowledgedDuplicateOf ?? []);
   const blocking = dedup.teamMatches.filter((match) => !acknowledged.has(match.propertyId));
 
@@ -438,6 +445,74 @@ async function linkToExisting(
     actions: ['open_existing', 'import_anyway'],
     phoneExcluded: dedup.phoneExcluded,
     reasonHuman: `${match.reasonHuman}. Объявление привязано к существующему объекту`,
+  };
+}
+
+/**
+ * Импорт объявления, размещённого нашим же агентством.
+ *
+ * Агент не сделал ничего неправильного: он открыл объявление на площадке
+ * и не мог знать, что его разместила соседняя команда. Поэтому это не ошибка
+ * и не предупреждение, а привязка с понятным объяснением.
+ */
+async function linkSelfPublication(
+  ctx: AuthContext,
+  input: ImportInput,
+  dedup: DedupOutcome,
+  observationId: string,
+  canonicalUrl: string,
+): Promise<ImportResult> {
+  const self = dedup.selfPublication as NonNullable<DedupOutcome['selfPublication']>;
+
+  const existing = await prisma.sourceListing.findFirst({
+    where: { propertyId: self.propertyId, source: input.source, canonicalUrl },
+    select: { id: true },
+  });
+
+  const listingId =
+    existing?.id ??
+    (
+      await prisma.$transaction(async (tx) => {
+        const created = await tx.sourceListing.create({
+          data: {
+            propertyId: self.propertyId,
+            companyId: ctx.companyId,
+            teamId: ctx.teamId as string,
+            source: input.source,
+            externalId: input.externalId ?? null,
+            canonicalUrl,
+            originalUrl: input.sourceUrl,
+            price: input.price ?? null,
+            currency: input.currency ?? null,
+            parserVersion: input.parserVersion,
+            missingFields: input.missingFields ?? [],
+            importedByUserId: ctx.userId,
+          },
+          select: { id: true },
+        });
+
+        await writeActivity(tx, ctx, {
+          entityType: ENTITY.PROPERTY,
+          entityId: self.propertyId,
+          action: ACTIVITY.SELF_PUBLICATION_LINKED,
+          after: { matchedBy: self.matchedBy, source: input.source },
+        });
+
+        return created;
+      })
+    ).id;
+
+  return {
+    result: 'linked_to_existing',
+    verdict: 'EXACT',
+    propertyId: self.propertyId,
+    sourceListingId: listingId,
+    observationId,
+    matches: [],
+    otherTeamMatches: dedup.companyMatches,
+    actions: ['open_existing'],
+    phoneExcluded: dedup.phoneExcluded,
+    reasonHuman: 'Это объявление разместило ваше агентство',
   };
 }
 

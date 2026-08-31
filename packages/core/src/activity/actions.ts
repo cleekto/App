@@ -27,6 +27,13 @@ export const ACTIVITY = {
   LISTING_RESEEN: 'LISTING_RESEEN',
 
   // Публикация
+  PUBLICATION_DRAFTED: 'PUBLICATION_DRAFTED',
+  /// Форма заполнена. Отправил ли её агент — неизвестно (инвариант 13).
+  PUBLICATION_FILLED: 'PUBLICATION_FILLED',
+  /// Агент подтвердил размещение. Единственный путь в статус published.
+  LISTING_PUBLISHED: 'LISTING_PUBLISHED',
+  /// Своё же объявление вернулось обратно и привязано к исходному объекту.
+  SELF_PUBLICATION_LINKED: 'SELF_PUBLICATION_LINKED',
   PUBLISH_PROFILE_CREATED: 'PUBLISH_PROFILE_CREATED',
   PUBLISH_PROFILE_UPDATED: 'PUBLISH_PROFILE_UPDATED',
   PUBLISH_PROFILE_DELETED: 'PUBLISH_PROFILE_DELETED',
@@ -42,6 +49,7 @@ export const ENTITY = {
   PROPERTY: 'Property',
   SOURCE_LISTING: 'SourceListing',
   PUBLISH_PROFILE: 'PublishProfile',
+  PUBLICATION: 'Publication',
 } as const;
 
 export type ActivityEntity = (typeof ENTITY)[keyof typeof ENTITY];

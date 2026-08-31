@@ -37,3 +37,7 @@ export * from './dedup/config';
 export * from './dedup/scoring';
 export * from './dedup/engine';
 export * from './import/use-cases';
+
+export * from './publish/draft';
+export * from './publish/sanitize';
+export * from './publish/use-cases';
