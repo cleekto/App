@@ -1,0 +1,1376 @@
+openapi: 3.0.3
+
+info:
+  title: Cleekto API
+  version: 1.0.0-draft
+  description: |
+    API продукта Cleekto — CRM для агентств недвижимости Грузии.
+
+    Проектная версия фазы 1. Кода ещё нет; этот файл — контракт, из которого код выводится.
+
+    ЖЁСТКИЕ ПРАВИЛА, ОТРАЖЁННЫЕ В СХЕМАХ:
+
+    * Ни один запрос не принимает companyId, teamId или идентификатор владельца данных.
+      Они берутся из сессии (правило 5). Появление такого параметра в схеме — дефект.
+    * Ресурс другой компании возвращает 404, а не 403: 403 подтвердил бы существование объекта.
+    * ListingPublishDraft не содержит блока owner. Не опционально — его нет в типе (правило 13).
+    * Схема события об ошибке парсинга не позволяет передать персональные данные (правило 10).
+
+    Подробности и обоснования: docs/architecture/api-contracts.md
+
+servers:
+  - url: /api/v1
+    description: Версия в пути — инвариант 8
+
+tags:
+  - name: auth
+  - name: import
+    description: Главный поток продукта
+  - name: observations
+    description: Индекс объявлений и три исхода разговора, не создающие объект
+  - name: properties
+  - name: publications
+  - name: feed
+    description: Фазы 9–10
+  - name: migrations
+    description: Фаза 4В
+  - name: telemetry
+  - name: reference
+
+security:
+  - bearerAuth: []
+
+paths:
+
+  # ─────────────────────────── auth ───────────────────────────
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Вход по email и паролю
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, format: password, minLength: 8 }
+      responses:
+        '200':
+          description: Пара токенов
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+        '429': { $ref: '#/components/responses/RateLimited' }
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Обновление пары токенов
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        '200':
+          description: Новая пара, старый refresh отозван (ротация)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TokenPair' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  /auth/logout:
+    post:
+      tags: [auth]
+      summary: Отзыв refresh-токена
+      responses:
+        '204': { description: Отозван }
+
+  /auth/me:
+    get:
+      tags: [auth]
+      summary: Профиль текущего пользователя
+      description: Единственный источник роли для интерфейса. Сервер по нему ничего не решает.
+      responses:
+        '200':
+          description: Профиль
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentUser' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  # ─────────────────────────── import ───────────────────────────
+
+  /import/listing:
+    post:
+      tags: [import]
+      summary: Действие «Согласен» — единственный путь создания объекта из объявления
+      description: |
+        Вызывается ТОЛЬКО после разговора с собственником (правило R14).
+        Телефон обязателен: его отсутствие блокируется на клиенте (правило 11),
+        серверная проверка стоит второй линией и отвечает 422 PHONE_NOT_REVEALED.
+
+        Идемпотентность: ключ (teamId, source, externalId), при отсутствии externalId —
+        (teamId, canonicalUrl). Повтор не создаёт объект, обновляет цену и lastSeenAt.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ListingImportPayload' }
+      responses:
+        '200':
+          description: |
+            Импорт обработан. Конкретный исход — в поле result.
+            Код 200 и для created, и для duplicate_warning: это разные исходы,
+            но оба означают, что запрос корректен.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+        '409':
+          description: EXACT — второй копии не будет
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+        '422':
+          description: Телефон не раскрыт. В норме этот ответ недостижим
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthenticated' }
+
+  # ─────────────────────── observations ───────────────────────
+
+  /observations/state:
+    post:
+      tags: [observations]
+      summary: Три остальных исхода разговора — объект не создаётся
+      description: |
+        «Отказ / не звонить», «Недозвон», «Перезвонить через N дней», «Скрыть из ленты».
+        Ни Property, ни OwnerContact не создаются (требование J4).
+        Дедупликация не запускается (J5).
+        Телефон сохраняется в индексе всегда (J6) — иначе объявление всплывёт снова.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ObservationStateInput' }
+      responses:
+        '200':
+          description: Состояние записано
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ObservationState' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /observations:
+    post:
+      tags: [observations]
+      summary: Пассивный сбор наблюдения (фаза 9)
+      description: |
+        Расширение отправляет то, что попалось агенту на глаза.
+        Серверного обхода площадок нет и не будет без отдельного ADR (C-02).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items: { $ref: '#/components/schemas/ObservationInput' }
+      responses:
+        '202': { description: Принято }
+
+  # ─────────────────────── properties ───────────────────────
+
+  /properties:
+    get:
+      tags: [properties]
+      summary: Список объектов
+      description: |
+        Область определяется ролью, а не параметром: ADMIN и MANAGER — компания,
+        AGENT — своя команда (Q5). Объекты чужих команд приходят с visibility=limited:
+        без телефона собственника и без описания (Q40).
+      parameters:
+        - { name: status, in: query, schema: { type: string } }
+        - { name: assignedUserId, in: query, schema: { type: string, format: uuid } }
+        - { name: origin, in: query, schema: { $ref: '#/components/schemas/PropertyOrigin' } }
+        - { name: q, in: query, schema: { type: string }, description: Поиск, область та же }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: Страница списка
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/Property' }
+                  nextCursor: { type: string, nullable: true }
+    post:
+      tags: [properties]
+      summary: Ручное создание объекта (Q29)
+      description: Создаёт объект с origin=manual. Одно из двух исключений правила R14.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PropertyManualInput' }
+      responses:
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Property' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+
+  /properties/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [properties]
+      summary: Карточка объекта
+      responses:
+        '200':
+          description: Объект
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PropertyDetail' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    patch:
+      tags: [properties]
+      summary: Изменение объекта
+      description: AGENT правит только свои объекты (Q1). Поле origin неизменяемо.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PropertyPatch' }
+      responses:
+        '200':
+          description: Изменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PropertyDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [properties]
+      summary: Удаление объекта
+      responses:
+        '204': { description: Удалён }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /properties/{id}/assign:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [properties]
+      summary: Передача объекта другому агенту
+      description: Право MANAGER и ADMIN (Q3). Запись в ActivityLog с before/after обязательна.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignedUserId]
+              properties:
+                assignedUserId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Передан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PropertyDetail' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /properties/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    patch:
+      tags: [properties]
+      summary: Смена статуса воронки
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pipelineStatusId]
+              properties:
+                pipelineStatusId: { type: string, format: uuid }
+      responses:
+        '200':
+          description: Статус изменён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PropertyDetail' }
+
+  /properties/{id}/publish-check:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: source, in: query, required: true, schema: { $ref: '#/components/schemas/Source' } }
+    get:
+      tags: [publications]
+      summary: Проверка «объект уже размещён» до заполнения формы
+      description: Область проверки — компания, не команда (инвариант 9, требование I22).
+      responses:
+        '200':
+          description: Результат проверки
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [alreadyPublished]
+                properties:
+                  alreadyPublished: { type: boolean }
+                  existing:
+                    type: array
+                    items: { $ref: '#/components/schemas/Publication' }
+                  reasonHuman: { type: string }
+                  actions:
+                    type: array
+                    items:
+                      type: string
+                      enum: [open_existing, publish_anyway, cancel]
+
+  # ─────────────────────── publications ───────────────────────
+
+  /publications/draft:
+    post:
+      tags: [publications]
+      summary: Черновик публикации — собирается на сервере
+      description: |
+        Единственное место, где обеспечено правило 13: расширение не получает данных,
+        которые могло бы вписать в форму площадки.
+        Ответ содержит белый список полей и блок publisher из профиля публикации.
+        Блока owner в схеме ответа не существует.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [propertyId, targetSource]
+              properties:
+                propertyId: { type: string, format: uuid }
+                targetSource: { $ref: '#/components/schemas/Source' }
+                publishProfileId:
+                  type: string
+                  format: uuid
+                  description: Не указан — берётся профиль по умолчанию, без диалога (P4)
+      responses:
+        '200':
+          description: Черновик
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publicationId, draft]
+                properties:
+                  publicationId: { type: string, format: uuid }
+                  draft: { $ref: '#/components/schemas/ListingPublishDraft' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /publications/{id}/filled:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [publications]
+      summary: Отчёт о заполнении формы
+      description: |
+        Здесь, а не при подтверждении, объект переходит в статус «Принято в работу» (J13):
+        расширение не знает, нажал ли агент «Опубликовать» (инвариант 13).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FillResult' }
+      responses:
+        '200':
+          description: Записано, статус публикации filled
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Publication' }
+
+  /publications/{id}/confirm:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [publications]
+      summary: Подтверждение факта публикации агентом
+      description: |
+        Единственный способ перевести публикацию в статус published (инвариант 13).
+        Повторное подтверждение — 409, а не молчаливое обновление.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [externalUrl]
+              properties:
+                externalId: { type: string }
+                externalUrl: { type: string, format: uri }
+      responses:
+        '200':
+          description: Подтверждено
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Publication' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /publications:
+    get:
+      tags: [publications]
+      summary: Публикации объекта
+      parameters:
+        - { name: propertyId, in: query, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Publication' }
+
+  /publish-profiles:
+    get:
+      tags: [publications]
+      summary: Профили публикации компании
+      description: Читают все роли — агент должен видеть, от чьего имени размещается объявление.
+      responses:
+        '200':
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PublishProfile' }
+    post:
+      tags: [publications]
+      summary: Создание профиля
+      description: Право ADMIN и MANAGER (I15). Агент не может подставить свой личный номер.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishProfileInput' }
+      responses:
+        '201':
+          description: Создан
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublishProfile' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  # ─────────────────────────── feed ───────────────────────────
+
+  /feed:
+    get:
+      tags: [feed]
+      summary: Лента «Выгодные объявления» (фаза 10)
+      description: |
+        Область — вся компания, всем ролям одинаково (K25).
+        Фильтры влияют только на выдачу, но не на права (K28).
+      parameters:
+        - { name: district, in: query, schema: { type: string } }
+        - { name: rooms, in: query, schema: { type: integer } }
+        - { name: transactionType, in: query, schema: { $ref: '#/components/schemas/TransactionType' } }
+        - { name: cursor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: Позиции ленты
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/FeedItem' }
+                  nextCursor: { type: string, nullable: true }
+
+  /feed/{observationId}/open:
+    parameters:
+      - { name: observationId, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [feed]
+      summary: Мягкая блокировка — «в работе у Нино, 3 минуты назад»
+      description: |
+        Видимость, а не блокировка (K29, K30). Полноценная блокировка превратила бы
+        общую ленту в гонку за кнопку.
+      responses:
+        '204': { description: Отмечено }
+
+  # ───────────────────────── migrations ─────────────────────────
+
+  /migrations:
+    post:
+      tags: [migrations]
+      summary: Загрузка файла агентства как есть (фаза 4В)
+      description: xlsx или csv без приведения к шаблону. Право ADMIN.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+                mappingSchemaId: { type: string, format: uuid }
+      responses:
+        '201':
+          description: Загружен, обнаружены колонки
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MigrationBatch' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /migrations/{id}/mapping:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [migrations]
+      summary: Сопоставление колонок файла с полями системы
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mapping]
+              properties:
+                mapping:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: колонка файла → поле системы
+                saveAsSchemaName:
+                  type: string
+                  description: Сохранить сопоставление на компанию для следующих файлов (L4)
+      responses:
+        '200':
+          description: Сопоставление принято
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MigrationBatch' }
+
+  /migrations/{id}/preview:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      tags: [migrations]
+      summary: Первые 20 строк и дубли внутри файла — до записи
+      responses:
+        '200':
+          description: Предпросмотр
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MigrationPreview' }
+
+  /migrations/{id}/apply:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [migrations]
+      summary: Применение импорта
+      description: Все созданные объекты получают origin=legacy_import и migrationBatchId.
+      responses:
+        '200':
+          description: Применён
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MigrationBatch' }
+
+  /migrations/{id}/rollback:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      tags: [migrations]
+      summary: Откат импорта целиком одной операцией (L9)
+      responses:
+        '200':
+          description: Откачен
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MigrationBatch' }
+
+  # ───────────────────────── telemetry ─────────────────────────
+
+  /telemetry/parse-failure:
+    post:
+      tags: [telemetry]
+      summary: Ошибка разбора страницы объявления
+      description: |
+        О смене вёрстки площадки нужно узнавать из метрики, а не от разозлённого агента (R-02).
+        Схема не позволяет передать персональные данные — правило 10 обеспечено типом.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ParseFailureEvent' }
+      responses:
+        '204': { description: Принято }
+
+  /telemetry/fill-failure:
+    post:
+      tags: [telemetry]
+      summary: Ошибка заполнения формы размещения
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/FillFailureEvent' }
+      responses:
+        '204': { description: Принято }
+
+  # ───────────────────────── reference ─────────────────────────
+
+  /pipeline-statuses:
+    get:
+      tags: [reference]
+      summary: Статусы воронки компании
+      description: |
+        Пять статусов создаются сидом (§5Б.4). Хардкод статусов запрещён — инвариант 4.
+      responses:
+        '200':
+          description: Список
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PipelineStatus' }
+
+  /analytics/dashboard:
+    get:
+      tags: [reference]
+      summary: Дашборд по роли
+      description: ADMIN видит компанию, MANAGER — свою команду, AGENT — себя (F2).
+      responses:
+        '200':
+          description: Показатели
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DashboardMetrics' }
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Расширение передаёт access-токен заголовком.
+        Веб использует httpOnly cookie с тем же токеном.
+
+  responses:
+    ValidationError:
+      description: Тело не прошло схему
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthenticated:
+      description: Токена нет, истёк или отозван
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Ресурс своей компании, но роль не позволяет
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: |
+        Ресурса нет ЛИБО он принадлежит другой компании.
+        Эти два случая снаружи неразличимы намеренно: 403 подтвердил бы существование.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Нарушение уникальности или повторное подтверждение
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    RateLimited:
+      description: Превышено ограничение частоты
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              enum:
+                - VALIDATION_ERROR
+                - UNAUTHENTICATED
+                - FORBIDDEN
+                - NOT_FOUND
+                - CONFLICT
+                - DUPLICATE_BLOCKED
+                - PHONE_NOT_REVEALED
+                - RATE_LIMITED
+                - INTERNAL
+            message: { type: string }
+            requestId: { type: string }
+            details: { type: object }
+
+    Source:
+      type: string
+      enum: [SS_GE, MYHOME_GE]
+
+    TransactionType:
+      type: string
+      enum: [SALE, RENT]
+
+    PropertyType:
+      type: string
+      enum: [APARTMENT, HOUSE, LAND, COMMERCIAL]
+
+    PropertyOrigin:
+      type: string
+      enum: [consent, manual, legacy_import]
+      description: |
+        Обязательное поле каждого объекта (требование J15, инвариант 14).
+        Через API не изменяется: иначе правило R14 обходится одним PATCH.
+
+    Role:
+      type: string
+      enum: [ADMIN, MANAGER, AGENT]
+
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: Секунд до истечения access }
+
+    CurrentUser:
+      type: object
+      required: [id, email, fullName, role, companyId]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        companyId: { type: string, format: uuid }
+        companyName: { type: string }
+        teamId: { type: string, format: uuid, nullable: true }
+        teamName: { type: string, nullable: true }
+
+    ListingImportPayload:
+      type: object
+      required: [source, sourceUrl, owner, parserVersion]
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        sourceUrl: { type: string, format: uri }
+        externalId:
+          type: string
+          nullable: true
+          description: Может отсутствовать у площадки в принципе (риск R-08)
+        title: { type: string }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        transactionType: { $ref: '#/components/schemas/TransactionType' }
+        price: { type: number }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        area: { type: number }
+        rooms: { type: integer }
+        bedrooms: { type: integer }
+        floor: { type: integer }
+        totalFloors: { type: integer }
+        address: { type: string }
+        description: { type: string }
+        photos:
+          type: array
+          items: { type: string, format: uri }
+          description: Только URL. Файлы в MVP не хранятся (Q11), последствие — риск R-07
+        owner:
+          type: object
+          required: [phone]
+          properties:
+            name: { type: string }
+            phone:
+              type: string
+              description: |
+                Обязателен. Правило 11: без раскрытого номера запрос не отправляется.
+        attributes: { type: object }
+        parserVersion:
+          type: string
+          description: Версия чтения, отдельная от formVersion (инвариант 6)
+        missingFields:
+          type: array
+          items: { type: string }
+          description: Что извлечь не удалось — честно, а не молча (требование D9)
+        acknowledgedDuplicateOf:
+          type: array
+          items: { type: string, format: uuid }
+          description: |
+            Механизм «Добавить всё равно»: агент повторяет запрос, перечислив совпадения,
+            которые сознательно признал не-дублями. При EXACT не действует.
+
+    ImportResult:
+      type: object
+      required: [result, verdict]
+      properties:
+        result:
+          type: string
+          enum: [created, duplicate_blocked, duplicate_warning, linked_to_existing]
+          description: |
+            linked_to_existing — четвёртый исход, добавленный к контракту промпта (Q23).
+            Без него нельзя отличить «объект уже есть» от «объявление с другой площадки
+            привязано к твоему объекту» — для агента это разные сообщения.
+        verdict:
+          type: string
+          enum: [EXACT, STRONG, POSSIBLE, NONE]
+        property: { $ref: '#/components/schemas/PropertyBrief' }
+        matches:
+          type: array
+          items: { $ref: '#/components/schemas/DuplicateMatch' }
+        actions:
+          type: array
+          items:
+            type: string
+            enum: [open_existing, cancel, import_anyway]
+
+    DuplicateMatch:
+      type: object
+      required: [propertyId, score, reasonHuman, scope]
+      properties:
+        propertyId: { type: string, format: uuid }
+        score: { type: number, minimum: 0, maximum: 1 }
+        comparableFields:
+          type: integer
+          description: |
+            Признаков, сравнимых у обеих сторон. Два совпавших из двух и два из девяти —
+            разные ситуации, и агент должен видеть разницу.
+        matchedFields: { type: integer }
+        scope:
+          type: string
+          enum: [team, company]
+          description: |
+            company означает совпадение в другой команде. Такое совпадение
+            НИКОГДА не блокирует создание: конкуренция между командами разрешена.
+        reasons:
+          type: array
+          items:
+            type: object
+            properties:
+              field: { type: string }
+              weight: { type: number }
+              detail: { type: string }
+        reasonHuman:
+          type: string
+          description: Обязателен. Агент должен понимать причину без разработчика
+        preview: { $ref: '#/components/schemas/DuplicatePreview' }
+
+    DuplicatePreview:
+      type: object
+      description: |
+        Для объекта другой команды состав урезан: без телефона собственника и без описания (Q40).
+      properties:
+        title: { type: string }
+        address: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        price: { type: number }
+        currency: { type: string }
+        status: { type: string }
+        assignedAgent: { type: string }
+        team: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    PropertyBrief:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        address: { type: string }
+
+    Property:
+      type: object
+      required: [id, origin, visibility]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        origin: { $ref: '#/components/schemas/PropertyOrigin' }
+        originAt: { type: string, format: date-time }
+        visibility:
+          type: string
+          enum: [full, limited]
+          description: |
+            limited — объект другой команды. Телефон и описание отсутствуют в ответе.
+            Клиент обязан это учитывать; полагаться на то, что он «просто не покажет»,
+            нельзя — правило 6.
+        pipelineStatusId: { type: string, format: uuid }
+        assignedUserId: { type: string, format: uuid, nullable: true }
+        teamName: { type: string }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        transactionType: { $ref: '#/components/schemas/TransactionType' }
+        price: { type: number, nullable: true }
+        currency: { type: string, nullable: true }
+        area: { type: number, nullable: true }
+        rooms: { type: integer, nullable: true }
+        floor: { type: integer, nullable: true }
+        totalFloors: { type: integer, nullable: true }
+        district: { type: string, nullable: true }
+        address: { type: string, nullable: true }
+        photos:
+          type: array
+          items: { type: string, format: uri }
+        updatedAt: { type: string, format: date-time }
+
+    PropertyDetail:
+      allOf:
+        - $ref: '#/components/schemas/Property'
+        - type: object
+          properties:
+            description: { type: string, nullable: true }
+            publicDescription:
+              type: string
+              nullable: true
+              description: Отдельно от описания источника — чужой текст не публикуется (P1)
+            owner:
+              type: object
+              nullable: true
+              description: Отсутствует при visibility=limited
+              properties:
+                name: { type: string, nullable: true }
+                phones:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      original: { type: string }
+                      normalized: { type: string }
+                      isPrimary: { type: boolean }
+            sourceListings:
+              type: array
+              items: { $ref: '#/components/schemas/SourceListing' }
+            linkedTeams:
+              type: array
+              description: |
+                Мягкая пометка: тот же объект ведут другие команды компании (PropertyLink).
+                Прав не даёт — только видимость факта.
+              items:
+                type: object
+                properties:
+                  teamName: { type: string }
+                  assignedAgent: { type: string }
+
+    PropertyManualInput:
+      type: object
+      required: [transactionType, propertyType]
+      properties:
+        title: { type: string }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        transactionType: { $ref: '#/components/schemas/TransactionType' }
+        price: { type: number }
+        currency: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        floor: { type: integer }
+        totalFloors: { type: integer }
+        district: { type: string }
+        address: { type: string }
+        description: { type: string }
+        owner:
+          type: object
+          properties:
+            name: { type: string }
+            phone: { type: string }
+
+    PropertyPatch:
+      type: object
+      description: origin, companyId и teamId отсутствуют намеренно — они неизменяемы через API
+      properties:
+        title: { type: string }
+        price: { type: number }
+        currency: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        floor: { type: integer }
+        totalFloors: { type: integer }
+        district: { type: string }
+        address: { type: string }
+        description: { type: string }
+        publicDescription: { type: string }
+
+    SourceListing:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        source: { $ref: '#/components/schemas/Source' }
+        externalId: { type: string, nullable: true }
+        canonicalUrl: { type: string, format: uri }
+        price: { type: number, nullable: true }
+        currency: { type: string, nullable: true }
+        lifecycle:
+          type: string
+          enum: [active, stale, removed]
+          description: Меняет человек. Фонового опроса площадок нет (Q32)
+        firstSeenAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        parserVersion: { type: string }
+        missingFields:
+          type: array
+          items: { type: string }
+
+    ObservationStateInput:
+      type: object
+      required: [source, state]
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        externalId: { type: string, nullable: true }
+        canonicalUrl: { type: string, format: uri }
+        state:
+          type: string
+          enum: [refused, no_answer, callback, skipped]
+          description: |
+            «Согласен» здесь отсутствует намеренно: он идёт через /import/listing,
+            потому что создаёт объект. Остальные четыре объекта не создают.
+        callbackAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Обязателен при state=callback
+        doNotCallCompanyWide:
+          type: boolean
+          default: false
+          description: |
+            Не отдельное состояние, а флаг при refused (Q40а).
+            Обычный отказ действует на команду — другая может попробовать.
+            «Просил не звонить» действует на всю компанию и не сбрасывается изменением цены.
+        note: { type: string, nullable: true }
+        observation:
+          $ref: '#/components/schemas/ObservationInput'
+
+    ObservationInput:
+      type: object
+      required: [source]
+      description: |
+        Данные объявления для общего индекса. Телефон сохраняется даже при отказе (J6):
+        иначе то же объявление всплывёт в ленте завтра и второй агент команды
+        позвонит тому же собственнику.
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        externalId: { type: string, nullable: true }
+        canonicalUrl: { type: string, format: uri }
+        price: { type: number }
+        currency: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        floor: { type: integer }
+        totalFloors: { type: integer }
+        district: { type: string }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        transactionType: { $ref: '#/components/schemas/TransactionType' }
+        ownerName: { type: string, nullable: true }
+        ownerPhone: { type: string, nullable: true }
+
+    ObservationState:
+      type: object
+      properties:
+        observationId: { type: string, format: uuid }
+        state:
+          type: string
+          enum: [new, skipped, refused, no_answer, callback, converted]
+        callbackAt: { type: string, format: date-time, nullable: true }
+        doNotCallCompanyWide: { type: boolean }
+        note: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+
+    FeedItem:
+      type: object
+      required: [observationId, sampleSize, reasonHuman]
+      properties:
+        observationId: { type: string, format: uuid }
+        source: { $ref: '#/components/schemas/Source' }
+        canonicalUrl: { type: string, format: uri }
+        price: { type: number }
+        currency: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        district: { type: string }
+        deviation:
+          type: number
+          nullable: true
+          description: |
+            Отклонение цены за м² от медианы по корзине. null, когда sampleSize
+            ниже порога достаточности данных — тогда цифра не показывается вовсе (K16).
+        sampleSize:
+          type: integer
+          description: |
+            Возвращается всегда. Отклонение без размера выборки рано или поздно
+            покажет «на 18% ниже похожих», где похожих было двое (риск R-33).
+        isSuspicious:
+          type: boolean
+          description: Отклонение больше 40% — наверх ленты не идёт (K17)
+        reasonHuman:
+          type: string
+          description: |
+            Обязательна. «На 12% ниже похожих в Сабуртало», а не число.
+            Чёрный ящик со скором агенты игнорируют.
+        firstSeenAt: { type: string, format: date-time }
+        priceDropCount: { type: integer }
+        workingNow:
+          type: object
+          nullable: true
+          description: Мягкая блокировка — видимость, а не запрет (K29)
+          properties:
+            userName: { type: string }
+            sinceMinutes: { type: integer }
+
+    ListingPublishDraft:
+      type: object
+      required: [propertyId, targetSource, publisher]
+      description: |
+        БЕЛЫЙ СПИСОК ПОЛЕЙ. Блока owner в этой схеме нет и не появится — правило 13.
+        Проверяется тестом, а не договорённостью: черновик не должен содержать
+        номер собственника ни в одной нормализации и не должен содержать его имя.
+      properties:
+        propertyId: { type: string, format: uuid }
+        targetSource: { $ref: '#/components/schemas/Source' }
+        propertyType: { $ref: '#/components/schemas/PropertyType' }
+        transactionType: { $ref: '#/components/schemas/TransactionType' }
+        price: { type: number }
+        currency: { type: string }
+        area: { type: number }
+        rooms: { type: integer }
+        bedrooms: { type: integer }
+        floor: { type: integer }
+        totalFloors: { type: integer }
+        address: { type: string }
+        publicDescription:
+          type: string
+          description: Очищено от телефонов и имени собственника (требование I7a)
+        attributes: { type: object }
+        publisher:
+          type: object
+          required: [displayName, phone]
+          description: Контакт агентства из PublishProfile. Никогда не OwnerContact
+          properties:
+            displayName: { type: string }
+            phone: { type: string }
+
+    FillResult:
+      type: object
+      required: [snapshotId, filled, unfilled, formVersion]
+      properties:
+        snapshotId:
+          type: string
+          description: Состояние формы до заполнения — для «Очистить форму» (требование I12)
+        formVersion:
+          type: string
+          description: Версия заполнения, отдельная от parserVersion (требование I9)
+        filled:
+          type: array
+          items: { type: string }
+        unfilled:
+          type: array
+          items:
+            type: object
+            required: [field, reason]
+            properties:
+              field: { type: string }
+              reason:
+                type: string
+                enum: [no_value, no_mapping, field_not_found, manual_only]
+                description: |
+                  Частичное заполнение — штатный режим (правило 14).
+                  Придуманных и «ближайших похожих» значений в форме не бывает.
+
+    Publication:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        propertyId: { type: string, format: uuid }
+        source: { $ref: '#/components/schemas/Source' }
+        status:
+          type: string
+          enum: [draft, filled, published, expired]
+          description: |
+            published ставится ТОЛЬКО по подтверждению агента (инвариант 13).
+            Без подтверждения остаётся filled — и это оставляет дыру в защите
+            от самоимпорта, закрываемую запасными признаками (Q31).
+        publishProfileId: { type: string, format: uuid }
+        publisherDisplayName: { type: string }
+        formVersion: { type: string, nullable: true }
+        externalId: { type: string, nullable: true }
+        externalUrl: { type: string, format: uri, nullable: true }
+        unfilledFields:
+          type: array
+          items: { type: string }
+        filledAt: { type: string, format: date-time, nullable: true }
+        publishedAt: { type: string, format: date-time, nullable: true }
+
+    PublishProfile:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+          description: Заполнен — личный профиль агента; пуст — общий профиль компании
+        displayName: { type: string }
+        phone: { type: string }
+        isDefault: { type: boolean }
+
+    PublishProfileInput:
+      type: object
+      required: [displayName, phone]
+      properties:
+        userId: { type: string, format: uuid, nullable: true }
+        displayName: { type: string }
+        phone: { type: string }
+        isDefault: { type: boolean, default: false }
+
+    PipelineStatus:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        code:
+          type: string
+          enum: [IN_BASE, IN_PROGRESS, OFFERED, CLOSED, ARCHIVED]
+          description: |
+            Пять статусов, а не десять: черновой набор спецификации отменён версией 2.2.
+            Стадии до согласия переехали в ObservationState — до звонка объекта нет.
+        name: { type: string }
+        sortOrder: { type: integer }
+        isSystem:
+          type: boolean
+          description: IN_BASE и IN_PROGRESS защищены от удаления — на них завязаны переходы
+        colorToken: { type: string }
+
+    MigrationBatch:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        fileName: { type: string }
+        status:
+          type: string
+          enum: [draft, previewed, applied, rolled_back]
+        detectedColumns:
+          type: array
+          items: { type: string }
+        totalRows: { type: integer }
+        acceptedRows: { type: integer, nullable: true }
+        rejectedRows: { type: integer, nullable: true }
+        createdAt: { type: string, format: date-time }
+        appliedAt: { type: string, format: date-time, nullable: true }
+
+    MigrationPreview:
+      type: object
+      properties:
+        rows:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            properties:
+              rowNumber: { type: integer }
+              mapped: { type: object }
+              issues:
+                type: array
+                items: { type: string }
+        duplicatesInsideFile:
+          type: array
+          description: Дубли внутри самого файла — показываются до записи (L7, L8)
+          items:
+            type: object
+            properties:
+              rowNumbers:
+                type: array
+                items: { type: integer }
+              reasonHuman: { type: string }
+        rejectedCount: { type: integer }
+
+    ParseFailureEvent:
+      type: object
+      required: [source, parserVersion, errorCode]
+      description: |
+        ПЕРСОНАЛЬНЫХ ДАННЫХ В ЭТОЙ СХЕМЕ НЕТ И НЕ БУДЕТ (правило 10, требование D14).
+        Имя, телефон и содержимое страницы передать нечем — это свойство типа,
+        а не дисциплины разработчика.
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        parserVersion: { type: string }
+        url: { type: string, format: uri }
+        selectorKey:
+          type: string
+          description: Логическое имя поля, а не сам селектор
+        errorCode: { type: string }
+        occurredAt: { type: string, format: date-time }
+
+    FillFailureEvent:
+      type: object
+      required: [source, formVersion, errorCode]
+      properties:
+        source: { $ref: '#/components/schemas/Source' }
+        formVersion: { type: string }
+        url: { type: string, format: uri }
+        fieldKey: { type: string }
+        errorCode: { type: string }
+        occurredAt: { type: string, format: date-time }
+
+    DashboardMetrics:
+      type: object
+      properties:
+        scope:
+          type: string
+          enum: [company, team, self]
+        consentsPerDay:
+          type: array
+          description: Главная продуктовая метрика — согласий на агента в день (J24)
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              count: { type: integer }
+        newPropertiesWeek: { type: integer }
+        statusDistribution:
+          type: object
+          additionalProperties: { type: integer }
+        duplicateRate: { type: number }
+        failedImportRate: { type: number }
+        parserFailureRate:
+          type: number
+          description: О смене вёрстки узнаём отсюда, а не от агента (риск R-02)
+        fillFailureRate: { type: number }
+        missingFieldsRate:
+          type: number
+          description: Доля импортов с непустым missingFields — отражает гипотезу продукта (R-12)
+        medianSecondsToConsent:
+          type: number
+          description: |
+            Медианный интервал «открыл объявление → Согласен».
+            Управленческая метрика против формального нажатия кнопки (риск R-29).
