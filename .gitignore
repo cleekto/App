@@ -31,3 +31,11 @@ Thumbs.db
 
 # Prisma генерирует клиент в node_modules, но при смене output — сюда
 packages/db/generated/
+
+# Фикстуры — сохранённые страницы площадок.
+#
+# В них настоящие телефоны и имена собственников, а репозиторий публичный.
+# В git не попадают до обезличивания (правило 10). README внутри — попадает.
+docs/fixtures/**
+!docs/fixtures/README.md
+!docs/fixtures/**/.gitkeep
