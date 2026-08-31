@@ -1,0 +1,81 @@
+name: CI
+
+# Обязателен с фазы 2. Красный CI — работа не продолжается (промпт §7).
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Тестовые значения. Настоящие секреты сюда не попадают никогда (правило 8).
+  DATABASE_URL: postgresql://cleekto:cleekto_ci@localhost:5432/cleekto_test?schema=public
+  DIRECT_URL: postgresql://cleekto:cleekto_ci@localhost:5432/cleekto_test?schema=public
+  AUTH_JWT_SECRET: ci_only_secret_not_used_anywhere_else_32b
+  AUTH_ACCESS_TTL_SECONDS: '900'
+  AUTH_REFRESH_TTL_SECONDS: '2592000'
+  APP_URL: http://localhost:3000
+  DEFAULT_LOCALE: en
+
+jobs:
+  check:
+    name: typecheck · lint · test · build
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: cleekto
+          POSTGRES_PASSWORD: cleekto_ci
+          POSTGRES_DB: cleekto_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cleekto -d cleekto_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Установка зависимостей
+        run: pnpm install --frozen-lockfile
+
+      - name: Генерация клиента Prisma
+        run: pnpm db:generate
+
+      # Миграция применяется на ЧИСТОЙ базе на каждом запуске. Это и есть
+      # проверка требования фазы 2: миграция обязана применяться с нуля,
+      # а не только на машине, где она когда-то уже проходила.
+      - name: Применение миграций на чистой базе
+        run: pnpm db:migrate:deploy
+
+      - name: Типы
+        run: pnpm typecheck
+
+      - name: Линтер и форматирование
+        run: pnpm lint
+
+      - name: Тесты
+        run: pnpm test
+
+      # Отдельным шагом, потому что требуют живой базы и проверяют то,
+      # чего юнит-тесты проверить не могут: что миграция реально применилась
+      # и что pg_trgm считает.
+      - name: Интеграционные тесты
+        run: pnpm test:integration
+
+      - name: Сборка
+        run: pnpm build
