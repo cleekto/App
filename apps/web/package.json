@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter @cleekto/db exec prisma generate && next build",
     "start": "next start",
     "typecheck": "tsc --noEmit"
   },

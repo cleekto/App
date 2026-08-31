@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
