@@ -371,6 +371,12 @@ describe('области: команда блокирует, компания п
     expect(other.result).toBe('created');
     expect(other.otherTeamMatches.length).toBeGreaterThan(0);
     expect(other.otherTeamMatches[0]?.scope).toBe('company');
+
+    // Вердикт считается ТОЛЬКО по своей команде. Проверяется отдельно,
+    // потому что решение о блокировке принимается по другому полю: если
+    // однажды они разойдутся, отчёт агенту будет врать про причину.
+    expect(other.verdict).toBe('NONE');
+    expect(other.matches).toEqual([]);
   });
 
   it('телефон собственника чужой команды в пометке не показывается', async () => {
