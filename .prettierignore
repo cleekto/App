@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.next
+coverage
+pnpm-lock.yaml
+
+# Документы проекта форматируются человеком: prettier ломает ASCII-макеты
+# в DESIGN.md и выравнивание таблиц требований.
+docs/
+*.md
+
+# Сгенерированное Prisma
+packages/db/generated
+packages/db/prisma/migrations

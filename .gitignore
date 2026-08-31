@@ -1,0 +1,33 @@
+node_modules/
+.pnpm-store/
+
+# сборка
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# окружение — секреты только в .env, он никогда не коммитится (правило 8)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# база
+postgres-data/
+
+# инструменты
+coverage/
+.vitest/
+.eslintcache
+.DS_Store
+Thumbs.db
+
+# редакторы
+.vscode/
+.idea/
+*.swp
+
+# Prisma генерирует клиент в node_modules, но при смене output — сюда
+packages/db/generated/
