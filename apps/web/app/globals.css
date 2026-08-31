@@ -1,0 +1,56 @@
+@import 'tailwindcss';
+
+/*
+ * Область поиска классов задана явно. Tailwind 4 умеет определять её сам,
+ * но границей считает корень git-репозитория — а сборка не должна зависеть
+ * от того, инициализирован ли git и где он лежит.
+ */
+@source '../';
+
+/*
+ * Токены дизайн-системы. DESIGN.md §6 и §39: цвет несёт смысл, а не украшает,
+ * и фирменный цвет живёт в одном месте, а не размазан по компонентам.
+ *
+ * Палитра на фазе 2 — рабочая нейтральная основа. Фирменный цвет Cleekto
+ * ещё не зафиксирован владельцем; когда он появится, меняется одна строка.
+ */
+@theme {
+  --color-background: oklch(0.985 0 0);
+  --color-surface: oklch(1 0 0);
+  --color-text-primary: oklch(0.25 0.01 250);
+  --color-text-secondary: oklch(0.55 0.01 250);
+  --color-border: oklch(0.92 0.005 250);
+
+  --color-brand-primary: oklch(0.55 0.16 255);
+
+  --color-success: oklch(0.62 0.13 150);
+  --color-warning: oklch(0.75 0.14 75);
+  --color-danger: oklch(0.58 0.18 25);
+
+  --radius-card: 0.75rem;
+
+  /*
+   * Шрифт обязан покрывать мхедрули, кириллицу и латиницу: три языка
+   * встречаются на одном экране постоянно (ADR-0008, DESIGN.md §32.1).
+   * Системный стек — временное решение фазы 2; выбор гарнитуры делается
+   * после проверки покрытия кандидатов из DESIGN.md §7.
+   */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', 'Noto Sans', 'Noto Sans Georgian', sans-serif;
+}
+
+/*
+ * У мхедрули нет заглавных букв: uppercase в грузинском не делает ничего
+ * и рассогласовывает языки на одном экране. Акцент — размером, весом, цветом.
+ * Запрет проверяется тестом (ADR-0008).
+ */
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
