@@ -17,6 +17,15 @@ export const ACTIVITY = {
   TEAM_CREATED: 'TEAM_CREATED',
   ASSIGNED_TO_TEAM: 'ASSIGNED_TO_TEAM',
 
+  // Импорт и согласие
+  /// Агент получил согласие собственника — единственный путь появления
+  /// объекта в базе (правило R14).
+  OWNER_AGREED: 'OWNER_AGREED',
+  /// Объявление с другой площадки привязано к существующему объекту.
+  LISTING_LINKED: 'LISTING_LINKED',
+  /// Повторный импорт того же объявления: объект не создан, цена обновлена.
+  LISTING_RESEEN: 'LISTING_RESEEN',
+
   // Публикация
   PUBLISH_PROFILE_CREATED: 'PUBLISH_PROFILE_CREATED',
   PUBLISH_PROFILE_UPDATED: 'PUBLISH_PROFILE_UPDATED',
@@ -30,6 +39,8 @@ export const ENTITY = {
   COMPANY: 'Company',
   USER: 'User',
   TEAM: 'Team',
+  PROPERTY: 'Property',
+  SOURCE_LISTING: 'SourceListing',
   PUBLISH_PROFILE: 'PublishProfile',
 } as const;
 

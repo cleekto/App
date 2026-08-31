@@ -1,0 +1,48 @@
+{
+  "_": [
+    "Веса и пороги дедупликации. Требование C18: живут в конфиге, отдельно",
+    "от логики. Ни одно значение отсюда не появляется в коде литералом.",
+    "",
+    "Обоснование каждого числа — docs/architecture/duplicate-detection.md §3.",
+    "Любое изменение прогоняется по размеченному набору, точность и полнота",
+    "фиксируются в том же документе (требование C19).",
+    "",
+    "Это СТАРТОВЫЕ значения, а не выведенные из данных (риск R-03). Ранний",
+    "индикатор перекоса — доля предупреждений, закрытых через «Добавить",
+    "всё равно»: высокая означает, что система слишком строгая."
+  ],
+
+  "weights": {
+    "ownerPhone": 0.5,
+    "address": 0.2,
+    "area": 0.2,
+    "rooms": 0.16,
+    "photos": 0.12,
+    "price": 0.05,
+    "floor": 0.04,
+    "propertyType": 0.03,
+    "totalFloors": 0.02
+  },
+
+  "thresholds": {
+    "strong": 0.8,
+    "possible": 0.5
+  },
+
+  "matching": {
+    "areaTolerancePercent": 2,
+    "areaToleranceAbsolute": 1,
+    "priceTolerancePercent": 5,
+    "addressTrigramThreshold": 0.6,
+    "minComparableFieldsForStrong": 3
+  },
+
+  "candidates": {
+    "maxCandidates": 50,
+    "coarseAreaTolerancePercent": 10
+  },
+
+  "agencyPhone": {
+    "propertiesThreshold": 5
+  }
+}

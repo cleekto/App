@@ -1,8 +1,8 @@
 // Cleekto — схема базы данных.
 //
-// Источник: docs/architecture/erd.md. Фаза 3 добавляет арендаторов, доступ
-// и журнал действий. Объекты, объявления и контакты собственников приедут
-// в фазе 4 — их здесь нет намеренно.
+// Источник: docs/architecture/erd.md.
+// Фаза 3 — арендаторы, доступ, журнал. Фаза 4 — объекты, объявления,
+// контакты собственников, индекс наблюдений и дедупликация.
 //
 // ПРАВИЛО 9: применённые миграции не редактируются. Изменение схемы — это
 // всегда новая миграция, а не правка существующей.
@@ -52,6 +52,9 @@ model Company {
   pipelineStatuses PipelineStatus[]
   activityLog      ActivityLog[]
   publishProfiles  PublishProfile[]
+  ownerContacts    OwnerContact[]
+  propertyLinks    PropertyLink[]
+  properties       Property[]
 
   @@map("companies")
 }
@@ -65,8 +68,9 @@ model Team {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  members TeamMember[]
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  members    TeamMember[]
+  properties Property[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -166,16 +170,16 @@ model TeamMember {
 /// Refresh-токены с ротацией. Хранится хеш, а не сам токен: утечка базы
 /// не должна давать доступ к живым сессиям.
 model RefreshToken {
-  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String    @db.Uuid
-  tokenHash String    @unique
-  expiresAt DateTime
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId       String    @db.Uuid
+  tokenHash    String    @unique
+  expiresAt    DateTime
   /// Отозван при ротации или при выходе.
-  revokedAt DateTime?
+  revokedAt    DateTime?
   /// Токен, выданный взамен этого. Повторное использование отозванного
   /// токена — признак кражи, и по цепочке видно, что произошло.
-  replacedById String?  @db.Uuid
-  createdAt    DateTime @default(now())
+  replacedById String?   @db.Uuid
+  createdAt    DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -191,17 +195,18 @@ model RefreshToken {
 /// Инвариант 4: статусы воронки не захардкожены.
 /// Сид создаёт пять статусов на компанию (промпт §5Б.4).
 model PipelineStatus {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  companyId String  @db.Uuid
-  code      String
-  name      String
-  sortOrder Int
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String  @db.Uuid
+  code       String
+  name       String
+  sortOrder  Int
   /// IN_BASE и IN_PROGRESS защищены от удаления: на них завязаны переходы,
   /// а не только отображение.
   isSystem   Boolean @default(false)
   colorToken String?
 
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  properties Property[]
 
   @@unique([companyId, code])
   @@index([companyId, sortOrder])
@@ -214,9 +219,9 @@ model PipelineStatus {
 /// ПРАВИЛО 10: персональных данных в before/after нет. Смена телефона
 /// собственника пишется как факт изменения с маской, а не со значением.
 model ActivityLog {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  companyId String  @db.Uuid
-  teamId    String? @db.Uuid
+  id         String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId  String  @db.Uuid
+  teamId     String? @db.Uuid
   /// Пусто, если действие выполнила система, а не человек.
   userId     String? @db.Uuid
   entityType String
@@ -253,14 +258,14 @@ model ActivityLog {
 /// и потому, что телефоны профилей участвуют в двух проверках уровня компании:
 /// исключение из дедупликации по телефону (I20) и признак самоимпорта (Q31).
 model PublishProfile {
-  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  companyId String  @db.Uuid
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId   String  @db.Uuid
   /// Заполнен — личный профиль агента; пуст — общий профиль компании.
   userId      String? @db.Uuid
   displayName String
 
   /// Номер как ввёл человек.
-  phoneOriginal String
+  phoneOriginal   String
   /// E.164. Нужен не для показа, а для сравнения: без нормализованного вида
   /// проверка самоимпорта не сработает.
   phoneNormalized String
@@ -276,4 +281,378 @@ model PublishProfile {
   /// Исключение своих номеров из дедупликации уровней 2–3 (I20).
   @@index([companyId, phoneNormalized])
   @@map("publish_profiles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Объекты и объявления (фаза 4)
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum Source {
+  SS_GE
+  MYHOME_GE
+}
+
+enum TransactionType {
+  SALE
+  RENT
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  LAND
+  COMMERCIAL
+}
+
+/// Как объект попал в базу. Правило R14 разрешает ровно два исключения
+/// из «только по согласию», и оба обязаны быть видимы в карточке.
+enum PropertyOrigin {
+  /// Обычный путь: агент поговорил с собственником и получил согласие.
+  consent
+  /// Создан руками в вебе (Q29).
+  manual
+  /// Перенесён из файла агентства, фаза 4В.
+  legacy_import
+}
+
+/// Живёт ли объявление на площадке. Меняет человек: фонового опроса
+/// площадок нет и не будет (Q32, правило R11).
+enum ListingLifecycle {
+  active
+  stale
+  removed
+}
+
+/// Состояние работы над объявлением. Живёт на объявлении, а не на объекте
+/// (инвариант 15): до согласия объекта не существует.
+enum ObservationStateValue {
+  new
+  skipped
+  refused
+  no_answer
+  callback
+  converted
+}
+
+/// Связка записей об одной физической квартире, заведённых разными командами.
+///
+/// После перевода дедупликации на область команды две команды одного
+/// агентства могут легально вести одну квартиру. Компании при этом нужно
+/// знать, что это одна квартира: без связки не работают защита от
+/// самоимпорта, предупреждение «объект уже размещён» и отчётность.
+///
+/// СВЯЗКА НЕ ДАЁТ ПРАВ. Агент чужой команды видит мягкую пометку, но не
+/// телефон и не описание (Q40). Смешать группировку с доступом — прямое
+/// нарушение правила 6.
+model PropertyLink {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  company    Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  properties Property[]
+
+  @@index([companyId])
+  @@map("property_links")
+}
+
+/// Контакт собственника.
+///
+/// ПРАВИЛО 10: имя и телефоны не логируются, не попадают в фикстуры
+/// в исходном виде и не уходят на площадку при публикации (правило 13).
+model OwnerContact {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String   @db.Uuid
+  fullName  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  phones     OwnerContactPhone[]
+  properties Property[]
+
+  @@index([companyId])
+  @@map("owner_contacts")
+}
+
+/// Телефоны собственника отдельной таблицей, а не полями phone1 и phone2.
+///
+/// В объявлении регулярно два номера, а телефон — ключ дедупликации уровней
+/// 2 и 3, то есть по нему идёт ПОИСК. Два поля означали бы либо поиск по двум
+/// колонкам, либо потерю признака.
+model OwnerContactPhone {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ownerContactId String @db.Uuid
+  companyId      String @db.Uuid
+
+  /// Как на странице. Без оригинала разобраться в неверной нормализации
+  /// невозможно, а она ломает дедупликацию молча (риск R-06).
+  phoneOriginal   String
+  /// E.164. По нему идёт сравнение.
+  phoneNormalized String
+
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  ownerContact OwnerContact @relation(fields: [ownerContactId], references: [id], onDelete: Cascade)
+
+  /// ГЛАВНЫЙ ИНДЕКС ПРОДУКТА: дедупликация уровней 2 и 3.
+  @@index([companyId, phoneNormalized])
+  @@index([ownerContactId])
+  @@map("owner_contact_phones")
+}
+
+/// Физическая квартира. Существует независимо от того, рекламируется ли она
+/// сейчас хоть где-нибудь (инвариант 5).
+model Property {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  /// Владение — команда (Q33). Она же область проверки на дубли при «Согласен».
+  teamId         String  @db.Uuid
+  assignedUserId String? @db.Uuid
+  propertyLinkId String? @db.Uuid
+
+  pipelineStatusId String @db.Uuid
+
+  /// ОБЯЗАТЕЛЬНОЕ и неизменяемое через API. Необязательное поле через год
+  /// было бы наполовину пустым, и никто не сказал бы, был ли разговор
+  /// с собственником (J15, инвариант 14).
+  origin   PropertyOrigin
+  originAt DateTime       @default(now())
+
+  ownerContactId String? @db.Uuid
+
+  transactionType TransactionType
+  propertyType    PropertyType
+
+  rooms       Int?
+  areaTotal   Decimal? @db.Decimal(10, 2)
+  floor       Int?
+  totalFloors Int?
+
+  district          String?
+  /// Как на площадке.
+  addressRaw        String?
+  /// Приведённый вид для сравнения. Отдельным полем, потому что индекс
+  /// по триграммам строится только по хранимой колонке.
+  addressNormalized String?
+
+  price    Decimal? @db.Decimal(14, 2)
+  currency String?  @db.Char(3)
+
+  /// Описание из объявления — чужой текст.
+  descriptionSource String?
+  /// Текст для публикации, редактируется в CRM. Публиковать чужое описание
+  /// от своего имени странно и юридически, и стилистически (P1).
+  publicDescription String?
+
+  /// Только URL: файлы в MVP не хранятся (Q11). Последствие — риск R-07
+  /// и невозможность автоподстановки фото в форму размещения (P3).
+  photos String[]
+
+  createdByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team           Team           @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  pipelineStatus PipelineStatus @relation(fields: [pipelineStatusId], references: [id])
+  ownerContact   OwnerContact?  @relation(fields: [ownerContactId], references: [id], onDelete: SetNull)
+  propertyLink   PropertyLink?  @relation(fields: [propertyLinkId], references: [id], onDelete: SetNull)
+
+  sourceListings    SourceListing[]
+  observationStates ObservationState[]
+
+  @@index([companyId, teamId, pipelineStatusId])
+  @@index([companyId, teamId, updatedAt(sort: Desc)])
+  @@index([companyId, propertyLinkId])
+  @@index([companyId, teamId, ownerContactId])
+  /// Дедупликация 4 уровня: нечёткое сравнение адресов. Индекс по триграммам
+  /// строится только по хранимой колонке — поэтому addressNormalized
+  /// отдельное поле, а не вычисление на лету.
+  @@index([addressNormalized(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@map("properties")
+}
+
+/// Объявление об объекте на конкретной площадке.
+///
+/// Отделено от Property (инвариант 5). Без этого разделения дедупликация
+/// невозможна в принципе: собственник размещает одну квартиру на обеих
+/// площадках, и два импорта дали бы два одинаково настоящих объекта.
+model SourceListing {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId String @db.Uuid
+  companyId  String @db.Uuid
+
+  /// Денормализован ради частичных уникальных индексов идемпотентности:
+  /// ключ — на команде, а не на компании (Q43).
+  teamId String @db.Uuid
+
+  source       Source
+  /// МОЖЕТ ОТСУТСТВОВАТЬ у площадки в принципе (риск R-08). Уровни 2–4
+  /// обязаны работать без него.
+  externalId   String?
+  /// Запасной ключ, когда externalId нет. Канонизируется до сравнения.
+  canonicalUrl String
+  /// Как агент открыл страницу, со всеми метками.
+  originalUrl  String
+
+  price    Decimal? @db.Decimal(14, 2)
+  currency String?  @db.Char(3)
+
+  lifecycle ListingLifecycle @default(active)
+
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  /// Версия чтения, отдельная от formVersion: разметка страницы объявления
+  /// и форма размещения ломаются независимо (инвариант 6).
+  parserVersion String
+  /// Что извлечь не удалось — честно, а не молча (D9).
+  missingFields String[]
+
+  importedByUserId String?  @db.Uuid
+  importedAt       DateTime @default(now())
+
+  property     Property                    @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  priceHistory SourceListingPriceHistory[]
+
+  /// Идемпотентность, уровень 1 дедупликации. Два ЧАСТИЧНЫХ индекса, а не
+  /// один составной: NULL в Postgres не конфликтует сам с собой, и обычный
+  /// уникальный индекс по externalId пропустил бы сколько угодно записей
+  /// с пустым идентификатором.
+  @@unique([teamId, source, externalId])
+  @@unique([teamId, source, canonicalUrl])
+  @@index([propertyId])
+  @@index([companyId, canonicalUrl])
+  @@map("source_listings")
+}
+
+/// История цены объявления.
+///
+/// При повторном импорте цена уже сравнивается (Q21) — записать изменение
+/// стоит одну вставку. Даёт агенту аргумент в разговоре с собственником.
+model SourceListingPriceHistory {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceListingId String   @db.Uuid
+  price           Decimal  @db.Decimal(14, 2)
+  currency        String   @db.Char(3)
+  changedAt       DateTime @default(now())
+
+  sourceListing SourceListing @relation(fields: [sourceListingId], references: [id], onDelete: Cascade)
+
+  @@index([sourceListingId, changedAt(sort: Desc)])
+  @@map("source_listing_price_history")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Индекс объявлений
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// ЕДИНСТВЕННАЯ ТАБЛИЦА БЕЗ companyId, и это не упущение, а инвариант 16.
+///
+/// Индекс общий для всех компаний, включая контакты: в нём только то, что
+/// площадка отдаёт любому посетителю по клику. Решение владельца (Q37).
+///
+/// ОПАСНОСТЬ, которую это создаёт: во всех остальных таблицах отсутствие
+/// companyId означает утечку между арендаторами. Разработчик, увидевший эту
+/// модель, может решить, что так можно и в других местах. Негативный тест
+/// на изоляцию проверяет её ОТДЕЛЬНО от прочих.
+model ListingObservation {
+  id           String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  source       Source
+  externalId   String?
+  canonicalUrl String
+
+  price    Decimal? @db.Decimal(14, 2)
+  currency String?  @db.Char(3)
+
+  area        Decimal? @db.Decimal(10, 2)
+  rooms       Int?
+  floor       Int?
+  totalFloors Int?
+
+  district        String?
+  propertyType    PropertyType?
+  transactionType TransactionType?
+
+  ownerName       String?
+  ownerPhone      String?
+  phoneNormalized String?
+
+  /// Догадка «телефон встречается у многих объявлений», а не факт:
+  /// разметки «агентство» площадка не даёт. Нужна отсеву ленты (K10).
+  isAgencyGuess Boolean @default(false)
+
+  firstSeenAt       DateTime  @default(now())
+  lastSeenAt        DateTime  @default(now())
+  lastPriceChangeAt DateTime?
+
+  states       ObservationState[]
+  priceHistory ObservationPriceHistory[]
+
+  @@unique([source, externalId])
+  @@unique([source, canonicalUrl])
+  @@index([district, rooms, area])
+  @@index([phoneNormalized])
+  @@map("listing_observations")
+}
+
+/// История цены наблюдения — ключевая ценность индекса (K8).
+///
+/// Отдельная таблица, а не массив в jsonb: по ней идут запросы «цена
+/// снижалась N раз» и «висит N дней», а по jsonb это не индексируется.
+/// Накопление начинается при первой технической возможности: задним числом
+/// историю не получить.
+model ObservationPriceHistory {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  observationId String   @db.Uuid
+  price         Decimal  @db.Decimal(14, 2)
+  currency      String   @db.Char(3)
+  observedAt    DateTime @default(now())
+
+  observation ListingObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+
+  @@index([observationId, observedAt(sort: Desc)])
+  @@map("observation_price_history")
+}
+
+/// Состояние работы над объявлением — НА КОМАНДУ (инвариант 17).
+///
+/// Индекс общий, но «кто позвонил, кто отказал, что уже в работе» — рабочие
+/// данные агентства. В общем слое они дали бы одному агентству видимость
+/// активности другого.
+model ObservationState {
+  id            String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  observationId String @db.Uuid
+  companyId     String @db.Uuid
+  teamId        String @db.Uuid
+
+  state ObservationStateValue @default(new)
+
+  callbackAt DateTime?
+  note       String?
+
+  /// Не седьмое состояние, а флаг при refused (Q40а, §5Б.3). Обычный отказ
+  /// действует на команду — другая может попробовать, конкуренция разрешена.
+  /// «Просил не звонить» действует на всю компанию и не сбрасывается
+  /// изменением цены: это просьба собственника, а не результат переговоров.
+  doNotCallCompanyWide Boolean @default(false)
+
+  /// Связь отработанного лида с созданным объектом. Нужна, чтобы уведомление
+  /// о снижении цены пришло на карточку объекта, а не в ленту (K24).
+  convertedPropertyId String? @db.Uuid
+
+  updatedByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  observation       ListingObservation @relation(fields: [observationId], references: [id], onDelete: Cascade)
+  convertedProperty Property?          @relation(fields: [convertedPropertyId], references: [id], onDelete: SetNull)
+
+  /// Одно состояние на пару «объявление × команда».
+  @@unique([observationId, teamId])
+  @@index([companyId, teamId, state])
+  @@map("observation_states")
 }

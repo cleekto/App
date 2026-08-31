@@ -31,3 +31,9 @@ export * from './teams/use-cases';
 export * from './publish-profiles/use-cases';
 export * from './pipeline/defaults';
 export * from './pipeline/use-cases';
+
+export * from './normalize';
+export * from './dedup/config';
+export * from './dedup/scoring';
+export * from './dedup/engine';
+export * from './import/use-cases';

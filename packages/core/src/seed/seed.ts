@@ -118,6 +118,20 @@ export async function seed(): Promise<SeedResult> {
   assertNotProduction();
 
   // Порядок обратный зависимостям: сначала то, что ссылается.
+  //
+  // ListingObservation чистится ЯВНО, хотя каскада от компании к нему нет
+  // и быть не может: индекс общий для всех компаний (инвариант 16). Без
+  // этой строки наблюдения пережили бы пересев, и тесты видели бы данные
+  // предыдущего прогона.
+  await prisma.observationState.deleteMany();
+  await prisma.observationPriceHistory.deleteMany();
+  await prisma.listingObservation.deleteMany();
+  await prisma.sourceListingPriceHistory.deleteMany();
+  await prisma.sourceListing.deleteMany();
+  await prisma.property.deleteMany();
+  await prisma.propertyLink.deleteMany();
+  await prisma.ownerContactPhone.deleteMany();
+  await prisma.ownerContact.deleteMany();
   await prisma.activityLog.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.publishProfile.deleteMany();
