@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Cleekto",
+  "version": "0.1.0",
+  "description": "Real estate CRM for agencies",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "icons": {},
+  "permissions": [],
+  "host_permissions": []
+}

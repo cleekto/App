@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      /* DESIGN.md §25: расширение должно ощущаться как инструмент браузера,
+         а не как уменьшенная CRM. Одно действие, компактно, без лишнего.
+
+         Шрифт обязан покрывать мхедрули: popup тоже трёхъязычный. */
+      :root {
+        --surface: #ffffff;
+        --text-primary: #2b2f38;
+        --text-secondary: #6b7280;
+        --border: #e8eaed;
+      }
+      body {
+        width: 320px;
+        margin: 0;
+        padding: 16px;
+        background: var(--surface);
+        color: var(--text-primary);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          'Noto Sans',
+          'Noto Sans Georgian',
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      h1 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+      p {
+        margin: 8px 0 0;
+        color: var(--text-secondary);
+      }
+      .divider {
+        margin: 12px 0 0;
+        border-top: 1px solid var(--border);
+        padding-top: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="app-name"></h1>
+    <p id="tagline"></p>
+    <p class="divider" id="state"></p>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
