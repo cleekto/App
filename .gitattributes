@@ -1,0 +1,23 @@
+# Переводы строк в репозитории всегда LF.
+#
+# Без этого Git на Windows подставляет CRLF при выгрузке, а prettier настроен
+# на LF — и `pnpm lint` падает на свежем клоне, ничего не изменившем.
+# Разработчики на Windows и Linux должны получать один и тот же файл.
+* text=auto eol=lf
+
+# Бинарное — не трогать.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+
+# Файл блокировок генерируется инструментом: не показывать в диффах
+# и не пытаться сливать вручную.
+pnpm-lock.yaml -diff linguist-generated=true
+
+# Сохранённые страницы площадок (фикстуры фазы 5) — данные, а не код.
+docs/fixtures/** -diff
