@@ -72,7 +72,11 @@ describe('окружение (правило 8)', () => {
     // заполнять при развёртывании.
     // NODE_ENV в этом списке потому, что его выставляет инструмент
     // (next, vitest), а не человек при развёртывании.
-    const SYSTEM = new Set(['PATH', 'CI', 'HOME', 'TMPDIR', 'TEMP', 'NODE_ENV']);
+    // VERCEL_ENV выставляет платформа, различая production и preview.
+    // Место в .env.example создало бы ложное впечатление, что его надо
+    // заполнить при развёртывании, — а заполнить его вручную значило бы
+    // соврать сборке о том, куда она едет.
+    const SYSTEM = new Set(['PATH', 'CI', 'HOME', 'TMPDIR', 'TEMP', 'NODE_ENV', 'VERCEL_ENV']);
 
     const used = new Set<string>();
     for (const file of sourceFiles(['.ts', '.tsx', '.mjs'])) {
