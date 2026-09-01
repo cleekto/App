@@ -62,6 +62,10 @@ if (process.env.NODE_ENV !== 'production') {
 export interface DatabaseCheck {
   up: boolean;
   latencyMs: number;
+  /** Имя класса ошибки. Только при `up: false`. Текст ошибки наружу не идёт. */
+  errorKind?: string;
+  /** Задана ли строка подключения. */
+  urlConfigured: boolean;
 }
 
 /**
@@ -74,7 +78,11 @@ export async function checkDatabase(): Promise<DatabaseCheck> {
   const startedAt = performance.now();
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return { up: true, latencyMs: Math.round(performance.now() - startedAt) };
+    return {
+      up: true,
+      latencyMs: Math.round(performance.now() - startedAt),
+      urlConfigured: true,
+    };
   } catch (error) {
     // Наружу уходит только тип ошибки. Текст ошибки Prisma может содержать
     // строку подключения вместе с паролем — секретам не место в логах
@@ -83,6 +91,12 @@ export async function checkDatabase(): Promise<DatabaseCheck> {
       '[health] проверка базы не прошла:',
       error instanceof Error ? error.name : 'unknown error',
     );
-    return { up: false, latencyMs: Math.round(performance.now() - startedAt) };
+    return {
+      up: false,
+      latencyMs: Math.round(performance.now() - startedAt),
+      errorKind: error instanceof Error ? error.name : 'unknown',
+      // Проверяется наличие, а не значение: значение — секрет.
+      urlConfigured: (process.env['DATABASE_URL'] ?? '') !== '',
+    };
   }
 }

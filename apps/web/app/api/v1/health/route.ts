@@ -26,7 +26,14 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
     database: database.up ? 'up' : 'down',
     version: APP_VERSION,
     checkedAt: new Date().toISOString(),
-    ...(database.up ? { databaseLatencyMs: database.latencyMs } : {}),
+    ...(database.up
+      ? { databaseLatencyMs: database.latencyMs }
+      : {
+          databaseError: {
+            kind: database.errorKind ?? 'unknown',
+            urlConfigured: database.urlConfigured,
+          },
+        }),
   };
 
   // Ответ проверяется собственной схемой: расхождение контракта и реализации

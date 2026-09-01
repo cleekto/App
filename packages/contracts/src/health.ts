@@ -15,6 +15,21 @@ export const healthResponseSchema = z.object({
   checkedAt: z.string().datetime(),
   /** Время ответа базы в миллисекундах. Отсутствует, если база недоступна. */
   databaseLatencyMs: z.number().nonnegative().optional(),
+  /**
+   * Почему база недоступна. Только при `database: 'down'`.
+   *
+   * ИМЯ КЛАССА ОШИБКИ И ФЛАГИ, НИКОГДА ТЕКСТ. Сообщение Prisma содержит строку
+   * подключения вместе с паролем, а эндпоинт открыт без аутентификации.
+   * Имени класса достаточно, чтобы различить три случая, которые лечатся
+   * по-разному: переменная не задана, хост недостижим, доступ отклонён.
+   */
+  databaseError: z
+    .object({
+      kind: z.string(),
+      /** Задана ли `DATABASE_URL`. Отличает «не настроено» от «не достучались». */
+      urlConfigured: z.boolean(),
+    })
+    .optional(),
 });
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
