@@ -8,12 +8,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cleekto/adapters": "workspace:*",
     "@cleekto/contracts": "workspace:*",
     "@cleekto/i18n": "workspace:*"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",
     "esbuild": "^0.24.0",
+    "linkedom": "^0.18.0",
     "typescript": "^5.6.0"
   }
 }

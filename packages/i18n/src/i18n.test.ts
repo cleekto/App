@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { MessageKey } from './index';
 import {
   LOCALES,
   coverage,
@@ -51,11 +52,26 @@ describe('перевод', () => {
   });
 
   // Главное поведение всего пакета: непереведённое видно, а не подменяется.
+  //
+  // Ключ здесь заведомо несуществующий, а не «тот, что пока не переведён».
+  // Прежняя версия теста держалась за `health.databaseUnavailable` и упала
+  // ровно в тот день, когда эту строку перевели на грузинский: тест ломался
+  // на успехе. Проверять надо механизм, а не текущее состояние словарей —
+  // тем более что все три сейчас полны.
   it('непереведённый ключ виден как дыра, а не откатывается на английский', () => {
-    const value = translate('ka', 'health.databaseUnavailable');
+    const absent = 'common.keyThatDoesNotExist' as MessageKey;
 
-    expect(value).toBe(missingMarker('health.databaseUnavailable'));
-    expect(value).not.toBe(translate('en', 'health.databaseUnavailable'));
+    for (const locale of LOCALES) {
+      expect(translate(locale, absent)).toBe(missingMarker(absent));
+    }
+  });
+
+  it('все три словаря переведены полностью', () => {
+    // Состояние на фазе 6. Если строка не переведена — это видно здесь,
+    // а не на экране у грузинского агента.
+    for (const locale of LOCALES) {
+      expect(coverage(locale).missing, locale).toEqual([]);
+    }
   });
 
   it('translator привязывает язык', () => {

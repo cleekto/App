@@ -41,6 +41,9 @@ importers:
 
   apps/extension:
     dependencies:
+      '@cleekto/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@cleekto/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -54,6 +57,9 @@ importers:
       esbuild:
         specifier: ^0.24.0
         version: 0.24.2
+      linkedom:
+        specifier: ^0.18.0
+        version: 0.18.13
       typescript:
         specifier: ^5.6.0
         version: 5.9.3

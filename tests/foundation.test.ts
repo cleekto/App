@@ -34,7 +34,12 @@ describe('дизайн-инварианты (ADR-0008)', () => {
     const offenders: string[] = [];
 
     for (const file of sourceFiles(['.css', '.tsx', '.html'])) {
-      const content = readFileSync(file, 'utf8');
+      // Комментарии снимаются: файл, объясняющий, почему uppercase запрещён,
+      // сам правило не нарушает. Без этого задокументировать правило рядом
+      // с кодом было бы невозможно — что и случилось на фазе 6.
+      const content = readFileSync(file, 'utf8')
+        .replace(/\/\*[\s\S]*?\*\//gu, '')
+        .replace(/<!--[\s\S]*?-->/gu, '');
 
       // CSS-свойство и служебный класс Tailwind — два способа получить
       // одно и то же, и запрещены оба.

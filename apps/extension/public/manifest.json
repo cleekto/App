@@ -7,6 +7,22 @@
     "default_popup": "popup.html"
   },
   "icons": {},
-  "permissions": [],
-  "host_permissions": []
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://home.ss.ge/*",
+        "https://ss.ge/*",
+        "https://www.myhome.ge/*",
+        "https://myhome.ge/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "permissions": ["storage", "contextMenus"],
+  "host_permissions": ["http://localhost:3000/*"]
 }
