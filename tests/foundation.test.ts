@@ -96,3 +96,42 @@ describe('окружение (правило 8)', () => {
     expect(secret).toMatch(/замени|replace|change/iu);
   });
 });
+
+describe('сборка веба разрешает свои внешние пакеты', () => {
+  /**
+   * РЕГРЕССИЯ, найденная на боевом развёртывании.
+   *
+   * `@node-rs/argon2` помечен внешним в webpack: нативный бинарник бандлер
+   * переписать не может. Раз пакет внешний, собранный сервер требует его
+   * во время работы — и требует ИЗ `apps/web`. Пользуется им только ядро,
+   * поэтому в зависимостях приложения его не было, pnpm не клал его
+   * в `apps/web/node_modules`, трассировка Vercel не брала его в бандл
+   * функции, и КАЖДАЯ страница отвечала 500.
+   *
+   * Ни `pnpm build`, ни `next dev` этого не ловили: сборка не выполняет
+   * require, а в разработке пакет разрешается через workspace. Поймалось
+   * только запуском production-сборки — на Vercel, у владельца.
+   *
+   * Проверка дешёвая и ловит весь класс: любой пакет, объявленный внешним,
+   * обязан быть в зависимостях приложения.
+   */
+  it('пакеты из webpack externals есть в зависимостях apps/web', () => {
+    const config = readFileSync(join(ROOT, 'apps/web/next.config.ts'), 'utf8');
+    const manifest = JSON.parse(readFileSync(join(ROOT, 'apps/web/package.json'), 'utf8')) as {
+      dependencies?: Record<string, string>;
+    };
+
+    // Проверяется именно `config.externals`, а не `serverExternalPackages`:
+    // второе Next трассирует по графу импортов и в бандл функции кладёт сам,
+    // а первое трассировку обходит — пакет обязан быть у приложения.
+    const block = /config\.externals\s*=\s*\[([\s\S]*?)\];/u.exec(config)?.[1] ?? '';
+    const external = [...block.matchAll(/'([^']+)'/gu)]
+      .map((match) => match[1] as string)
+      .filter((name) => !name.startsWith('...'));
+
+    expect(external.length, 'externals не разобрались — проверь регулярку').toBeGreaterThan(0);
+
+    const declared = new Set(Object.keys(manifest.dependencies ?? {}));
+    expect(external.filter((name) => !declared.has(name))).toEqual([]);
+  });
+});
