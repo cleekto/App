@@ -74,11 +74,23 @@ function extractToken(request: Request): string | null {
  */
 export async function handle<T>(
   run: () => Promise<T>,
-  options: { status?: number } = {},
+  options: {
+    status?: number;
+    /**
+     * Правка успешного ответа — например, установка cookie сессии.
+     *
+     * Отдельным крючком, а не работой сценария: ядро о HTTP не знает
+     * и знать не должно (ADR-0001), а cookie — это чистый HTTP.
+     * На ошибочный ответ не вызывается: ставить сессию при неудачном
+     * входе было бы прямой дырой.
+     */
+    onResponse?: (response: NextResponse, result: T) => NextResponse;
+  } = {},
 ): Promise<NextResponse> {
   try {
     const result = await run();
-    return NextResponse.json(result, { status: options.status ?? 200 });
+    const response = NextResponse.json(result, { status: options.status ?? 200 });
+    return options.onResponse === undefined ? response : options.onResponse(response, result);
   } catch (error) {
     if (isDomainError(error)) {
       return NextResponse.json(

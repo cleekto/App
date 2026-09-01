@@ -21,7 +21,16 @@ export type Scope =
 export type Action = 'create' | 'read' | 'update' | 'delete' | 'assign' | 'manage';
 
 export type Resource =
-  'company' | 'team' | 'user' | 'role' | 'pipelineStatus' | 'publishProfile' | 'activityLog';
+  | 'company'
+  | 'team'
+  | 'user'
+  | 'role'
+  | 'pipelineStatus'
+  | 'publishProfile'
+  | 'property'
+  | 'task'
+  | 'comment'
+  | 'activityLog';
 
 type RoleScopes = Partial<Record<RoleCode, Scope>>;
 
@@ -75,6 +84,43 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
     update: { ADMIN: 'company', MANAGER: 'company' },
     delete: { ADMIN: 'company', MANAGER: 'company' },
     manage: { ADMIN: 'company' },
+  },
+
+  /**
+   * Объект. Агент создаёт (через «Согласен» и вручную) и читает по команде,
+   * но меняет только свои: чужой объект он видит, чтобы не звонить дважды,
+   * а не чтобы переписывать (rbac.md §3).
+   */
+  property: {
+    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    update: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+    delete: { ADMIN: 'company', MANAGER: 'team' },
+    assign: { ADMIN: 'company', MANAGER: 'team' },
+  },
+
+  task: {
+    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    update: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+    delete: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+    assign: { MANAGER: 'team' },
+  },
+
+  /**
+   * Комментарий.
+   *
+   * ВНИМАНИЕ: по `rbac.md` §3 создавать комментарии может только `AGENT`.
+   * Матрица повторяет документ буквально, потому что документ — источник
+   * истины по правам. Похоже на упущение (менеджер, читающий обсуждение,
+   * но не способный ответить, — странная CRM), поэтому вынесено вопросом
+   * `Q56`, а не исправлено молча.
+   */
+  comment: {
+    create: { AGENT: 'team' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    update: { AGENT: 'own' },
+    delete: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
   },
 
   activityLog: {

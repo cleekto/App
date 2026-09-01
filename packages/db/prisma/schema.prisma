@@ -58,6 +58,8 @@ model Company {
   publications     Publication[]
   migrationBatches MigrationBatch[]
   mappingSchemas   ColumnMappingSchema[]
+  tasks            Task[]
+  comments         Comment[]
 
   @@map("companies")
 }
@@ -74,6 +76,8 @@ model Team {
   company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
   members    TeamMember[]
   properties Property[]
+  tasks      Task[]
+  comments   Comment[]
 
   @@unique([companyId, name])
   @@index([companyId])
@@ -133,6 +137,8 @@ model User {
   refreshTokens   RefreshToken[]
   activityLog     ActivityLog[]
   publishProfiles PublishProfile[]
+  assignedTasks   Task[]           @relation("TaskAssignee")
+  comments        Comment[]        @relation("CommentAuthor")
 
   /// Email уникален внутри компании, а не глобально: один человек может
   /// работать в двух агентствах, и запрет на это был бы нашей выдумкой.
@@ -473,6 +479,8 @@ model Property {
   sourceListings    SourceListing[]
   observationStates ObservationState[]
   publications      Publication[]
+  tasks             Task[]
+  comments          Comment[]
 
   @@index([companyId, teamId, pipelineStatusId])
   @@index([companyId, teamId, updatedAt(sort: Desc)])
@@ -827,4 +835,87 @@ model MigrationBatch {
 
   @@index([companyId, createdAt(sort: Desc)])
   @@map("migration_batches")
+}
+
+/// Состояние задачи.
+///
+/// Три значения, а не пять: DESIGN §20 требует, чтобы задачи ощущались
+/// лёгкими, и прямо предупреждает не превращать их в систему управления
+/// проектами. Отменённая задача отличается от выполненной тем, что работу
+/// по ней не сделали, — для отчётности это разные вещи.
+enum TaskStatus {
+  open
+  done
+  cancelled
+}
+
+/// Задача агента, привязанная к объекту.
+///
+/// Отдельной сущностью, а не полем в `Property`: у объекта их несколько,
+/// и у каждой свой исполнитель и срок. Задача без объекта не создаётся —
+/// в CRM агентства задача «просто так» не имеет смысла и превращает список
+/// в свалку.
+model Task {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  /// Команда владельца объекта. Дублируется сюда сознательно: без неё
+  /// «мои задачи» и «задачи команды» требовали бы join с объектом
+  /// на каждый запрос списка.
+  teamId     String @db.Uuid
+  propertyId String @db.Uuid
+
+  title       String
+  description String?
+
+  /// Может быть не назначен: агент ставит себе напоминание, ещё не решив,
+  /// кто именно будет звонить.
+  assignedUserId String?   @db.Uuid
+  dueAt          DateTime?
+
+  status TaskStatus @default(open)
+
+  createdByUserId String?   @db.Uuid
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  completedAt     DateTime?
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  assignee User?    @relation("TaskAssignee", fields: [assignedUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, propertyId, createdAt(sort: Desc)])
+  /// «Мои задачи с ближайшим сроком» — главный список агента.
+  @@index([companyId, assignedUserId, status, dueAt])
+  @@index([companyId, teamId, status, dueAt])
+  @@map("tasks")
+}
+
+/// Комментарий к объекту.
+///
+/// Текст пишет сотрудник агентства, а не площадка, — но он всё равно
+/// отображается как чужой ввод и не исполняется как разметка.
+model Comment {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  teamId     String @db.Uuid
+  propertyId String @db.Uuid
+
+  body String
+
+  /// Автор может быть удалён из компании — комментарий остаётся, потому что
+  /// это часть истории объекта. Показывается как «бывший сотрудник».
+  authorUserId String?  @db.Uuid
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team     Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  author   User?    @relation("CommentAuthor", fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, propertyId, createdAt(sort: Desc)])
+  @@map("comments")
 }

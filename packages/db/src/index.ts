@@ -13,6 +13,7 @@ export {
   PublicationStatus,
   RoleCode,
   Source,
+  TaskStatus,
   TransactionType,
 } from '@prisma/client';
 export type {
@@ -28,6 +29,8 @@ export type {
   PropertyLink,
   Publication,
   SourceListing,
+  Task,
+  Comment,
   PipelineStatus,
   PublishProfile,
   RefreshToken,

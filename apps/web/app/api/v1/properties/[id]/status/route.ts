@@ -1,0 +1,25 @@
+import { z } from 'zod';
+
+import { changePropertyStatus } from '@cleekto/core';
+
+import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
+
+export const dynamic = 'force-dynamic';
+
+const schema = z.object({ pipelineStatusId: z.string().uuid() }).strict();
+
+type Params = { params: Promise<{ id: string }> };
+
+/**
+ * Смена статуса воронки — то, что происходит при перетаскивании карточки
+ * на доске. Отдельным маршрутом, а не полем в PATCH: у неё своя запись
+ * в журнале со старым и новым значением.
+ */
+export async function POST(request: Request, { params }: Params) {
+  return handle(async () => {
+    const ctx = await requireAuth(request);
+    const { id } = await params;
+    const body = await parseBody(request, schema);
+    return changePropertyStatus(ctx, id, body.pipelineStatusId);
+  });
+}

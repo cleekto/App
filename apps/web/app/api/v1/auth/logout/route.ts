@@ -1,15 +1,25 @@
-import { z } from 'zod';
-
 import { logout } from '@cleekto/core';
 
-import { handle, parseBody } from '../../../_lib/handler';
+import { handle } from '../../../_lib/handler';
+import { clearSessionCookies, refreshTokenFromCookie } from '../../../_lib/session-cookies';
 
-const schema = z.object({ refreshToken: z.string().min(1) });
-
+/**
+ * Выход.
+ *
+ * Cookie стираются в любом случае, даже если refresh-токен уже недействителен:
+ * иначе человек, нажавший «Выйти», остался бы с виду в системе — худший
+ * возможный исход для действия, которое он выполнил ради безопасности.
+ */
 export async function POST(request: Request) {
-  return handle(async () => {
-    const body = await parseBody(request, schema);
-    await logout(body.refreshToken);
-    return { ok: true };
-  });
+  return handle(
+    async () => {
+      const fromCookie = refreshTokenFromCookie(request);
+      const body = (await request.json().catch(() => ({}))) as { refreshToken?: string };
+      const token = fromCookie ?? body.refreshToken ?? null;
+
+      if (token !== null) await logout(token);
+      return { ok: true };
+    },
+    { onResponse: (response) => clearSessionCookies(response) },
+  );
 }
