@@ -26,6 +26,8 @@ export const healthResponseSchema = z.object({
   databaseError: z
     .object({
       kind: z.string(),
+      /** Разобранная причина: `env_missing`, `url_malformed`, `unreachable` и так далее. */
+      reason: z.string(),
       /** Задана ли `DATABASE_URL`. Отличает «не настроено» от «не достучались». */
       urlConfigured: z.boolean(),
     })

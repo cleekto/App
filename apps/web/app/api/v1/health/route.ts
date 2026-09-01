@@ -31,6 +31,7 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
       : {
           databaseError: {
             kind: database.errorKind ?? 'unknown',
+            reason: database.reason ?? 'unknown',
             urlConfigured: database.urlConfigured,
           },
         }),

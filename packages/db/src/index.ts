@@ -64,8 +64,51 @@ export interface DatabaseCheck {
   latencyMs: number;
   /** Имя класса ошибки. Только при `up: false`. Текст ошибки наружу не идёт. */
   errorKind?: string;
+  /** Разобранная причина. Лечится каждая по-своему. */
+  reason?: DatabaseFailureReason;
   /** Задана ли строка подключения. */
   urlConfigured: boolean;
+}
+
+export type DatabaseFailureReason =
+  /** Переменной нет в этой сборке. */
+  | 'env_missing'
+  /** Строка не разбирается: лишние кавычки, перенос строки, обрезана. */
+  | 'url_malformed'
+  /** Хост не отвечает: неверный адрес либо база спит и не проснулась. */
+  | 'unreachable'
+  /** Логин или пароль отклонены. */
+  | 'auth_failed'
+  /** База с таким именем не найдена. */
+  | 'database_missing'
+  /** Движок Prisma не собран под платформу хостинга. */
+  | 'engine_missing'
+  | 'unknown';
+
+/**
+ * Разбирает ошибку Prisma в причину.
+ *
+ * ТЕКСТ ОШИБКИ НАРУЖУ НЕ ИДЁТ НИКОГДА: сообщение Prisma содержит строку
+ * подключения вместе с паролем, а health открыт без аутентификации. Здесь
+ * текст только читается, чтобы вернуть одно слово из списка выше.
+ *
+ * Разбор по подстрокам хрупок к смене формулировок Prisma — поэтому
+ * `unknown` остаётся штатным исходом, а не считается сбоем разбора.
+ */
+function classifyDatabaseError(error: unknown): DatabaseFailureReason {
+  const text = error instanceof Error ? error.message : '';
+
+  if (/Environment variable not found/iu.test(text)) return 'env_missing';
+  if (/must start with the protocol|invalid port|Error parsing connection string/iu.test(text)) {
+    return 'url_malformed';
+  }
+  if (/Can't reach database server|connection refused|timed out/iu.test(text)) return 'unreachable';
+  if (/Authentication failed|password authentication/iu.test(text)) return 'auth_failed';
+  if (/database .* does not exist/iu.test(text)) return 'database_missing';
+  if (/Query engine library|binaryTargets|could not locate the Query Engine/iu.test(text)) {
+    return 'engine_missing';
+  }
+  return 'unknown';
 }
 
 /**
@@ -95,6 +138,7 @@ export async function checkDatabase(): Promise<DatabaseCheck> {
       up: false,
       latencyMs: Math.round(performance.now() - startedAt),
       errorKind: error instanceof Error ? error.name : 'unknown',
+      reason: classifyDatabaseError(error),
       // Проверяется наличие, а не значение: значение — секрет.
       urlConfigured: (process.env['DATABASE_URL'] ?? '') !== '',
     };
