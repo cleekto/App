@@ -1,6 +1,8 @@
+import type { FillResult, PublishedRef } from '@cleekto/contracts';
 import { isLocale, type Locale } from '@cleekto/i18n';
 
 import type { ImportRequestBody, ImportResponse } from './import-manager';
+import type { DraftResponse } from './publish-manager';
 import type { Session, StorageArea } from './storage';
 import { clearSession, readSession, writeSession } from './storage';
 
@@ -143,6 +145,48 @@ export class ApiClient {
   }
 
   /**
+   * Просит сервер собрать черновик публикации.
+   *
+   * Профиль публикации не передаётся: §6А.7 требует «одного клика», поэтому
+   * берётся профиль по умолчанию, без диалога. Какой именно применён, агент
+   * увидит в отчёте о заполнении.
+   */
+  async createPublicationDraft(propertyId: string, targetSource: string): Promise<DraftResponse> {
+    return this.send<DraftResponse>(
+      `/api/v1/properties/${encodeURIComponent(propertyId)}/publications`,
+      { targetSource },
+    );
+  }
+
+  /**
+   * Отчёт о заполнении. Он же сигнал метрики `fill failure rate`.
+   *
+   * Уходит и при полном успехе, и при частичном: иначе о смене вёрстки формы
+   * мы узнаем от агента, а не из метрики.
+   */
+  async reportPublicationFilled(publicationId: string, result: FillResult): Promise<void> {
+    await this.send(`/api/v1/publications/${encodeURIComponent(publicationId)}/filled`, {
+      formVersion: result.formVersion,
+      filled: result.filled,
+      unfilled: result.unfilled,
+      snapshotId: result.snapshotId,
+    });
+  }
+
+  /**
+   * Подтверждение публикации человеком (§6А.7, инвариант 13).
+   *
+   * Расширение не знает, нажал ли агент «Опубликовать»: форму отправляет
+   * площадка. Без этого подтверждения статус остаётся `filled`.
+   */
+  async confirmPublication(publicationId: string, ref: PublishedRef): Promise<void> {
+    await this.send(`/api/v1/publications/${encodeURIComponent(publicationId)}/confirm`, {
+      externalUrl: ref.externalUrl,
+      externalId: ref.externalId,
+    });
+  }
+
+  /**
    * Импорт объявления — все четыре исхода разговора.
    *
    * Токен идёт заголовком `Authorization`, а не cookie: cookie нашего домена
@@ -150,9 +194,20 @@ export class ApiClient {
    * учитывает и принимает оба способа.
    */
   async importListing(body: ImportRequestBody): Promise<ImportResponse> {
+    return this.send<ImportResponse>('/api/v1/import/listing', body);
+  }
+
+  /**
+   * Запрос с токеном к нашему API.
+   *
+   * Общий путь для всех вызовов публикации: обновление токена, 401 со стиранием
+   * сессии и разбор ответа выглядят одинаково, и три копии этого кода разошлись
+   * бы при первой же правке.
+   */
+  private async send<T>(path: string, body: unknown): Promise<T> {
     const token = await this.accessToken();
 
-    const response = await this.config.fetch(this.url('/api/v1/import/listing'), {
+    const response = await this.config.fetch(this.url(path), {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -168,10 +223,10 @@ export class ApiClient {
 
     if (!response.ok) {
       const detail = await response.text();
-      throw new Error(`Импорт отклонён сервером: ${response.status} ${detail.slice(0, 200)}`);
+      throw new Error(`Сервер отклонил ${path}: ${response.status} ${detail.slice(0, 200)}`);
     }
 
-    return (await response.json()) as ImportResponse;
+    return (await response.json()) as T;
   }
 }
 

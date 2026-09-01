@@ -11,6 +11,7 @@
 export * from './errors';
 export * from './health';
 export * from './listing';
+export * from './publish';
 
 /** Версия API в пути. Инвариант 8: ломающее изменение — это `/api/v2`. */
 export const API_VERSION = 'v1' as const;

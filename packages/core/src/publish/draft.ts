@@ -1,46 +1,12 @@
-import type { PropertyType, Source, TransactionType } from '@cleekto/db';
-
 /**
- * Черновик публикации — БЕЛЫЙ СПИСОК ПОЛЕЙ (§6А.4, правило 13).
+ * Черновик публикации объявлен в `@cleekto/contracts`.
  *
- * БЛОКА `owner` В ЭТОМ ТИПЕ НЕТ И НЕ ПОЯВИТСЯ. Не «опционально», не «пустой» —
- * его нет в типе. Чтобы контакт собственника попал на площадку, придётся
- * дописать поле, а не забыть проверку. Разница принципиальная: забыть проверку
- * можно случайно, дописать поле — только намеренно.
- *
- * Черновик собирается НА СЕРВЕРЕ. Расширение не получает данных, которые
- * могло бы вписать в форму, — это и есть способ гарантировать правило 13,
- * а не полагаться на дисциплину клиента.
+ * Переехал туда в фазе 6Б: тот же тип нужен адаптеру заполнения, а адаптерам
+ * импортировать ядро запрещено (инвариант 6). Одно определение вместо двух —
+ * иначе белый список полей разъехался бы между сервером и расширением, и
+ * правило 13 держалось бы на том, что оба списка кто-то синхронизирует.
  */
-export interface ListingPublishDraft {
-  propertyId: string;
-  targetSource: Source;
-
-  propertyType: PropertyType | null;
-  transactionType: TransactionType | null;
-
-  price: number | null;
-  currency: string | null;
-
-  area: number | null;
-  rooms: number | null;
-  floor: number | null;
-  totalFloors: number | null;
-
-  district: string | null;
-  address: string | null;
-
-  /** Очищено от телефонов и имени собственника (I7a). */
-  publicDescription: string | null;
-
-  /**
-   * Контакт ПУБЛИКАТОРА — лицо агентства в объявлении. Никогда не OwnerContact.
-   */
-  publisher: {
-    displayName: string;
-    phone: string;
-  };
-}
+export type { ListingPublishDraft } from '@cleekto/contracts';
 
 /**
  * Поля объекта, попадающие в черновик. Явный список, а не «всё кроме» —

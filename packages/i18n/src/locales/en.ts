@@ -96,6 +96,19 @@ export const en = {
       linked: 'Linked to an existing property',
     },
 
+    fill: {
+      /** DESIGN §25.2: «от имени» всегда видно — это публичное лицо агентства. */
+      publishingAs: 'Publishing as',
+      filled: 'fields filled',
+      leftForYou: 'Left for you',
+      clearForm: 'Clear form',
+      cleared: 'Form cleared',
+      /** §6А.6: правку агента молча не стираем — сначала называем её. */
+      editedWarning: 'You changed these fields after filling. They were left as they are',
+      clearAnyway: 'Undo those too',
+      notAForm: 'Open the “new listing” form on ss.ge or myhome.ge',
+    },
+
     error: {
       network: 'No connection to Cleekto. Your data is kept — try again.',
       session: 'Your session has expired. Sign in again.',

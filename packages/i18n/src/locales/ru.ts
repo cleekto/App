@@ -90,6 +90,17 @@ export const ru: DeepPartial<Dictionary> = {
       linked: 'Привязано к существующему объекту',
     },
 
+    fill: {
+      publishingAs: 'От имени',
+      filled: 'полей заполнено',
+      leftForYou: 'Остаётся вам',
+      clearForm: 'Очистить форму',
+      cleared: 'Форма очищена',
+      editedWarning: 'Эти поля вы правили после заполнения. Они оставлены как есть',
+      clearAnyway: 'Откатить и их',
+      notAForm: 'Откройте форму «новое объявление» на ss.ge или myhome.ge',
+    },
+
     error: {
       network: 'Нет связи с Cleekto. Данные сохранены — попробуйте ещё раз.',
       session: 'Сессия истекла. Войдите заново.',

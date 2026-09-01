@@ -22,6 +22,7 @@ export type UiAction =
   | { type: 'callback'; days: number }
   | { type: 'do-not-call' }
   | { type: 'retry' }
+  | { type: 'clear-form'; includeEdited: boolean }
   | { type: 'close' };
 
 const HOST_ID = 'cleekto-root';
@@ -200,6 +201,84 @@ export class Ui {
   signInRequired(): void {
     const panel = this.clear();
     panel.append(this.closeButton(), this.head(this.t('extension.signInPrompt'), 'quiet'));
+  }
+
+  /**
+   * Отчёт о заполнении формы — DESIGN §25.2.
+   *
+   * Компактно и без модального окна: агент смотрит на форму, а не на нас.
+   * Список оставшегося — не список ошибок. Частичное заполнение штатно
+   * (правило 14), и подавать его как сбой значило бы врать агенту про
+   * нормальный ход работы.
+   *
+   * Профиль публикации виден всегда: это публичное лицо агентства
+   * в объявлении, и агент обязан знать, от чьего имени он публикует.
+   */
+  fillResult(
+    publisher: { displayName: string; phone: string },
+    filled: string[],
+    leftForYou: string[],
+  ): void {
+    const panel = this.clear();
+    panel.append(
+      this.closeButton(),
+      this.head(`${String(filled.length)} ${this.t('extension.fill.filled')}`),
+      this.line(
+        `${this.t('extension.fill.publishingAs')}: ${publisher.displayName} · ${publisher.phone}`,
+      ),
+    );
+
+    if (leftForYou.length > 0) {
+      const box = document.createElement('div');
+      box.className = 'summary';
+
+      const title = document.createElement('div');
+      title.className = 'facts';
+      title.textContent = this.t('extension.fill.leftForYou');
+      box.append(title);
+
+      for (const field of leftForYou) box.append(this.line(`· ${field}`));
+      panel.append(box);
+    }
+
+    // Кнопка «Опубликовать» здесь не появляется и появиться не может:
+    // правило 12 — публикует человек, на форме площадки, сам.
+    panel.append(
+      this.button(this.t('extension.fill.clearForm'), 'plain', {
+        type: 'clear-form',
+        includeEdited: false,
+      }),
+    );
+  }
+
+  /**
+   * После очистки.
+   *
+   * Если агент правил заполненные поля руками, они названы и оставлены как
+   * есть (§6А.6). Откатить их можно только вторым, явным действием: молча
+   * стереть чужую работу — худший исход, потому что он этого не заметит.
+   */
+  formCleared(editedByAgent: string[]): void {
+    const panel = this.clear();
+    panel.append(this.closeButton(), this.head(this.t('extension.fill.cleared')));
+
+    if (editedByAgent.length === 0) return;
+
+    panel.append(
+      this.line(`${this.t('extension.fill.editedWarning')}: ${editedByAgent.join(', ')}`),
+    );
+    panel.append(
+      this.button(this.t('extension.fill.clearAnyway'), 'plain', {
+        type: 'clear-form',
+        includeEdited: true,
+      }),
+    );
+  }
+
+  /** Страница не форма создания объявления. Не ошибка — просто не здесь. */
+  notAPublishForm(): void {
+    const panel = this.clear();
+    panel.append(this.closeButton(), this.head(this.t('extension.fill.notAForm'), 'quiet'));
   }
 
   added(openUrl: string | null): void {

@@ -93,6 +93,17 @@ export const ka: DeepPartial<Dictionary> = {
       linked: 'მიბმულია არსებულ ობიექტზე',
     },
 
+    fill: {
+      publishingAs: 'სახელით',
+      filled: 'ველი შევსებულია',
+      leftForYou: 'დაგრჩათ',
+      clearForm: 'ფორმის გასუფთავება',
+      cleared: 'ფორმა გასუფთავდა',
+      editedWarning: 'ეს ველები შევსების შემდეგ თქვენ შეცვალეთ. ისინი უცვლელი დარჩა',
+      clearAnyway: 'დაბრუნდეს ესეც',
+      notAForm: 'გახსენით „ახალი განცხადების“ ფორმა ss.ge-ზე ან myhome.ge-ზე',
+    },
+
     error: {
       network: 'Cleekto-სთან კავშირი არ არის. მონაცემები შენახულია — სცადეთ ხელახლა.',
       session: 'სესიის ვადა ამოიწურა. შედით თავიდან.',
