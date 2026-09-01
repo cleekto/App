@@ -31,12 +31,31 @@ if (environment !== 'production') {
   process.exit(0);
 }
 
-if (process.env.DIRECT_URL === undefined && process.env.DATABASE_URL === undefined) {
+/**
+ * Прямое подключение для миграций.
+ *
+ * Интеграция Neon с Vercel прописывает переменные под своими именами:
+ * `DATABASE_URL` через пулер и `DATABASE_URL_UNPOOLED` мимо него. Prisma
+ * ждёт `DIRECT_URL`. Принимаем оба имени, чтобы человеку не приходилось
+ * переписывать переменную руками ради разницы в названии, — а руками
+ * переписывают с опечатками.
+ *
+ * Через пулер миграции не идут: в режиме transaction pgbouncer не держит
+ * сессию, а миграции её требуют.
+ */
+const directUrl = process.env.DIRECT_URL ?? process.env.DATABASE_URL_UNPOOLED;
+
+if (directUrl === undefined) {
   // Не молчаливый пропуск: сборка без строки подключения соберётся, а первый
   // же запрос упадёт. Лучше остановиться здесь.
   console.error(
-    '[migrate] ни DIRECT_URL, ни DATABASE_URL не заданы — миграции применить не к чему',
+    '[migrate] нет ни DIRECT_URL, ни DATABASE_URL_UNPOOLED — миграции применить не к чему',
   );
+  process.exit(1);
+}
+
+if (directUrl.includes('-pooler')) {
+  console.error('[migrate] прямое подключение указывает на пулер — миграции через него не пройдут');
   process.exit(1);
 }
 
@@ -48,6 +67,7 @@ const result = spawnSync('prisma', ['migrate', 'deploy'], {
   shell: process.platform === 'win32',
   env: {
     ...process.env,
+    DIRECT_URL: directUrl,
     PATH: [
       resolve(root, 'packages/db/node_modules/.bin'),
       resolve(root, 'node_modules/.bin'),
