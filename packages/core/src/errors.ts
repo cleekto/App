@@ -65,3 +65,19 @@ export class ConflictError extends DomainError {
 export function isDomainError(error: unknown): error is DomainError {
   return error instanceof DomainError;
 }
+
+/**
+ * Обращений слишком много.
+ *
+ * Отдельный класс, а не `ValidationError`: клиент обязан различать «вы
+ * ошиблись» и «подождите». Код `RATE_LIMITED` был объявлен в контрактах
+ * с фазы 1 — реализации у него не было до фазы 8.
+ */
+export class RateLimitedError extends DomainError {
+  constructor(retryAfterSeconds: number) {
+    super('RATE_LIMITED', 'Слишком много попыток. Повторите позже', {
+      retryAfterSeconds,
+    });
+    this.name = 'RateLimitedError';
+  }
+}

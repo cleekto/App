@@ -105,9 +105,21 @@ export async function listProperties(
       { addressRaw: { contains: query, mode: 'insensitive' } },
       { addressNormalized: { contains: query, mode: 'insensitive' } },
       { district: { contains: query, mode: 'insensitive' } },
-      { ownerContact: { phones: { some: { phoneNormalized: { contains: digits(query) } } } } },
       { ownerContact: { fullName: { contains: query, mode: 'insensitive' } } },
     ];
+
+    // Ветка телефона добавляется, ТОЛЬКО если в запросе есть цифры.
+    //
+    // Иначе `digits(query)` пуст, а `contains: ''` совпадает со всем: поиск
+    // по слову возвращал бы каждый объект, у которого есть контакт
+    // собственника. Дефект найден тестом, который сравнивал результат поиска
+    // с ожидаемым, — и падал тем чаще, чем больше объектов было в базе.
+    const phoneDigits = digits(query);
+    if (phoneDigits !== '') {
+      where.OR.push({
+        ownerContact: { phones: { some: { phoneNormalized: { contains: phoneDigits } } } },
+      });
+    }
   }
 
   const limit = Math.min(filters.limit ?? 50, MAX_LIMIT);

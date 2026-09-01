@@ -160,7 +160,7 @@ export async function importListing(ctx: AuthContext, input: ImportInput): Promi
     }
 
     // Тот же источник — это уже предупреждение, а не находка.
-    return warning(dedup, observation.id, blocking);
+    return warning(ctx, dedup, observation.id, blocking);
   }
 
   // POSSIBLE: мягкое предупреждение, импорт по умолчанию разрешён (P§5.2).
@@ -516,7 +516,30 @@ async function linkSelfPublication(
   };
 }
 
-function warning(dedup: DedupOutcome, observationId: string, blocking: DedupMatch[]): ImportResult {
+/**
+ * Предупреждение о дубле.
+ *
+ * ЗАПИСЫВАЕТСЯ В ЖУРНАЛ, хотя объект не создан. Метрика «доля дублей»
+ * (фаза 8) считается именно по этим записям: без них агентство не узнает,
+ * как часто агенты натыкаются друг на друга.
+ *
+ * Ссылки на найденные объекты в журнал не идут: `entityId` указывает
+ * на объявление-наблюдение, а не на чужой объект. Иначе журнал агента
+ * содержал бы идентификаторы объектов, которых он не видит.
+ */
+async function warning(
+  ctx: AuthContext,
+  dedup: DedupOutcome,
+  observationId: string,
+  blocking: DedupMatch[],
+): Promise<ImportResult> {
+  await writeActivity(prisma, ctx, {
+    entityType: ENTITY.SOURCE_LISTING,
+    entityId: observationId,
+    action: ACTIVITY.IMPORT_DUPLICATE_WARNED,
+    after: { verdict: dedup.verdict, matches: blocking.length },
+  });
+
   return {
     result: 'duplicate_warning',
     verdict: dedup.verdict,

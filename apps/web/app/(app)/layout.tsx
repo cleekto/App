@@ -21,6 +21,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
 
   const nav = [
+    { href: '/dashboard', label: t('dashboard.title') },
     { href: '/properties', label: t('nav.properties') },
     { href: '/board', label: t('nav.board') },
     { href: '/tasks', label: t('nav.tasks') },

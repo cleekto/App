@@ -134,6 +134,26 @@ describe('список объектов', () => {
     }
   });
 
+  /**
+   * Регрессия. Ветка поиска по телефону приводила запрос к цифрам, и на
+   * запросе без цифр `contains: ''` совпадал со всем: поиск по слову
+   * возвращал каждый объект, у которого есть контакт собственника.
+   *
+   * Дефект нашёлся не сразу, потому что при пустой базе выглядел как успех.
+   */
+  it('поиск по слову без цифр не возвращает объекты, которые ему не отвечают', async () => {
+    await makeProperty(actors.vake, { address: 'Ваке, улица Абашидзе 1' });
+    const marker = `Мтацминда${Math.random().toString(36).slice(2, 10)}`;
+    await makeProperty(actors.vake, { address: `Ваке, ${marker} 7` });
+
+    const { items } = await listProperties(actors.vake, { query: marker });
+
+    expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.addressRaw, item.id).toContain(marker);
+    }
+  });
+
   it('поиск находит объект по телефону собственника', async () => {
     // Самый частый вопрос к CRM за день: агенту звонят с номера,
     // и он должен понять, кто это.
