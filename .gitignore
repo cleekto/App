@@ -39,3 +39,4 @@ packages/db/generated/
 docs/fixtures/**
 !docs/fixtures/README.md
 !docs/fixtures/**/.gitkeep
+.neon
