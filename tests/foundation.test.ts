@@ -119,23 +119,28 @@ describe('сборка веба разрешает свои внешние па�
    * Проверка дешёвая и ловит весь класс: любой пакет, объявленный внешним,
    * обязан быть в зависимостях приложения.
    */
-  it('пакеты из webpack externals есть в зависимостях apps/web', () => {
+  it('пакеты, объявленные внешними, есть в зависимостях apps/web', () => {
     const config = readFileSync(join(ROOT, 'apps/web/next.config.ts'), 'utf8');
     const manifest = JSON.parse(readFileSync(join(ROOT, 'apps/web/package.json'), 'utf8')) as {
       dependencies?: Record<string, string>;
     };
 
-    // Проверяется именно `config.externals`, а не `serverExternalPackages`:
-    // второе Next трассирует по графу импортов и в бандл функции кладёт сам,
-    // а первое трассировку обходит — пакет обязан быть у приложения.
-    const block = /config\.externals\s*=\s*\[([\s\S]*?)\];/u.exec(config)?.[1] ?? '';
-    const external = [...block.matchAll(/'([^']+)'/gu)]
-      .map((match) => match[1] as string)
-      .filter((name) => !name.startsWith('...'));
+    // Проверяются ОБА списка: `config.externals` и `serverExternalPackages`.
+    //
+    // Сначала здесь стоял только первый: я рассудил, что второе Next трассирует
+    // сам. Рассуждение оказалось неверным — `@prisma/client` не попал в бандл
+    // функции, и на бою каждый запрос к базе падал с `engine_missing`.
+    // Тест указывал на него с самого начала, а я сузил проверку.
+    const externals = /config\.externals\s*=\s*\[([\s\S]*?)\];/u.exec(config)?.[1] ?? '';
+    const serverExternal = /serverExternalPackages:\s*\[([\s\S]*?)\]/u.exec(config)?.[1] ?? '';
 
-    expect(external.length, 'externals не разобрались — проверь регулярку').toBeGreaterThan(0);
+    const names = [...`${externals} ${serverExternal}`.matchAll(/'([^']+)'/gu)]
+      .map((match) => match[1] as string)
+      .filter((name) => !name.startsWith('...') && !name.startsWith('@cleekto/'));
+
+    expect(names.length, 'списки внешних пакетов не разобрались').toBeGreaterThan(0);
 
     const declared = new Set(Object.keys(manifest.dependencies ?? {}));
-    expect(external.filter((name) => !declared.has(name))).toEqual([]);
+    expect([...new Set(names)].filter((name) => !declared.has(name))).toEqual([]);
   });
 });

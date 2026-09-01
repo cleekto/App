@@ -11,6 +11,28 @@ const config: NextConfig = {
   // ссылку «Application Data», которая ссылается сама на себя.
   outputFileTracingRoot: resolve(dirname(fileURLToPath(import.meta.url)), '../..'),
 
+  /**
+   * Движок Prisma кладётся в бандл функции принудительно.
+   *
+   * ЗАЧЕМ. Сгенерированный клиент лежит по адресу вида
+   * `node_modules/.pnpm/@prisma+client@…/node_modules/.prisma/client/`,
+   * то есть за симлинками pnpm. Трассировка Next идёт по графу импортов
+   * и до бинарного файла движка не доходит: его никто не импортирует,
+   * его находят по пути во время работы.
+   *
+   * Итог без этой настройки: сборка проходит, приложение поднимается,
+   * а первый же запрос к базе падает с `engine_missing`. Найдено ровно так
+   * на боевом развёртывании.
+   *
+   * Пути относительны `outputFileTracingRoot`, то есть корня монорепозитория.
+   */
+  outputFileTracingIncludes: {
+    '/**/*': [
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/.prisma/client/**/*',
+      '../../node_modules/.pnpm/@prisma+client*/node_modules/@prisma/client/**/*',
+    ],
+  },
+
   // Пакеты монорепозитория поставляются исходниками на TypeScript.
   transpilePackages: ['@cleekto/contracts', '@cleekto/core', '@cleekto/i18n', '@cleekto/db'],
 
