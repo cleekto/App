@@ -3,13 +3,25 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { formatDateTime, type Locale } from '@kleekto/i18n';
-
 interface Comment {
   id: string;
   body: string;
   authorName: string | null;
-  createdAt: string;
+  /**
+   * Дата, УЖЕ ОТФОРМАТИРОВАННАЯ НА СЕРВЕРЕ.
+   *
+   * Форматировать её здесь нельзя, и это не стилистика. Браузер может не
+   * иметь данных грузинской локали: Chrome на машине владельца молча
+   * подставляет для `ka-GE` русский формат, тогда как Node с полным ICU
+   * даёт грузинский. Разный текст на сервере и на клиенте — это, во-первых,
+   * ошибка гидратации (React выбрасывает серверную разметку и рисует
+   * заново), а во-вторых и хуже — грузинский агент видит русские даты
+   * в продукте, где три языка равноправны (ADR-0008).
+   *
+   * Найдено ручным проходом по продукту; ни один тест этого не видел,
+   * потому что тесты выполняются только в Node.
+   */
+  createdAtLabel: string;
 }
 
 /**
@@ -22,12 +34,10 @@ interface Comment {
 export function CommentBox({
   propertyId,
   comments,
-  locale,
   labels,
 }: {
   propertyId: string;
   comments: Comment[];
-  locale: Locale;
   labels: { title: string; placeholder: string; send: string };
 }) {
   const router = useRouter();
@@ -41,7 +51,7 @@ export function CommentBox({
         {comments.map((comment) => {
           // Автор мог уйти из компании — комментарий остаётся, он часть
           // истории объекта. Показываем только дату, без пустого имени.
-          const meta = [comment.authorName, formatDateTime(locale, new Date(comment.createdAt))]
+          const meta = [comment.authorName, comment.createdAtLabel]
             .filter((part) => part !== null)
             .join(' · ');
 

@@ -144,3 +144,67 @@ describe('сборка веба разрешает свои внешние па�
     expect([...new Set(names)].filter((name) => !declared.has(name))).toEqual([]);
   });
 });
+
+describe('форматирование по локали — только на сервере', () => {
+  /**
+   * НАЙДЕНО РУЧНЫМ ПРОХОДОМ, НЕ ТЕСТОМ.
+   *
+   * Chrome на машине владельца не имеет данных грузинской локали и для
+   * `ka-GE` молча подставляет русский формат:
+   *
+   *     Node (полный ICU):  2 სექ. 2026 · 175 000 US$
+   *     Chrome:             2 сент. 2026 г. · 175 000 $
+   *
+   * Клиентский компонент, форматирующий дату сам, поэтому рисует не то же,
+   * что сервер. Последствий два, и второе хуже первого:
+   *
+   *   1. ошибка гидратации — React выбрасывает серверную разметку и рисует
+   *      страницу заново;
+   *   2. грузинский агент видит русские даты и валюту в продукте, где три
+   *      языка объявлены равноправными (ADR-0008).
+   *
+   * Ни один тест этого не видел и увидеть не мог: тесты выполняются
+   * в Node, у которого ICU полный. Поэтому проверка структурная —
+   * она запрещает саму возможность.
+   */
+  it('клиентские компоненты не зовут форматтеры локали', () => {
+    const offenders: string[] = [];
+
+    for (const file of sourceFiles(['.tsx'])) {
+      const content = readFileSync(file, 'utf8');
+
+      // Клиентский компонент — тот, что помечен директивой в первых строках.
+      if (!/^\s*['"]use client['"]/mu.test(content.slice(0, 200))) continue;
+
+      const code = content.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '');
+
+      // Обёртки из `_lib/format` считаются наравне с самими форматтерами:
+      // внутри у них тот же `Intl`. Первая версия проверки их не знала,
+      // и `board.tsx` с `task-box.tsx` спокойно продолжали ломать гидратацию.
+      const forbidden = [
+        'formatDate',
+        'formatDateTime',
+        'formatMoney',
+        'formatNumber',
+        'priceLine',
+        'factsLine',
+        'kindLine',
+        'dateLine',
+        'dueLine',
+      ];
+
+      for (const name of forbidden) {
+        if (new RegExp(`\\b${name}\\s*\\(`, 'u').test(code)) {
+          offenders.push(`${rel(file)}: ${name}`);
+        }
+      }
+
+      // `Intl` напрямую — та же беда, только в обход наших обёрток.
+      if (/\bnew Intl\.(DateTimeFormat|NumberFormat)/u.test(code)) {
+        offenders.push(`${rel(file)}: new Intl`);
+      }
+    }
+
+    expect(offenders).toEqual([]);
+  });
+});

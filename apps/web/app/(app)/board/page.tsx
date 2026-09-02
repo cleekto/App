@@ -1,6 +1,7 @@
 import { listPipelineStatuses, listProperties } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
+import { factsLine, kindLine, placeLine, priceLine } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Board } from './board';
 
@@ -25,22 +26,17 @@ export default async function BoardPage() {
       <h1 className="text-2xl font-semibold tracking-tight">{translate(locale, 'board.title')}</h1>
 
       <Board
-        locale={locale}
         emptyLabel={translate(locale, 'board.empty')}
         columns={statuses.map((status) => ({ id: status.id, name: status.name }))}
         items={items.map((item) => ({
           id: item.id,
           pipelineStatusId: item.pipelineStatusId,
-          propertyType: item.propertyType,
-          transactionType: item.transactionType,
-          rooms: item.rooms,
-          areaTotal: item.areaTotal,
-          floor: item.floor,
-          totalFloors: item.totalFloors,
-          district: item.district,
-          addressRaw: item.addressRaw,
-          price: item.price,
-          currency: item.currency,
+          // Строки собираются здесь, на сервере: внутри `Intl`, а у браузера
+          // может не быть данных нужной локали — см. `board.tsx`.
+          price: priceLine(locale, item),
+          kind: kindLine(locale, item),
+          facts: factsLine(locale, item),
+          place: placeLine(item),
         }))}
       />
     </div>

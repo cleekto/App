@@ -3,11 +3,26 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { Locale } from '@kleekto/i18n';
+/**
+ * Строки, УЖЕ СОБРАННЫЕ НА СЕРВЕРЕ.
+ *
+ * Собирать их здесь нельзя: внутри `Intl`, а браузер может не иметь данных
+ * нужной локали. Chrome на машине владельца для `ka-GE` молча подставляет
+ * русский формат, тогда как Node с полным ICU даёт грузинский. Разный текст
+ * на сервере и на клиенте — ошибка гидратации и, что хуже, русские даты
+ * и валюта у грузинского агента (ADR-0008).
+ *
+ * Найдено ручным проходом; тесты этого не видели и не могли — они идут
+ * в Node, где ICU полный. Запрет закреплён в `tests/foundation.test.ts`.
+ */
+interface CardLines {
+  price: string;
+  kind: string;
+  facts: string;
+  place: string;
+}
 
-import { factsLine, kindLine, placeLine, priceLine, type PropertyFacts } from '../../_lib/format';
-
-interface Card extends PropertyFacts {
+interface Card extends CardLines {
   id: string;
   pipelineStatusId: string;
 }
@@ -26,12 +41,10 @@ interface Card extends PropertyFacts {
 export function Board({
   columns,
   items,
-  locale,
   emptyLabel,
 }: {
   columns: Array<{ id: string; name: string }>;
   items: Card[];
-  locale: Locale;
   emptyLabel: string;
 }) {
   const router = useRouter();
@@ -90,16 +103,12 @@ export function Board({
                   onDragEnd={() => setDragging(null)}
                   className="cursor-grab rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 active:cursor-grabbing"
                 >
-                  <p className="text-sm font-medium">{priceLine(locale, card)}</p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">
-                    {kindLine(locale, card)}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">
-                    {factsLine(locale, card)}
-                  </p>
-                  {placeLine(card) === '' ? null : (
+                  <p className="text-sm font-medium">{card.price}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">{card.kind}</p>
+                  <p className="text-xs text-[var(--color-text-secondary)]">{card.facts}</p>
+                  {card.place === '' ? null : (
                     <p className="truncate text-xs text-[var(--color-text-secondary)]">
-                      {placeLine(card)}
+                      {card.place}
                     </p>
                   )}
                 </a>

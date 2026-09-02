@@ -3,11 +3,21 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import type { Locale } from '@kleekto/i18n';
-
-import { dueLine } from '../../../_lib/format';
-
+/**
+ * Строки, УЖЕ СОБРАННЫЕ НА СЕРВЕРЕ.
+ *
+ * Собирать их здесь нельзя: внутри `Intl`, а браузер может не иметь данных
+ * нужной локали. Chrome на машине владельца для `ka-GE` молча подставляет
+ * русский формат, тогда как Node с полным ICU даёт грузинский. Разный текст
+ * на сервере и на клиенте — ошибка гидратации и, что хуже, русские даты
+ * и валюта у грузинского агента (ADR-0008).
+ *
+ * Найдено ручным проходом; тесты этого не видели и не могли — они идут
+ * в Node, где ICU полный. Запрет закреплён в `tests/foundation.test.ts`.
+ */
 interface Task {
+  /** Срок, отформатированный сервером. Пусто — срока нет. */
+  dueLabel: string;
   id: string;
   title: string;
   assignedUserName: string | null;
@@ -27,13 +37,11 @@ export function TaskBox({
   propertyId,
   tasks,
   people,
-  locale,
   labels,
 }: {
   propertyId: string;
   tasks: Task[];
   people: Array<{ id: string; name: string }>;
-  locale: Locale;
   labels: {
     title: string;
     add: string;
@@ -153,7 +161,7 @@ export function TaskBox({
                 </p>
                 <p className="text-xs text-[var(--color-text-secondary)]">
                   {[
-                    task.dueAt === null ? null : dueLine(locale, task.dueAt),
+                    task.dueLabel === '' ? null : task.dueLabel,
                     task.assignedUserName,
                     task.overdue ? labels.overdue : null,
                   ]

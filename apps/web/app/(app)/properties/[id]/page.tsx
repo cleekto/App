@@ -7,9 +7,9 @@ import {
   listUsers,
   propertyActivity,
 } from '@kleekto/core';
-import { translate } from '@kleekto/i18n';
+import { formatDateTime, translate } from '@kleekto/i18n';
 
-import { dateLine, factsLine, kindLine, placeLine, priceLine } from '../../../_lib/format';
+import { dateLine, dueLine, factsLine, kindLine, placeLine, priceLine } from '../../../_lib/format';
 import { contextLocale, requireContext } from '../../../_lib/session';
 import { ActivityList } from './activity-list';
 import { CommentBox } from './comment-box';
@@ -102,9 +102,13 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
           <TaskBox
             propertyId={property.id}
-            tasks={tasks}
+            tasks={tasks.map((task) => ({
+              ...task,
+              // Срок форматируется на сервере: внутри `Intl`, а у браузера
+              // может не быть данных нужной локали — см. `task-box.tsx`.
+              dueLabel: dueLine(locale, task.dueAt),
+            }))}
             people={teammates}
-            locale={locale}
             labels={{
               title: t('property.tasks'),
               add: t('task.add'),
@@ -122,8 +126,12 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
           <CommentBox
             propertyId={property.id}
-            comments={comments}
-            locale={locale}
+            comments={comments.map((comment) => ({
+              ...comment,
+              // Дата форматируется здесь, на сервере: у браузера может
+              // не быть данных грузинской локали (см. `comment-box.tsx`).
+              createdAtLabel: formatDateTime(locale, new Date(comment.createdAt)),
+            }))}
             labels={{
               title: t('property.comments'),
               placeholder: t('property.addComment'),
