@@ -25,7 +25,7 @@ export function SignOutButton({ label }: { label: string }) {
           router.refresh();
         });
       }}
-      className="rounded-[var(--radius-control)] px-2 py-1.5 text-left text-xs text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)] disabled:opacity-50"
+      className="rounded-[var(--radius-control)] px-2 py-1.5 text-left text-xs text-[var(--color-sidebar-fg-muted)] transition-colors hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)] disabled:opacity-50"
     >
       {label}
     </button>

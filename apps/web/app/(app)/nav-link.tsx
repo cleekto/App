@@ -37,8 +37,8 @@ export function NavLink({
       title={label}
       className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors ${
         active
-          ? 'bg-[var(--color-brand-soft)] font-medium text-[var(--color-brand-text)]'
-          : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]'
+          ? 'bg-[var(--color-sidebar-active-bg)] font-medium text-[var(--color-sidebar-active-fg)]'
+          : 'text-[var(--color-sidebar-fg-muted)] hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
       }`}
     >
       {children}

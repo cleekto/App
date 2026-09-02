@@ -99,7 +99,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         и переключатель языка с кнопкой выхода становится не достать —
         именно это и случилось при первой проверке.
       */}
-      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col justify-between border-r border-[var(--color-border)] bg-[var(--color-surface)]">
+      <aside className="sticky top-0 flex h-screen w-60 shrink-0 flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-fg)]">
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <Link
             href="/properties"
@@ -135,23 +135,23 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           </nav>
         </div>
 
-        <div className="flex flex-col gap-3 border-t border-[var(--color-border)] p-4">
+        <div className="flex flex-col gap-3 border-t border-[var(--color-sidebar-border)] p-4">
           <div className="flex items-center gap-2.5">
             <span
               aria-hidden
-              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-xs font-semibold text-[var(--color-brand-text)]"
+              className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[var(--color-sidebar-active-bg)] text-xs font-semibold text-[var(--color-sidebar-active-fg)]"
             >
               {initials}
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.fullName}</p>
-              <p className="truncate text-xs text-[var(--color-text-secondary)]">
+              <p className="truncate text-xs text-[var(--color-sidebar-fg-muted)]">
                 {user.companyName}
               </p>
             </div>
           </div>
 
-          <LocaleSwitcher current={locale} persist ariaLabel={t('settings.language')} />
+          <LocaleSwitcher current={locale} persist tone="dark" ariaLabel={t('settings.language')} />
 
           <SignOutButton label={t('nav.signOut')} />
         </div>

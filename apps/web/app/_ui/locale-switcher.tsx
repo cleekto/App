@@ -27,11 +27,18 @@ export function LocaleSwitcher({
   current,
   persist,
   ariaLabel,
+  tone = 'light',
 }: {
   current: Locale;
   /** Сохранять ли выбор в профиль. Ложь на странице входа: профиля ещё нет. */
   persist: boolean;
   ariaLabel: string;
+  /**
+   * Переключатель стоит на двух разных поверхностях: светлой странице входа
+   * и тёмной боковой панели (`layout.tsx`) — токены `--color-brand-soft`
+   * и `--color-text-secondary` на тёмном фоне читались бы плохо.
+   */
+  tone?: 'light' | 'dark';
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -80,9 +87,13 @@ export function LocaleSwitcher({
                 .finally(done);
             }}
             className={`rounded-[var(--radius-control)] px-1.5 py-1 text-xs font-medium transition-colors ${
-              active
-                ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
-                : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]'
+              tone === 'dark'
+                ? active
+                  ? 'bg-[var(--color-sidebar-active-bg)] text-[var(--color-sidebar-active-fg)]'
+                  : 'text-[var(--color-sidebar-fg-muted)] hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
+                : active
+                  ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
+                  : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]'
             }`}
           >
             {LABELS[locale]}

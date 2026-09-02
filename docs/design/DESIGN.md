@@ -142,6 +142,29 @@ Do not make every element visually equally important.
 
 ## 6. Color System
 
+**[CONFIRMED] Superseded 2026-09-02 by owner decision — "яркий и уверенный".** The
+owner used the product for the first time and found the neutral palette below
+dull for an interface people sit in front of all day: color should help
+alertness, not just avoid annoying. Three options were mocked up on a real
+screenshot (sidebar, cards, statuses, buttons) and shown before implementation;
+the boldest was chosen.
+
+What actually shipped (`apps/web/app/globals.css`): a vivid indigo brand
+(`--color-brand`) replacing the muted blue-violet, more saturated semantic
+colors, and — the one departure from "neutral everywhere" — a dark indigo
+**sidebar** (`--color-sidebar-*` tokens) with light text, distinct from the
+still-light, still-calm main content area. The reasoning: the sidebar is seen
+in peripheral vision all day but not *read* for hours the way the content
+area is, so it can afford to be the one saturated large surface. The rule
+below ("neutral light foundation", "do not use many saturated colors
+simultaneously") still governs the *main content area* — it was never meant
+to forbid the owner's product from having any personality at all, and the
+sidebar exception is deliberate and scoped, not a quiet abandonment of the
+principle.
+
+The text below is the original brief and stays as historical context for why
+a neutral baseline was the starting point.
+
 Use a neutral light foundation:
 
 ```text
