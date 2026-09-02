@@ -91,7 +91,10 @@ export default async function PropertiesPage({
                 <div className="shrink-0 text-right">
                   <p className="font-semibold">{priceLine(locale, item)}</p>
                   <p className="text-sm text-[var(--color-text-secondary)]">
-                    {item.pipelineStatusName}
+                    {statusLabel(locale, {
+                      code: item.pipelineStatusCode,
+                      name: item.pipelineStatusName,
+                    })}
                   </p>
                   <p className="text-xs text-[var(--color-text-secondary)]">
                     {item.assignedUserName ?? t('property.unassigned')}

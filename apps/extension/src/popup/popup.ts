@@ -45,7 +45,11 @@ async function render(): Promise<void> {
     element(id).textContent = t(key);
   };
 
-  fill('app-name', 'app.name');
+  // Знак охраны авторского права ставится здесь, а не в словаре: значение
+  // `app.name` уходит ещё и в заголовок вкладки браузера, где такой знак
+  // читался бы как опечатка. Рядом со знаком на экране он уместен, в имени
+  // окна — нет.
+  element('app-name').textContent = `${t('app.name')}©`;
   fill('tagline', 'app.tagline');
 
   const signInForm = element<HTMLFormElement>('sign-in');

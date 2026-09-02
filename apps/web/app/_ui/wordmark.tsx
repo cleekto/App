@@ -14,6 +14,18 @@ const WORDMARK_KLEEK = 'kleek';
 const WORDMARK_T = 'T';
 const WORDMARK_O = 'o';
 
+/**
+ * Знак охраны авторского права рядом с последней буквой.
+ *
+ * Приподнят и уменьшен, как это принято у знаков возле логотипа: он часть
+ * знака, но не часть слова. Цвет приглушён — иначе на светлой странице входа
+ * он спорит по весу с самой буквой «o», у которой градиент.
+ *
+ * Не `aria-hidden`: экранная читалка произносит его как «copyright», и это
+ * верно — знак несёт смысл, а не украшает.
+ */
+const WORDMARK_COPYRIGHT = '©';
+
 export function Wordmark({
   tone = 'light',
   className = '',
@@ -39,6 +51,15 @@ export function Wordmark({
         }}
       >
         {WORDMARK_O}
+      </span>
+      <span
+        className={`self-start text-[0.55em] font-semibold leading-none ${
+          tone === 'dark'
+            ? 'text-[var(--color-sidebar-fg-muted)]'
+            : 'text-[var(--color-text-tertiary)]'
+        }`}
+      >
+        {WORDMARK_COPYRIGHT}
       </span>
     </span>
   );

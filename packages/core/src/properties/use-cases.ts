@@ -48,6 +48,12 @@ export interface PropertyListItem {
   district: string | null;
   addressRaw: string | null;
   pipelineStatusId: string;
+  /**
+   * Код статуса. Нужен показу: по нему подставляется перевод, потому что
+   * `pipelineStatusName` лежит в базе по-английски — его туда положила
+   * регистрация, когда язык компании ещё не был известен (инвариант 4).
+   */
+  pipelineStatusCode: string;
   pipelineStatusName: string;
   assignedUserId: string | null;
   assignedUserName: string | null;
@@ -131,7 +137,7 @@ export async function listProperties(
       take: limit,
       skip: filters.offset ?? 0,
       include: {
-        pipelineStatus: { select: { id: true, name: true } },
+        pipelineStatus: { select: { id: true, code: true, name: true } },
       },
     }),
     prisma.property.count({ where }),
@@ -159,6 +165,7 @@ export async function listProperties(
       district: row.district,
       addressRaw: row.addressRaw,
       pipelineStatusId: row.pipelineStatus.id,
+      pipelineStatusCode: row.pipelineStatus.code,
       pipelineStatusName: row.pipelineStatus.name,
       assignedUserId: row.assignedUserId,
       assignedUserName:
@@ -200,7 +207,7 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
   const row = await prisma.property.findFirst({
     where: { id, companyId: ctx.companyId },
     include: {
-      pipelineStatus: { select: { id: true, name: true } },
+      pipelineStatus: { select: { id: true, code: true, name: true } },
       ownerContact: { include: { phones: { select: { phoneOriginal: true } } } },
       sourceListings: {
         select: {
@@ -236,6 +243,7 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
     district: row.district,
     addressRaw: row.addressRaw,
     pipelineStatusId: row.pipelineStatus.id,
+    pipelineStatusCode: row.pipelineStatus.code,
     pipelineStatusName: row.pipelineStatus.name,
     assignedUserId: row.assignedUserId,
     assignedUserName:
