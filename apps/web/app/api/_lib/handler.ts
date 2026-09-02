@@ -5,6 +5,8 @@ import { HTTP_STATUS_BY_ERROR, errorEnvelope } from '@cleekto/contracts';
 import { UnauthenticatedError, isDomainError, verifyAccessToken } from '@cleekto/core';
 import type { AuthContext } from '@cleekto/core';
 
+import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
+
 /**
  * Обвязка обработчиков маршрутов.
  *
@@ -17,8 +19,7 @@ import type { AuthContext } from '@cleekto/core';
  * Бизнес-логики здесь нет и быть не должно.
  */
 
-export const ACCESS_COOKIE = 'cleekto_access';
-export const REFRESH_COOKIE = 'cleekto_refresh';
+export { ACCESS_COOKIE, REFRESH_COOKIE };
 
 /**
  * Контекст из сессии. ЕДИНСТВЕННОЕ место, где он возникает из внешних данных.

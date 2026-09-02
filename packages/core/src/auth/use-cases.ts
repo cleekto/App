@@ -178,11 +178,30 @@ export async function login(input: LoginInput): Promise<SessionTokens> {
 // ── Обновление сессии ────────────────────────────────────────────────────────
 
 /**
+ * Допуск на гонку двух параллельных обновлений одним и тем же токеном.
+ *
+ * Веб теперь обновляет сессию сам, без агента — из `middleware.ts`
+ * (`docs/launch-checklist.md`, «сессия обрывается каждые 15 минут»). Когда
+ * access-cookie истекает, а браузер успевает выстрелить несколько запросов
+ * почти одновременно, каждый из них видит в куке один и тот же refresh-токен:
+ * ни один ещё не получил новый `Set-Cookie`. Без допуска второй такой запрос
+ * выглядел бы кражей — и отзывал бы все сессии агента посреди работы. Так
+ * чинили бы разлогин по времени, заводя разлогин по гонке.
+ *
+ * [RECOMMENDED] Секунд немного — это плата за то, что настоящая кража,
+ * случившаяся мгновение спустя после легитимной ротации, на несколько секунд
+ * перестаёт быть отличима от гонки. Владелец не называл число, ADR не писан:
+ * если окно окажется велико, его можно сузить без смены модели.
+ */
+export const REFRESH_REUSE_GRACE_MS = 10_000;
+
+/**
  * Обновление пары токенов с ротацией.
  *
  * Повторное использование уже отозванного токена означает, что им завладел
  * кто-то ещё: настоящий владелец получил бы новый. Поэтому отзываются все
- * сессии пользователя, а не только предъявленная.
+ * сессии пользователя, а не только предъявленная — за вычетом короткого
+ * допуска на гонку параллельных запросов, см. `REFRESH_REUSE_GRACE_MS`.
  */
 export async function refreshSession(refreshToken: string): Promise<SessionTokens> {
   const tokenHash = hashRefreshToken(refreshToken);
@@ -197,15 +216,25 @@ export async function refreshSession(refreshToken: string): Promise<SessionToken
   }
 
   if (stored.revokedAt !== null) {
-    await revokeAllSessions(stored.userId);
+    const isRaceNotTheft =
+      stored.replacedById !== null &&
+      Date.now() - stored.revokedAt.getTime() < REFRESH_REUSE_GRACE_MS;
 
-    await writeSystemActivity(prisma, stored.user.companyId, {
-      entityType: ENTITY.USER,
-      entityId: stored.userId,
-      action: ACTIVITY.REFRESH_REUSE_DETECTED,
-    });
+    if (!isRaceNotTheft) {
+      await revokeAllSessions(stored.userId);
 
-    throw new UnauthenticatedError('Сессия недействительна');
+      await writeSystemActivity(prisma, stored.user.companyId, {
+        entityType: ENTITY.USER,
+        entityId: stored.userId,
+        action: ACTIVITY.REFRESH_REUSE_DETECTED,
+      });
+
+      throw new UnauthenticatedError('Сессия недействительна');
+    }
+
+    // Иначе — похоже на параллельный запрос, а не кражу: легитимный
+    // владелец получил замену мгновение назад. Тревогу не поднимаем,
+    // выдаём ещё одну сессию тем же путём, что и обычную ротацию.
   }
 
   if (stored.expiresAt.getTime() <= Date.now() || !stored.user.isActive) {
@@ -222,11 +251,15 @@ export async function refreshSession(refreshToken: string): Promise<SessionToken
   });
 
   // Старый токен отзывается и указывает на пришедший ему на смену:
-  // по цепочке видно, что произошло, если он всплывёт повторно.
-  await prisma.refreshToken.update({
-    where: { id: stored.id },
-    data: { revokedAt: new Date(), replacedById: tokens.refreshTokenId },
-  });
+  // по цепочке видно, что произошло, если он всплывёт повторно. В допуске
+  // по гонке строка уже отозвана первой (легитимной) ротацией — трогать её
+  // снова значило бы затереть исходный `replacedById` вторым отзывом.
+  if (stored.revokedAt === null) {
+    await prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revokedAt: new Date(), replacedById: tokens.refreshTokenId },
+    });
+  }
 
   return tokens;
 }

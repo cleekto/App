@@ -1,5 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 
+import { ACCESS_COOKIE, REFRESH_COOKIE } from './app/api/_lib/cookie-names';
+import {
+  clearSessionCookies,
+  setSessionCookies,
+  type SessionTokens,
+} from './app/api/_lib/session-cookies';
+import { withCookie } from './app/_lib/cookie-header';
+
 /**
  * Content-Security-Policy с одноразовым числом.
  *
@@ -17,7 +25,51 @@ import { NextResponse, type NextRequest } from 'next/server';
  * при каждой сборке.
  */
 
-export function middleware(request: NextRequest): NextResponse {
+/**
+ * Тихое обновление сессии.
+ *
+ * ПОЧЕМУ ПО ОТСУТСТВИЮ КУКИ, А НЕ ПО ПРОВЕРКЕ ТОКЕНА. Access-cookie живёт
+ * ровно `expiresIn` секунд (session-cookies.ts) — то же время, что и подпись
+ * токена внутри. Браузер стирает её сам день истечения, до JS дело
+ * не доходит. Поэтому её отсутствие при наличии refresh-cookie — дешёвый
+ * и достаточный признак «токен истёк по времени»; проверять подпись здесь
+ * незачем, а страница и так проверит её заново (`requireContext`).
+ *
+ * ПОЧЕМУ ЧЕРЕЗ HTTP, А НЕ ЧЕРЕЗ `@cleekto/core` НАПРЯМУЮ. `refreshSession`
+ * тянет за собой Prisma, а Prisma не работает в Edge-окружении middleware.
+ * Внутренний запрос к уже существующему `/api/v1/auth/refresh` держит
+ * доменную логику в обработчике маршрута (ADR-0001) — переводить middleware
+ * на Node-рантайм ради одного вызова не требуется.
+ *
+ * Собственные `/api/v1/auth/*` не трогаются: иначе обновление сессии внутри
+ * же обработчика `/auth/refresh` дёргало бы `/auth/refresh` ещё раз.
+ */
+async function refreshSessionCookie(
+  request: NextRequest,
+): Promise<SessionTokens | 'invalid' | null> {
+  if (request.cookies.has(ACCESS_COOKIE)) return null;
+
+  const refreshToken = request.cookies.get(REFRESH_COOKIE)?.value;
+  if (refreshToken === undefined) return null;
+
+  if (request.nextUrl.pathname.startsWith('/api/v1/auth/')) return null;
+
+  try {
+    const response = await fetch(new URL('/api/v1/auth/refresh', request.nextUrl.origin), {
+      method: 'POST',
+      headers: { cookie: request.headers.get('cookie') ?? '' },
+    });
+
+    if (!response.ok) return 'invalid';
+    return (await response.json()) as SessionTokens;
+  } catch {
+    // Сеть моргнула или ответ не разобрать — не время разлогинивать: просто
+    // не чиним сессию сейчас, а requireContext() поведёт себя, как и раньше.
+    return null;
+  }
+}
+
+export async function middleware(request: NextRequest): Promise<NextResponse> {
   const nonce = crypto.randomUUID();
 
   const csp = [
@@ -51,8 +103,30 @@ export function middleware(request: NextRequest): NextResponse {
   headers.set('x-nonce', nonce);
   headers.set('content-security-policy', csp);
 
+  const refreshed = await refreshSessionCookie(request);
+
+  if (refreshed !== null && refreshed !== 'invalid') {
+    // Страница внутри ЭТОГО ЖЕ запроса должна увидеть уже новый токен —
+    // иначе `requireContext()` успеет отправить агента на страницу входа
+    // раньше, чем браузер получит новый `Set-Cookie` и повторит запрос сам.
+    headers.set(
+      'cookie',
+      withCookie(request.headers.get('cookie'), ACCESS_COOKIE, refreshed.accessToken),
+    );
+  }
+
   const response = NextResponse.next({ request: { headers } });
   response.headers.set('content-security-policy', csp);
+
+  if (refreshed !== null && refreshed !== 'invalid') {
+    setSessionCookies(response, refreshed);
+  } else if (refreshed === 'invalid') {
+    // Refresh-токен явно отвергнут (истёк, отозван, кража) — не держим
+    // заведомо мёртвую куку: без этого каждый следующий запрос агента
+    // безрезультатно повторял бы этот же внутренний вызов.
+    clearSessionCookies(response);
+  }
+
   return response;
 }
 

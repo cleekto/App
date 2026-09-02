@@ -1,6 +1,6 @@
 import type { NextResponse } from 'next/server';
 
-import { ACCESS_COOKIE, REFRESH_COOKIE } from './handler';
+import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
 
 /**
  * Сессия веб-приложения в cookie.
@@ -12,7 +12,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from './handler';
  * каждый клиент тот, который для него безопаснее.
  */
 
-interface SessionTokens {
+export interface SessionTokens {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
