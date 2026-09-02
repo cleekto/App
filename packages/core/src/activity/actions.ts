@@ -12,6 +12,9 @@ export const ACTIVITY = {
   USER_DEACTIVATED: 'USER_DEACTIVATED',
   USER_LOGGED_IN: 'USER_LOGGED_IN',
   USER_LOGGED_OUT: 'USER_LOGGED_OUT',
+  /// Человек сменил язык интерфейса. Пишется потому, что сессия при этом
+  /// перевыпускается: без записи выпуск токена выглядел бы беспричинным.
+  USER_LOCALE_CHANGED: 'USER_LOCALE_CHANGED',
   /// Повторное использование отозванного refresh-токена — признак кражи.
   REFRESH_REUSE_DETECTED: 'REFRESH_REUSE_DETECTED',
   TEAM_CREATED: 'TEAM_CREATED',

@@ -336,3 +336,58 @@ export function normalizeEmail(email: string): string {
 
   return trimmed;
 }
+
+// ── Смена языка интерфейса ───────────────────────────────────────────────────
+
+/**
+ * Меняет язык пользователя и ВЫДАЁТ НОВУЮ СЕССИЮ.
+ *
+ * Новая сессия здесь обязательна, а не «на всякий случай»: язык лежит
+ * в подписанном access-токене (ADR-0003), и без перевыпуска интерфейс
+ * остался бы на прежнем языке до истечения токена — то есть до пятнадцати
+ * минут после нажатия. Человек решил бы, что переключатель сломан.
+ *
+ * Права и команда при этом не меняются: перевыпускается тот же набор
+ * утверждений, в котором отличается одно поле.
+ */
+export async function changeLocale(ctx: AuthContext, locale: string): Promise<SessionTokens> {
+  // Список продублирован намеренно: ядро не зависит от пакета интерфейса
+  // (ADR-0001), а три языка — решение владельца, а не деталь вёрстки.
+  if (!['ka', 'en', 'ru'].includes(locale)) {
+    throw new ValidationError('Неизвестный язык', { fields: ['locale'] });
+  }
+
+  const user = await prisma.user.update({
+    // companyId из контекста (правило 5): чужого пользователя этим не тронуть.
+    where: { id: ctx.userId, companyId: ctx.companyId },
+    data: { locale },
+    select: { id: true, companyId: true, role: { select: { code: true } }, tokenVersion: true },
+  });
+
+  const membership = await prisma.teamMember.findFirst({
+    where: { userId: user.id },
+    select: { teamId: true },
+  });
+
+  const session = await issueSession({
+    userId: user.id,
+    companyId: user.companyId,
+    teamId: membership?.teamId ?? null,
+    role: user.role.code,
+    locale,
+    tokenVersion: user.tokenVersion,
+  });
+
+  await writeActivity(prisma, ctx, {
+    action: ACTIVITY.USER_LOCALE_CHANGED,
+    entityType: ENTITY.USER,
+    entityId: user.id,
+    after: { locale },
+  });
+
+  return {
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
+  };
+}

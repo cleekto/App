@@ -143,11 +143,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
               <div className="mt-2 flex flex-col gap-1 text-sm">
                 {property.owner.fullName === null ? null : <p>{property.owner.fullName}</p>}
                 {property.owner.phones.map((phone) => (
-                  <a
-                    key={phone}
-                    href={`tel:${phone}`}
-                    className="text-[var(--color-brand-primary)]"
-                  >
+                  <a key={phone} href={`tel:${phone}`} className="text-[var(--color-brand)]">
                     {phone}
                   </a>
                 ))}
@@ -164,7 +160,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                     href={listing.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-[var(--color-brand-primary)]"
+                    className="text-[var(--color-brand)]"
                   >
                     {listing.source}
                   </a>
@@ -197,7 +193,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
                         href={publication.externalUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-[var(--color-brand-primary)]"
+                        className="text-xs text-[var(--color-brand)]"
                       >
                         {t('property.openSource')}
                       </a>

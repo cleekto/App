@@ -70,7 +70,7 @@ export function TaskBox({
         <button
           type="button"
           onClick={() => setAdding((value) => !value)}
-          className="text-xs text-[var(--color-brand-primary)]"
+          className="text-xs text-[var(--color-brand)]"
         >
           {labels.add}
         </button>
@@ -134,7 +134,7 @@ export function TaskBox({
           <button
             type="submit"
             disabled={busy}
-            className="rounded-lg bg-[var(--color-brand-primary)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+            className="rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
           >
             {labels.create}
           </button>

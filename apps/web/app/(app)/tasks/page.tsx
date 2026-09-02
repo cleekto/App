@@ -50,7 +50,7 @@ export default async function TasksPage() {
                     href={followUp.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sm font-medium text-[var(--color-brand-primary)]"
+                    className="text-sm font-medium text-[var(--color-brand)]"
                   >
                     {followUp.source}
                   </a>

@@ -83,7 +83,7 @@ export function CommentBox({
         <button
           type="submit"
           disabled={busy}
-          className="rounded-lg bg-[var(--color-brand-primary)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+          className="rounded-lg bg-[var(--color-brand)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
         >
           {labels.send}
         </button>

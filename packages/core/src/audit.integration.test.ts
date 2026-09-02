@@ -3,8 +3,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dashboard } from './analytics/use-cases';
 import type { AuthContext } from './auth/context';
-import { login } from './auth/use-cases';
-import { RateLimitedError, UnauthenticatedError } from './errors';
+import { changeLocale, login } from './auth/use-cases';
+import { verifyAccessToken } from './auth/tokens';
+import { RateLimitedError, UnauthenticatedError, ValidationError } from './errors';
 import { importListing, type ImportInput } from './import/use-cases';
 import { RATE_LIMITS, consumeRateLimit, pruneRateLimits } from './rate-limit/use-cases';
 import { seed } from './seed/seed';
@@ -211,5 +212,72 @@ describe('дашборд', () => {
     // область берётся из роли, а компания — из подписанного токена.
     const forged: AuthContext = { ...actors.agent, role: RoleCode.AGENT };
     expect((await dashboard(forged)).scope).toBe('team');
+  });
+});
+
+// ── Смена языка интерфейса ───────────────────────────────────────────────────
+
+describe('смена языка', () => {
+  /**
+   * Главное здесь — не запись в базу, а новая сессия.
+   *
+   * Язык лежит в подписанном access-токене (ADR-0003). Если его не
+   * перевыпустить, интерфейс останется на прежнем языке до истечения токена —
+   * до пятнадцати минут, — и человек решит, что переключатель сломан.
+   */
+  it('перевыпускает токен с новым языком', async () => {
+    const before = await prisma.user.findFirstOrThrow({
+      where: { id: actors.agent.userId },
+      select: { locale: true },
+    });
+
+    const session = await changeLocale(actors.agent, 'en');
+
+    const after = await prisma.user.findFirstOrThrow({
+      where: { id: actors.agent.userId },
+      select: { locale: true },
+    });
+    expect(after.locale).toBe('en');
+    expect(after.locale).not.toBe(before.locale);
+
+    // Именно это и проверяется: язык внутри выданного токена, а не в базе.
+    const verified = await verifyAccessToken(session.accessToken);
+    expect(verified.locale).toBe('en');
+
+    // Права и компания не должны поехать вместе с языком.
+    expect(verified.companyId).toBe(actors.agent.companyId);
+    expect(verified.role).toBe(actors.agent.role);
+  });
+
+  it('неизвестный язык отклоняется', async () => {
+    await expect(changeLocale(actors.agent, 'de')).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('чужого пользователя сменой языка не тронуть', async () => {
+    // Контекст чужой компании с подставленным чужим userId: `where` в сценарии
+    // фильтрует и по companyId, поэтому строка не найдётся (правило 5).
+    const foreign = { ...actors.otherCompanyAgent, userId: actors.agent.userId };
+
+    await expect(changeLocale(foreign, 'ru')).rejects.toThrow();
+
+    const untouched = await prisma.user.findFirstOrThrow({
+      where: { id: actors.agent.userId },
+      select: { locale: true },
+    });
+    expect(untouched.locale).toBe('en');
+  });
+
+  it('пишется в журнал действий', async () => {
+    // Сессия перевыпускается — без записи это выглядело бы беспричинным
+    // выпуском токена при разборе инцидента.
+    await changeLocale(actors.agent, 'ka');
+
+    const entry = await prisma.activityLog.findFirst({
+      where: { userId: actors.agent.userId, action: 'USER_LOCALE_CHANGED' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(entry).not.toBeNull();
+    expect(entry?.companyId).toBe(actors.agent.companyId);
   });
 });

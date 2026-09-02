@@ -209,9 +209,34 @@ function assertNotProduction(): void {
   }
 
   const url = process.env['DATABASE_URL'] ?? '';
-  if (!/localhost|127\.0\.0\.1|@postgres[:/]/u.test(url)) {
-    throw new Error(
-      'DATABASE_URL не выглядит локальным. Сид стирает базу целиком и на удалённой не запускается.',
-    );
+  if (/localhost|127\.0\.0\.1|@postgres[:/]/u.test(url)) return;
+
+  /**
+   * Удалённая база — только если её ИМЯ НАЗВАНО ЯВНО.
+   *
+   * Понадобилось для веток разработки в Neon: локального Postgres может
+   * не быть, а ветка — расходная копия, которую и надо засевать.
+   *
+   * Ключ устроен так, что повернуть его случайно нельзя: недостаточно
+   * выставить флаг «да, я уверен» — надо вписать хост той самой базы,
+   * которую сейчас сотрут. Опечатка означает отказ, а не стирание чужого.
+   */
+  const declared = process.env['SEED_TARGET_HOST'] ?? '';
+  const actual = hostOf(url);
+
+  if (declared !== '' && actual !== null && declared === actual) return;
+
+  throw new Error(
+    `DATABASE_URL не выглядит локальным (${actual ?? 'хост не разобран'}). ` +
+      'Сид стирает базу целиком. Чтобы засеять удалённую ветку разработки, ' +
+      'назовите её хост в SEED_TARGET_HOST — тем самым подтвердив, что именно её и стираете.',
+  );
+}
+
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return null;
   }
 }

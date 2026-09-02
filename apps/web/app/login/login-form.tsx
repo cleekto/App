@@ -3,19 +3,16 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Button, Field, Input, Notice } from '../_ui/primitives';
+
 interface Labels {
   email: string;
   password: string;
   submit: string;
   failed: string;
+  busy: string;
 }
 
-/**
- * Форма входа.
- *
- * Пароль уходит на сервер и обратно не возвращается ни в каком виде: сессия
- * приходит `httpOnly` cookie, которую эта страница прочитать не может.
- */
 export function LoginForm({ labels }: { labels: Labels }) {
   const router = useRouter();
   const [failed, setFailed] = useState(false);
@@ -44,46 +41,34 @@ export function LoginForm({ labels }: { labels: Labels }) {
               // Неверная почта и неверный пароль неразличимы намеренно:
               // различие подсказало бы, какие адреса заведены в системе.
               setFailed(true);
+              setBusy(false);
               return;
             }
             router.replace('/properties');
             router.refresh();
+            // `busy` намеренно НЕ снимается при успехе: дальше идёт переход,
+            // и вернуть кнопку в исходный вид значило бы показать на долю
+            // секунды форму, которая больше ничего не ждёт.
           })
-          .catch(() => setFailed(true))
-          .finally(() => setBusy(false));
+          .catch(() => {
+            setFailed(true);
+            setBusy(false);
+          });
       }}
     >
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--color-text-secondary)]">{labels.email}</span>
-        <input
-          name="email"
-          type="email"
-          required
-          autoComplete="username"
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
-        />
-      </label>
+      {failed ? <Notice tone="error">{labels.failed}</Notice> : null}
 
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="text-[var(--color-text-secondary)]">{labels.password}</span>
-        <input
-          name="password"
-          type="password"
-          required
-          autoComplete="current-password"
-          className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2"
-        />
-      </label>
+      <Field label={labels.email}>
+        <Input name="email" type="email" required autoComplete="username" autoFocus />
+      </Field>
 
-      {failed ? <p className="text-sm text-[var(--color-danger)]">{labels.failed}</p> : null}
+      <Field label={labels.password}>
+        <Input name="password" type="password" required autoComplete="current-password" />
+      </Field>
 
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-lg bg-[var(--color-brand-primary)] px-4 py-2 font-medium text-white disabled:opacity-60"
-      >
-        {labels.submit}
-      </button>
+      <Button type="submit" disabled={busy} className="mt-2 w-full">
+        {busy ? labels.busy : labels.submit}
+      </Button>
     </form>
   );
 }

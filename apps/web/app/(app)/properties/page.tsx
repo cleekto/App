@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { EmptyState, PageHeader } from '../../_ui/primitives';
 
 import { listPipelineStatuses, listProperties } from '@cleekto/core';
 import { translate } from '@cleekto/i18n';
@@ -41,10 +42,10 @@ export default async function PropertiesPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{t('nav.properties')}</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">{foundLine}</p>
-      </header>
+      <PageHeader
+        title={t('nav.properties')}
+        action={<p className="text-sm text-[var(--color-text-secondary)]">{foundLine}</p>}
+      />
 
       <PropertyFilters
         labels={{
@@ -61,19 +62,14 @@ export default async function PropertiesPage({
       />
 
       {items.length === 0 ? (
-        <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] px-6 py-16 text-center">
-          <p className="font-medium">{t('property.empty')}</p>
-          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-            {t('property.emptyHint')}
-          </p>
-        </div>
+        <EmptyState title={t('property.empty')} hint={t('property.emptyHint')} />
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => (
             <li key={item.id}>
               <Link
                 href={`/properties/${item.id}`}
-                className="flex items-start justify-between gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 hover:border-[var(--color-brand-primary)]"
+                className="flex items-start justify-between gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--color-brand)] hover:bg-[var(--color-surface-muted)]"
               >
                 <div className="min-w-0">
                   <p className="truncate font-medium">{kindLine(locale, item)}</p>

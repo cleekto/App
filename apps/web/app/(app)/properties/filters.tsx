@@ -1,5 +1,7 @@
 'use client';
 
+import { Button, Input, Select } from '../../_ui/primitives';
+
 import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Labels {
@@ -53,17 +55,16 @@ export function PropertyFilters({
         apply('query', String(new FormData(event.currentTarget).get('query') ?? ''));
       }}
     >
-      <input
+      <Input
         name="query"
         defaultValue={params.get('query') ?? ''}
         placeholder={labels.search}
-        className="min-w-64 flex-1 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm"
+        className="min-w-64 flex-1"
       />
 
-      <select
+      <Select
         defaultValue={params.get('status') ?? ''}
         onChange={(event) => apply('status', event.target.value)}
-        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm"
       >
         <option value="">{labels.allStatuses}</option>
         {statuses.map((status) => (
@@ -71,12 +72,11 @@ export function PropertyFilters({
             {status.name}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <select
+      <Select
         defaultValue={params.get('type') ?? ''}
         onChange={(event) => apply('type', event.target.value)}
-        className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm"
       >
         <option value="">{labels.allTypes}</option>
         {types.map((type) => (
@@ -84,15 +84,11 @@ export function PropertyFilters({
             {type.label}
           </option>
         ))}
-      </select>
+      </Select>
 
-      <button
-        type="button"
-        onClick={() => router.replace('/properties')}
-        className="rounded-lg px-3 py-2 text-sm text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
-      >
+      <Button tone="ghost" type="button" onClick={() => router.replace('/properties')}>
         {labels.reset}
-      </button>
+      </Button>
     </form>
   );
 }

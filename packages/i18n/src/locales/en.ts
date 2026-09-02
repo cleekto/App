@@ -140,12 +140,42 @@ export const en = {
     profiles: 'Publishing profiles',
     profilesHint: 'The public face of the agency in a listing. Never the owner contact.',
     team: 'Team',
+    teams: 'Teams',
+    teamsHint:
+      'An agent works inside a team, and a property belongs to one. Without a team there is nobody to import listings.',
     users: 'People',
+    usersHint: 'Who works in the agency and what they are allowed to do.',
     role: 'Role',
     noProfiles: 'No publishing profiles yet',
+    noTeams: 'No teams yet',
     displayName: 'Name in the listing',
     phone: 'Phone in the listing',
     default: 'Default',
+    language: 'Interface language',
+
+    addTeam: 'Add team',
+    teamName: 'Team name',
+    members: 'people',
+
+    addUser: 'Add person',
+    fullName: 'Full name',
+    password: 'Password',
+    passwordHint: 'At least 12 characters. There is no password recovery yet — write it down.',
+    noTeam: 'No team',
+    noTeamHint:
+      'An admin without a team cannot import listings. That is intended: agents call and import.',
+
+    addProfile: 'Add profile',
+    makeDefault: 'Use by default',
+
+    roles: {
+      admin: 'Administrator — the whole company',
+      manager: 'Manager — their team',
+      agent: 'Agent — their own properties',
+    },
+
+    created: 'Saved',
+    failed: 'Could not save. Check the fields and try again.',
   },
 
   extension: {

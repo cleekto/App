@@ -151,7 +151,7 @@ export function PropertyControls({
               type="button"
               disabled={busy}
               onClick={() => void startPublish(source)}
-              className="rounded-lg border border-[var(--color-brand-primary)] px-3 py-2 text-sm text-[var(--color-brand-primary)] disabled:opacity-50"
+              className="rounded-lg border border-[var(--color-brand)] px-3 py-2 text-sm text-[var(--color-brand)] disabled:opacity-50"
             >
               {label}
             </button>
@@ -169,7 +169,7 @@ export function PropertyControls({
                   href={listing.canonicalUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-[var(--color-brand-primary)]"
+                  className="text-[var(--color-brand)]"
                 >
                   {listing.source}
                 </a>
