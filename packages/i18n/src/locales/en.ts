@@ -59,6 +59,8 @@ export const en = {
     tasks: 'Tasks',
     settings: 'Settings',
     signOut: 'Sign out',
+    menu: 'Menu',
+    closeMenu: 'Close menu',
   },
   auth: {
     signIn: 'Sign in',

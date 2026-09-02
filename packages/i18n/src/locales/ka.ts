@@ -66,6 +66,8 @@ export const ka: DeepPartial<Dictionary> = {
     tasks: 'დავალებები',
     settings: 'პარამეტრები',
     signOut: 'გასვლა',
+    menu: 'მენიუ',
+    closeMenu: 'მენიუს დახურვა',
   },
   auth: {
     signIn: 'შესვლა',

@@ -64,6 +64,8 @@ export const ru: DeepPartial<Dictionary> = {
     tasks: 'Задачи',
     settings: 'Настройки',
     signOut: 'Выйти',
+    menu: 'Меню',
+    closeMenu: 'Закрыть меню',
   },
   auth: {
     signIn: 'Войти',

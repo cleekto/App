@@ -19,10 +19,18 @@ export function NavLink({
   href,
   label,
   children,
+  toggleId,
 }: {
   href: string;
   label: string;
   children: ReactNode;
+  /**
+   * Id чекбокса, открывающего панель на телефоне (`(app)/layout.tsx`).
+   * Постоянный layout Next не размонтирует чекбокс при переходе между
+   * разделами — сам он не узнаёт о смене страницы, поэтому закрываем его
+   * здесь, руками, по факту клика.
+   */
+  toggleId?: string;
 }) {
   const pathname = usePathname();
 
@@ -35,6 +43,11 @@ export function NavLink({
       href={href}
       aria-current={active ? 'page' : undefined}
       title={label}
+      onClick={() => {
+        if (toggleId === undefined) return;
+        const toggle = document.getElementById(toggleId);
+        if (toggle instanceof HTMLInputElement) toggle.checked = false;
+      }}
       className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors ${
         active
           ? 'bg-[var(--color-sidebar-active-bg)] font-medium text-[var(--color-sidebar-active-fg)]'

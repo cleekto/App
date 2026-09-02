@@ -55,11 +55,21 @@ export function PropertyFilters({
         apply('query', String(new FormData(event.currentTarget).get('query') ?? ''));
       }}
     >
+      {/*
+        `basis-full`, а не `w-full`: контейнер — `flex`, а `flex-1` (нужен
+        от `sm:` и шире, чтобы поле росло вместе с соседями) даёт
+        `flex-basis: 0%`, который перебивает `width` при расчёте размера
+        по главной оси. `basis-full` — это и есть `flex-basis`, поэтому
+        на телефоне поле честно занимает всю строку и переносит селекты
+        на следующую, а не схлопывается до нескольких пикселей. Найдено
+        не глазами, а расчётом `getComputedStyle` — на глаз в браузере
+        разница между «почти не видно» и «0 не видно» неразличима.
+      */}
       <Input
         name="query"
         defaultValue={params.get('query') ?? ''}
         placeholder={labels.search}
-        className="min-w-64 flex-1"
+        className="min-w-0 basis-full sm:w-auto sm:min-w-64 sm:flex-1 sm:basis-auto"
       />
 
       <Select
