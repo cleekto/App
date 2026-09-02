@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Button, Field, Input, Notice } from '../_ui/primitives';
+import { PasswordInput } from '../_ui/password-input';
 
 interface Labels {
   email: string;
@@ -11,6 +12,8 @@ interface Labels {
   submit: string;
   failed: string;
   busy: string;
+  showPassword: string;
+  hidePassword: string;
 }
 
 export function LoginForm({ labels }: { labels: Labels }) {
@@ -63,7 +66,13 @@ export function LoginForm({ labels }: { labels: Labels }) {
       </Field>
 
       <Field label={labels.password}>
-        <Input name="password" type="password" required autoComplete="current-password" />
+        <PasswordInput
+          name="password"
+          required
+          autoComplete="current-password"
+          showLabel={labels.showPassword}
+          hideLabel={labels.hidePassword}
+        />
       </Field>
 
       <Button type="submit" disabled={busy} className="mt-2 w-full">

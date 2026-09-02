@@ -3,7 +3,7 @@ import { LOCALES, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Badge, Card, EmptyState, PageHeader, SectionHeader } from '../../_ui/primitives';
-import { NewProfileForm, NewTeamForm, NewUserForm } from './forms';
+import { ChangePasswordForm, NewProfileForm, NewTeamForm, NewUserForm } from './forms';
 
 /**
  * Настройки: команды, люди, профили публикации.
@@ -43,11 +43,35 @@ export default async function SettingsPage() {
     cancel: t('common.cancel'),
     saving: t('common.loading'),
     failed: t('settings.failed'),
+    showPassword: t('common.showPassword'),
+    hidePassword: t('common.hidePassword'),
   };
 
   return (
     <div className="flex max-w-4xl flex-col gap-10">
       <PageHeader title={t('settings.title')} />
+
+      {/* ── Аккаунт ──────────────────────────────────────────────────────── */}
+      <section className="flex flex-col gap-4">
+        <SectionHeader
+          title={t('settings.account')}
+          hint={t('settings.accountHint')}
+          action={
+            <ChangePasswordForm
+              labels={{
+                ...formLabels,
+                trigger: t('settings.changePassword'),
+                failed: t('settings.changePasswordFailed'),
+              }}
+              fields={{
+                currentPassword: t('settings.currentPassword'),
+                newPassword: t('settings.newPassword'),
+                newPasswordHint: t('settings.newPasswordHint'),
+              }}
+            />
+          }
+        />
+      </section>
 
       {/* ── Команды ──────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-4">

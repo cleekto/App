@@ -26,6 +26,8 @@ export const ru: DeepPartial<Dictionary> = {
     save: 'Сохранить',
     close: 'Закрыть',
     notSignedIn: 'Вход не выполнен',
+    showPassword: 'Показать пароль',
+    hidePassword: 'Скрыть пароль',
   },
   dashboard: {
     title: 'Сводка',
@@ -144,6 +146,13 @@ export const ru: DeepPartial<Dictionary> = {
   },
   settings: {
     title: 'Параметры',
+    account: 'Аккаунт',
+    accountHint: 'Вход и пароль на этом аккаунте.',
+    changePassword: 'Сменить пароль',
+    currentPassword: 'Текущий пароль',
+    newPassword: 'Новый пароль',
+    newPasswordHint: 'Не короче 12 символов.',
+    changePasswordFailed: 'Не удалось сменить пароль. Проверьте текущий пароль.',
     profiles: 'Профили публикации',
     profilesHint: 'Публичное лицо агентства в объявлении. Никогда не контакт собственника.',
     team: 'Команда',

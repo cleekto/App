@@ -21,6 +21,8 @@ export const en = {
     save: 'Save',
     close: 'Close',
     notSignedIn: 'Not signed in',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
   },
   dashboard: {
     title: 'Dashboard',
@@ -139,6 +141,13 @@ export const en = {
   },
   settings: {
     title: 'Settings',
+    account: 'Account',
+    accountHint: 'Sign-in and password for this account.',
+    changePassword: 'Change password',
+    currentPassword: 'Current password',
+    newPassword: 'New password',
+    newPasswordHint: 'At least 12 characters.',
+    changePasswordFailed: 'Could not change the password. Check the current password.',
     profiles: 'Publishing profiles',
     profilesHint: 'The public face of the agency in a listing. Never the owner contact.',
     team: 'Team',

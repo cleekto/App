@@ -42,6 +42,8 @@ export default async function LoginPage() {
               submit: t('auth.signIn'),
               failed: t('auth.failed'),
               busy: t('common.loading'),
+              showPassword: t('common.showPassword'),
+              hidePassword: t('common.hidePassword'),
             }}
           />
         </Card>

@@ -30,6 +30,8 @@ export const ka: DeepPartial<Dictionary> = {
     save: 'შენახვა',
     close: 'დახურვა',
     notSignedIn: 'არ ხართ შესული',
+    showPassword: 'პაროლის ჩვენება',
+    hidePassword: 'პაროლის დამალვა',
   },
   dashboard: {
     title: 'შეჯამება',
@@ -146,6 +148,13 @@ export const ka: DeepPartial<Dictionary> = {
   },
   settings: {
     title: 'პარამეტრები',
+    account: 'ანგარიში',
+    accountHint: 'შესვლა და პაროლი ამ ანგარიშზე.',
+    changePassword: 'პაროლის შეცვლა',
+    currentPassword: 'მიმდინარე პაროლი',
+    newPassword: 'ახალი პაროლი',
+    newPasswordHint: 'მინიმუმ 12 სიმბოლო.',
+    changePasswordFailed: 'პაროლის შეცვლა ვერ მოხერხდა. შეამოწმეთ მიმდინარე პაროლი.',
     profiles: 'გამოქვეყნების პროფილები',
     profilesHint: 'სააგენტოს სახე განცხადებაში. არასოდეს მესაკუთრის კონტაქტი.',
     team: 'გუნდი',

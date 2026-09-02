@@ -15,6 +15,9 @@ export const ACTIVITY = {
   /// Человек сменил язык интерфейса. Пишется потому, что сессия при этом
   /// перевыпускается: без записи выпуск токена выглядел бы беспричинным.
   USER_LOCALE_CHANGED: 'USER_LOCALE_CHANGED',
+  /// Пароль сменён. Ни старого, ни нового значения в записи нет — только
+  /// сам факт (правило 10).
+  USER_PASSWORD_CHANGED: 'USER_PASSWORD_CHANGED',
   /// Повторное использование отозванного refresh-токена — признак кражи.
   REFRESH_REUSE_DETECTED: 'REFRESH_REUSE_DETECTED',
   TEAM_CREATED: 'TEAM_CREATED',

@@ -424,3 +424,88 @@ export async function changeLocale(ctx: AuthContext, locale: string): Promise<Se
     expiresIn: session.expiresIn,
   };
 }
+
+// ── Смена пароля ─────────────────────────────────────────────────────────────
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Смена пароля. Разблокирует пункт чек-листа запуска: пароль пилота
+ * неизбежно попадёт не туда — его продиктуют по телефону, вставят
+ * в переписку или в консоль браузера, — а сменить его было нечем.
+ *
+ * ТЕКУЩИЙ ПАРОЛЬ ОБЯЗАТЕЛЕН, даже для своего же аккаунта: сессия живёт
+ * в cookie браузера, а не только в голове у человека, — открытая вкладка
+ * на чужом компьютере не должна давать сменить пароль без его подтверждения.
+ *
+ * ОТЗЫВАЮТСЯ ВСЕ СЕССИИ, ВКЛЮЧАЯ ТЕКУЩУЮ, а не только чужие: раз пароль
+ * меняют, разумно считать все прежние refresh-токены скомпрометированными
+ * тем же путём, что и сам пароль. Текущее устройство не теряет доступ —
+ * сессия перевыпускается тем же приёмом, что и в `changeLocale`.
+ */
+export async function changePassword(
+  ctx: AuthContext,
+  input: ChangePasswordInput,
+): Promise<SessionTokens> {
+  const user = await prisma.user.findFirst({
+    // companyId из контекста (правило 5): чужого пользователя этим не тронуть.
+    where: { id: ctx.userId, companyId: ctx.companyId },
+    select: {
+      id: true,
+      companyId: true,
+      passwordHash: true,
+      locale: true,
+      role: { select: { code: true } },
+    },
+  });
+
+  if (user === null) {
+    throw new NotFoundError();
+  }
+
+  if (!(await verifyPassword(user.passwordHash, input.currentPassword))) {
+    throw new ValidationError('Текущий пароль неверный', { fields: ['currentPassword'] });
+  }
+
+  // hashPassword сама проверяет длину нового пароля (правило единое
+  // для регистрации, создания пользователя и смены — MIN_PASSWORD_LENGTH
+  // в одном месте, не в трёх).
+  const passwordHash = await hashPassword(input.newPassword);
+
+  const membership = await prisma.teamMember.findFirst({
+    where: { userId: user.id },
+    select: { teamId: true },
+  });
+
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash, tokenVersion: { increment: 1 } },
+    select: { tokenVersion: true },
+  });
+
+  await revokeAllSessions(user.id);
+
+  const session = await issueSession({
+    userId: user.id,
+    companyId: user.companyId,
+    teamId: membership?.teamId ?? null,
+    role: user.role.code,
+    locale: user.locale,
+    tokenVersion: updated.tokenVersion,
+  });
+
+  await writeActivity(prisma, ctx, {
+    action: ACTIVITY.USER_PASSWORD_CHANGED,
+    entityType: ENTITY.USER,
+    entityId: user.id,
+  });
+
+  return {
+    accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
+    expiresIn: session.expiresIn,
+  };
+}

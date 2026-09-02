@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 
 import { Button, Field, Input, Notice, Select } from '../../_ui/primitives';
+import { PasswordInput } from '../../_ui/password-input';
 
 /**
  * Формы настроек: команда, человек, профиль публикации.
@@ -22,6 +23,8 @@ interface Labels {
   cancel: string;
   saving: string;
   failed: string;
+  showPassword: string;
+  hidePassword: string;
 }
 
 /** Общая оболочка: кнопка «добавить», раскрытие, отправка, ошибка. */
@@ -169,12 +172,13 @@ export function NewUserForm({
         </Field>
 
         <Field label={fields.password} hint={fields.passwordHint}>
-          <Input
+          <PasswordInput
             name="password"
-            type="password"
             required
             minLength={12}
             autoComplete="new-password"
+            showLabel={labels.showPassword}
+            hideLabel={labels.hidePassword}
           />
         </Field>
 
@@ -207,6 +211,50 @@ export function NewUserForm({
               </option>
             ))}
           </Select>
+        </Field>
+      </div>
+    </Disclosure>
+  );
+}
+
+export function ChangePasswordForm({
+  labels,
+  fields,
+}: {
+  labels: Labels & { trigger: string };
+  fields: { currentPassword: string; newPassword: string; newPasswordHint: string };
+}) {
+  return (
+    <Disclosure
+      trigger={labels.trigger}
+      labels={labels}
+      endpoint="/api/v1/auth/password"
+      body={(form) => ({
+        currentPassword: String(form.get('currentPassword') ?? ''),
+        newPassword: String(form.get('newPassword') ?? ''),
+      })}
+    >
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label={fields.currentPassword}>
+          <PasswordInput
+            name="currentPassword"
+            required
+            autoFocus
+            autoComplete="current-password"
+            showLabel={labels.showPassword}
+            hideLabel={labels.hidePassword}
+          />
+        </Field>
+
+        <Field label={fields.newPassword} hint={fields.newPasswordHint}>
+          <PasswordInput
+            name="newPassword"
+            required
+            minLength={12}
+            autoComplete="new-password"
+            showLabel={labels.showPassword}
+            hideLabel={labels.hidePassword}
+          />
         </Field>
       </div>
     </Disclosure>

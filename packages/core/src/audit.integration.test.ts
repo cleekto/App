@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dashboard } from './analytics/use-cases';
 import type { AuthContext } from './auth/context';
-import { changeLocale, login } from './auth/use-cases';
+import { changeLocale, changePassword, login, refreshSession } from './auth/use-cases';
 import { verifyAccessToken } from './auth/tokens';
 import { RateLimitedError, UnauthenticatedError, ValidationError } from './errors';
 import { importListing, type ImportInput } from './import/use-cases';
@@ -25,6 +25,7 @@ interface Actors {
 }
 
 let actors: Actors;
+let seedPassword: string;
 let counter = 0;
 
 async function contextFor(email: string): Promise<AuthContext> {
@@ -66,7 +67,8 @@ function payload(over: Partial<ImportInput> = {}): ImportInput {
 }
 
 beforeAll(async () => {
-  await seed();
+  const fixtures = await seed();
+  seedPassword = fixtures.password;
   actors = {
     admin: await contextFor('admin@tbilisi-estate.test'),
     manager: await contextFor('manager@tbilisi-estate.test'),
@@ -279,5 +281,100 @@ describe('смена языка', () => {
 
     expect(entry).not.toBeNull();
     expect(entry?.companyId).toBe(actors.agent.companyId);
+  });
+});
+
+// ── Смена пароля ─────────────────────────────────────────────────────────────
+
+describe('смена пароля', () => {
+  it('меняет пароль и перевыпускает сессию с прежними правами', async () => {
+    const session = await changePassword(actors.manager, {
+      currentPassword: seedPassword,
+      newPassword: 'novy-parol-menedzhera-2026',
+    });
+
+    const verified = await verifyAccessToken(session.accessToken);
+    expect(verified.userId).toBe(actors.manager.userId);
+    expect(verified.companyId).toBe(actors.manager.companyId);
+    expect(verified.role).toBe(actors.manager.role);
+
+    // Новый пароль действительно работает для входа...
+    await expect(
+      login({ email: 'manager@tbilisi-estate.test', password: 'novy-parol-menedzhera-2026' }),
+    ).resolves.toBeDefined();
+
+    // ...а прежний — больше нет.
+    await expect(
+      login({ email: 'manager@tbilisi-estate.test', password: seedPassword }),
+    ).rejects.toBeInstanceOf(UnauthenticatedError);
+  });
+
+  it('неверный текущий пароль отклоняется, пароль не меняется', async () => {
+    await expect(
+      changePassword(actors.agent, {
+        currentPassword: 'не тот пароль',
+        newPassword: 'что-то-достаточно-длинное-2026',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await expect(
+      login({ email: 'agent1@tbilisi-estate.test', password: seedPassword }),
+    ).resolves.toBeDefined();
+  });
+
+  it('слишком короткий новый пароль отклоняется', async () => {
+    // Одна и та же проверка длины, что и при регистрации (MIN_PASSWORD_LENGTH
+    // внутри hashPassword) — заводить вторую копию правила незачем.
+    await expect(
+      changePassword(actors.agent, { currentPassword: seedPassword, newPassword: 'коротко' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('чужого пользователя сменой пароля не тронуть', async () => {
+    // Контекст чужой компании с подставленным чужим userId: `where` в сценарии
+    // фильтрует и по companyId, поэтому строка не найдётся (правило 5).
+    const foreign = { ...actors.otherCompanyAgent, userId: actors.agent.userId };
+
+    await expect(
+      changePassword(foreign, {
+        currentPassword: seedPassword,
+        newPassword: 'chuzhoy-parol-ne-projdyot-2026',
+      }),
+    ).rejects.toThrow();
+
+    await expect(
+      login({ email: 'agent1@tbilisi-estate.test', password: seedPassword }),
+    ).resolves.toBeDefined();
+  });
+
+  it('отзывает прежние сессии, включая ту, из которой пароль сменили', async () => {
+    const before = await login({ email: 'agent1@tbilisi-estate.test', password: seedPassword });
+
+    await changePassword(actors.agent, {
+      currentPassword: seedPassword,
+      newPassword: 'posle-smeny-parolya-agenta-2026',
+    });
+
+    await expect(refreshSession(before.refreshToken)).rejects.toThrow();
+  });
+
+  it('пишется в журнал действий, но без пароля в записи', async () => {
+    await changePassword(actors.agent, {
+      currentPassword: 'posle-smeny-parolya-agenta-2026',
+      newPassword: 'itogovy-parol-agenta-dlya-testa-2026',
+    });
+
+    const entry = await prisma.activityLog.findFirst({
+      where: { userId: actors.agent.userId, action: 'USER_PASSWORD_CHANGED' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    expect(entry).not.toBeNull();
+    expect(entry?.companyId).toBe(actors.agent.companyId);
+
+    // Правило 10: ни старого, ни нового пароля в записи нет — только факт.
+    const serialized = JSON.stringify(entry);
+    expect(serialized).not.toContain('posle-smeny-parolya-agenta-2026');
+    expect(serialized).not.toContain('itogovy-parol-agenta-dlya-testa-2026');
   });
 });
