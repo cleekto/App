@@ -1,4 +1,11 @@
-import { formatDate, formatMoney, formatNumber, translate, type Locale } from '@kleekto/i18n';
+import {
+  formatDate,
+  formatMoney,
+  formatNumber,
+  optionalMessage,
+  translate,
+  type Locale,
+} from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
 /**
@@ -90,4 +97,23 @@ export function dueLine(locale: Locale, iso: string | null): string {
   ).format(value);
 
   return `${formatDate(locale, value)}, ${time}`;
+}
+
+/**
+ * Название статуса воронки на языке человека.
+ *
+ * ПОЧЕМУ ПО КОДУ, А НЕ ПО ИМЕНИ. Имя лежит в базе и создаётся при регистрации
+ * компании — по-английски, потому что при регистрации язык компании ещё
+ * неизвестен. Переводить само имя нельзя: компания вправе переписать его
+ * под себя, и тогда перевод затёр бы её текст (инвариант 4).
+ *
+ * Код же у пяти статусов, созданных сидом, известен заранее. Он и служит
+ * ключом. Статус, заведённый компанией самостоятельно, перевода не имеет —
+ * и показывается ровно так, как его назвали.
+ *
+ * Найдено ручным проходом: грузинский агент видел «In base» и «Offered to
+ * client» посреди грузинского интерфейса — и это самые частые надписи в CRM.
+ */
+export function statusLabel(locale: Locale, status: { code: string; name: string }): string {
+  return optionalMessage(locale, `pipeline.${status.code}`) ?? status.name;
 }

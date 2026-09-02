@@ -139,6 +139,22 @@ export const en = {
     open: 'Open',
     create: 'Create',
   },
+  /**
+   * Названия статусов воронки по КОДУ статуса, а не по его имени в базе.
+   *
+   * Имя в базе — то, что компания может переписать под себя (инвариант 4).
+   * Код у статусов, созданных при регистрации, известен заранее, и только
+   * они переводятся. Свой статус компании остаётся с её собственным именем:
+   * подменять его переводом было бы враньём.
+   */
+  pipeline: {
+    IN_BASE: 'In base',
+    IN_PROGRESS: 'In progress',
+    OFFERED: 'Offered to client',
+    CLOSED: 'Closed',
+    ARCHIVED: 'Archived',
+  },
+
   settings: {
     title: 'Settings',
     account: 'Account',

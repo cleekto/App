@@ -24,7 +24,17 @@ export interface Dashboard {
     createdToday: number;
     createdThisWeek: number;
     total: number;
-    byStatus: Array<{ statusId: string; statusName: string; count: number }>;
+    byStatus: Array<{
+      statusId: string;
+      /**
+       * Код статуса. Нужен показу: по нему подставляется перевод, потому что
+       * `statusName` лежит в базе по-английски — его туда положила регистрация,
+       * когда язык компании ещё не был известен (инвариант 4).
+       */
+      statusCode: string;
+      statusName: string;
+      count: number;
+    }>;
   };
 
   /** Активность людей за неделю. Пустой список — никто ничего не сделал. */
@@ -118,7 +128,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
 
   const statusNames = await prisma.pipelineStatus.findMany({
     where: { companyId: ctx.companyId },
-    select: { id: true, name: true },
+    select: { id: true, code: true, name: true },
     orderBy: { sortOrder: 'asc' },
   });
 
@@ -136,6 +146,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
       // читаться как воронка, иначе по нему нельзя увидеть, где затор.
       byStatus: statusNames.map((status) => ({
         statusId: status.id,
+        statusCode: status.code,
         statusName: status.name,
         count: counts.get(status.id) ?? 0,
       })),

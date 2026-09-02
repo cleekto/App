@@ -1,7 +1,7 @@
 import { listPipelineStatuses, listProperties } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
-import { factsLine, kindLine, placeLine, priceLine } from '../../_lib/format';
+import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Board } from './board';
 
@@ -27,7 +27,12 @@ export default async function BoardPage() {
 
       <Board
         emptyLabel={translate(locale, 'board.empty')}
-        columns={statuses.map((status) => ({ id: status.id, name: status.name }))}
+        columns={statuses.map((status) => ({
+          id: status.id,
+          // Название переводится по коду: имя в базе английское, его туда
+          // положила регистрация, когда язык компании ещё не был известен.
+          name: statusLabel(locale, status),
+        }))}
         items={items.map((item) => ({
           id: item.id,
           pipelineStatusId: item.pipelineStatusId,

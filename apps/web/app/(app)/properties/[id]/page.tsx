@@ -9,7 +9,15 @@ import {
 } from '@kleekto/core';
 import { formatDateTime, translate } from '@kleekto/i18n';
 
-import { dateLine, dueLine, factsLine, kindLine, placeLine, priceLine } from '../../../_lib/format';
+import {
+  dateLine,
+  dueLine,
+  factsLine,
+  kindLine,
+  placeLine,
+  priceLine,
+  statusLabel,
+} from '../../../_lib/format';
 import { contextLocale, requireContext } from '../../../_lib/session';
 import { ActivityList } from './activity-list';
 import { CommentBox } from './comment-box';
@@ -73,7 +81,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         propertyId={property.id}
         currentStatusId={property.pipelineStatusId}
         currentAssigneeId={property.assignedUserId}
-        statuses={statuses.map((status) => ({ id: status.id, name: status.name }))}
+        statuses={statuses.map((status) => ({ id: status.id, name: statusLabel(locale, status) }))}
         people={teammates}
         labels={{
           status: t('property.status'),

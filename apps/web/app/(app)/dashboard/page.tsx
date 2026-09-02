@@ -2,6 +2,7 @@ import { dashboard } from '@kleekto/core';
 import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
+import { statusLabel } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
 
 /**
@@ -81,7 +82,9 @@ export default async function DashboardPage() {
               key={status.statusId}
               className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm"
             >
-              <span>{status.statusName}</span>
+              <span>
+                {statusLabel(locale, { code: status.statusCode, name: status.statusName })}
+              </span>
               <span className="font-semibold">{n(status.count)}</span>
             </li>
           ))}

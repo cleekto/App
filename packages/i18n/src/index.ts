@@ -46,6 +46,24 @@ export function translate(locale: Locale, key: MessageKey): string {
   return lookup(DICTIONARIES[locale], key) ?? missingMarker(key);
 }
 
+/**
+ * Перевод по ключу, которого может не быть.
+ *
+ * ЗАЧЕМ ОТДЕЛЬНО ОТ `translate`. Тот всегда возвращает строку и на неизвестный
+ * ключ отдаёт видимую дыру `⟦ключ⟧` — правильное поведение для интерфейса,
+ * где ключ известен заранее и его отсутствие означает недоделку.
+ *
+ * Здесь случай другой: ключ приходит из данных. Статусы воронки компания
+ * заводит сама (инвариант 4), и у её собственного статуса перевода нет и быть
+ * не может. Дыра `⟦pipeline.МОЙ_СТАТУС⟧` вместо названия, которое человек сам
+ * же и вписал, — это ошибка, а не честная пометка.
+ *
+ * Поэтому здесь `null`, а вызывающий решает, чем его заменить.
+ */
+export function optionalMessage(locale: Locale, key: string): string | null {
+  return lookup(DICTIONARIES[locale], key) ?? null;
+}
+
 /** Переводчик, привязанный к языку. Удобно передавать в компонент. */
 export function translator(locale: Locale): (key: MessageKey) => string {
   return (key) => translate(locale, key);
