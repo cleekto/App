@@ -142,6 +142,46 @@ Do not make every element visually equally important.
 
 ## 6. Color System
 
+**[CONFIRMED] Superseded again 2026-09-02 — official kleekTo brand palette.**
+The owner supplied `docs/design/concept.png`: a finished brand concept (logo,
+wordmark, six-color palette, Manrope typography) and asked for it to become
+the basis of the whole product, logo included. This replaces the interim
+"яркий и уверенный" indigo pass below — that pass was itself a same-day
+improvisation before a real brand existed; now one does.
+
+Six official colors from the brandbook: `#0B1020` dark navy (base),
+`#7C3AED` purple (primary — the same purple as the wordmark's "T"), `#2563FF`
+blue, `#FF2D8D` pink, `#FF8A00` orange, `#00E5C2` teal. What shipped
+(`apps/web/app/globals.css`): `#7C3AED` as `--color-brand` unchanged (it
+already has enough contrast on white for both fills and text); pink/orange/
+teal darkened for the semantic trio (danger/warning/success) since the
+brandbook tones are calibrated for accents on a dark mockup background, not
+body text on white — same hue, adjusted lightness, not a different color.
+Blue is reserved, unused so far. The dark navy `#0B1020` is now both
+`--color-text-primary` *and* `--color-sidebar-bg` — the same one color doing
+double duty as ordinary text and as the sidebar surface, rather than two
+different dark tones that happen to both be "dark."
+
+The sidebar-stays-dark, main-content-stays-light split from the previous pass
+is unchanged and still the reasoning: the sidebar is seen in peripheral vision
+all day but not *read* for hours the way the content area is, so it can
+afford to be the one saturated large surface.
+
+Manrope (with Noto Sans Georgian for Mkhedruli, same pairing pattern as
+before — Manrope's Google Fonts subsets are cyrillic, cyrillic-ext, greek,
+latin, latin-ext, vietnamese; no Georgian) replaces Inter as the typeface,
+per §7 below and the brandbook's own type choice.
+
+The logo mark and "kleekTo" wordmark now appear in the app sidebar and the
+login page (`apps/web/public/brand/mark.png`, `apps/web/app/_ui/wordmark.tsx`),
+plus the browser favicon and the Chrome extension icon set — everywhere a
+mark was previously a lettered placeholder square.
+
+The "яркий и уверенный" text below is same-day history, one revision back —
+kept for the record of *why* a dark sidebar exists at all, not as the current
+palette. The neutral brief below that is the original starting point, two
+revisions back.
+
 **[CONFIRMED] Superseded 2026-09-02 by owner decision — "яркий и уверенный".** The
 owner used the product for the first time and found the neutral palette below
 dull for an interface people sit in front of all day: color should help
@@ -183,7 +223,9 @@ Do not use many saturated colors simultaneously.
 
 Color should communicate meaning, not decoration.
 
-The exact kleekTo brand color is not yet fixed. Implement it through centralized design tokens such as:
+**[CONFIRMED] Fixed 2026-09-02: `#7C3AED`** (`docs/design/concept.png`) — see the
+note at the top of this section. Implement it through centralized design
+tokens such as:
 
 ```css
 --color-brand-primary
@@ -194,6 +236,11 @@ Never scatter the brand color through components.
 ---
 
 ## 7. Typography
+
+**[CONFIRMED] Chosen 2026-09-02: Manrope**, paired with Noto Sans Georgian for
+Mkhedruli (Manrope itself has no Georgian coverage — verified against its
+Google Fonts subsets, not assumed). Part of the brand concept,
+`docs/design/concept.png`; see §6.
 
 Use one modern sans-serif consistently.
 

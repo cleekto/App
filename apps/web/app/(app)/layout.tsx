@@ -5,6 +5,7 @@ import { translate } from '@kleekto/i18n';
 
 import { contextLocale, me, requireContext } from '../_lib/session';
 import { LocaleSwitcher } from '../_ui/locale-switcher';
+import { Wordmark } from '../_ui/wordmark';
 import { NavLink } from './nav-link';
 import { SignOutButton } from './sign-out-button';
 
@@ -19,16 +20,6 @@ import { SignOutButton } from './sign-out-button';
  * в двадцать строк, и целая зависимость ради этого — плохой обмен. Все они
  * штриховые, одной толщины, как требует DESIGN §33.
  */
-
-/**
- * Буква фирменного знака.
- *
- * Вынесена из разметки намеренно: правило `jsx-no-literals` ловит строки
- * в JSX, потому что пользовательский текст обязан приходить из словаря
- * (правило 18). Знак — не текст: он одинаков на всех трёх языках и
- * переводу не подлежит. Константа делает это различие видимым.
- */
-const BRAND_MARK = 'C';
 
 const ICONS: Record<string, ReactNode> = {
   dashboard: (
@@ -103,15 +94,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <Link
             href="/properties"
-            className="flex items-center gap-2.5 px-5 py-5 text-base font-semibold tracking-tight"
+            className="flex items-center gap-2 px-5 py-5 text-base tracking-tight"
           >
-            <span
-              aria-hidden
-              className="flex size-7 items-center justify-center rounded-lg bg-[var(--color-brand)] text-sm text-white"
-            >
-              {BRAND_MARK}
-            </span>
-            {t('app.name')}
+            <img src="/brand/mark.png" alt="" className="size-7 object-contain" />
+            <Wordmark tone="dark" className="text-base" />
           </Link>
 
           <nav className="flex flex-col gap-0.5 px-3">
