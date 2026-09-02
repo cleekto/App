@@ -136,7 +136,7 @@ describe('сборка веба разрешает свои внешние па�
 
     const names = [...`${externals} ${serverExternal}`.matchAll(/'([^']+)'/gu)]
       .map((match) => match[1] as string)
-      .filter((name) => !name.startsWith('...') && !name.startsWith('@cleekto/'));
+      .filter((name) => !name.startsWith('...') && !name.startsWith('@kleekto/'));
 
     expect(names.length, 'списки внешних пакетов не разобрались').toBeGreaterThan(0);
 

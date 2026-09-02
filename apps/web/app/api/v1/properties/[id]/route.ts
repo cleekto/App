@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { getProperty, updateProperty } from '@cleekto/core';
+import { getProperty, updateProperty } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
 

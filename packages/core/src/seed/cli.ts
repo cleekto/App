@@ -1,4 +1,4 @@
-import { prisma } from '@cleekto/db';
+import { prisma } from '@kleekto/db';
 
 import { seed } from './seed';
 

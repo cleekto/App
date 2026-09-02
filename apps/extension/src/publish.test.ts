@@ -6,11 +6,11 @@ import {
   captureField,
   publishAdapterFor,
   setControlValue,
-} from '@cleekto/adapters';
-import type { FormControl, FormSnapshot, ListingPublishAdapter } from '@cleekto/adapters';
-import { listingPublishDraftSchema } from '@cleekto/contracts';
-import { LOCALES, translate, translator } from '@cleekto/i18n';
-import type { FillResult, ListingPublishDraft } from '@cleekto/contracts';
+} from '@kleekto/adapters';
+import type { FormControl, FormSnapshot, ListingPublishAdapter } from '@kleekto/adapters';
+import { listingPublishDraftSchema } from '@kleekto/contracts';
+import { LOCALES, translate, translator } from '@kleekto/i18n';
+import type { FillResult, ListingPublishDraft } from '@kleekto/contracts';
 import { parseHTML } from 'linkedom';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -438,7 +438,7 @@ describe('интерфейс заполнения', () => {
   /**
    * ПРАВИЛО 12 в интерфейсе.
    *
-   * DESIGN §25.2: «в Cleekto нет элемента, который можно было бы принять
+   * DESIGN §25.2: «в kleekTo нет элемента, который можно было бы принять
    * за кнопку публикации». Проверяется на всех трёх языках — по-английски
    * «publish» легко проскользнёт мимо русского глаза.
    */

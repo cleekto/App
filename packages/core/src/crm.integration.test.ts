@@ -1,4 +1,4 @@
-import { TaskStatus, prisma } from '@cleekto/db';
+import { TaskStatus, prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { propertyActivity } from './activity/feed';

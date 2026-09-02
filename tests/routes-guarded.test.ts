@@ -70,13 +70,13 @@ describe('маршруты API', () => {
   );
 
   // Health — инфраструктурный эндпоинт: он проверяет доступность базы,
-  // а не отдаёт данные компании. Ему обращение к @cleekto/db положено.
+  // а не отдаёт данные компании. Ему обращение к @kleekto/db положено.
   it.each(routes.filter((route) => route.key !== 'health/route.ts'))(
     '$key не содержит бизнес-логики — только вызов сценария',
     ({ source }) => {
       // Обращение к базе из обработчика означает, что логика утекла из ядра
       // и её больше нельзя вызвать в тесте без HTTP (ADR-0001).
-      expect(source).not.toMatch(/from '@cleekto\/db'/u);
+      expect(source).not.toMatch(/from '@kleekto\/db'/u);
       expect(source).not.toMatch(/prisma\./u);
     },
   );

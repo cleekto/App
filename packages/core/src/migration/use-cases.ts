@@ -1,4 +1,4 @@
-import { MigrationBatchStatus, PropertyOrigin, type Prisma, prisma } from '@cleekto/db';
+import { MigrationBatchStatus, PropertyOrigin, type Prisma, prisma } from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';

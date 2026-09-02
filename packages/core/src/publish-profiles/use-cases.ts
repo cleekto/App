@@ -1,4 +1,4 @@
-import { prisma } from '@cleekto/db';
+import { prisma } from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';

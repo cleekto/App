@@ -1,4 +1,4 @@
-import { propertyActivity } from '@cleekto/core';
+import { propertyActivity } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../../../_lib/handler';
 

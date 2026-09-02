@@ -1,4 +1,4 @@
-import { logout } from '@cleekto/core';
+import { logout } from '@kleekto/core';
 
 import { handle } from '../../../_lib/handler';
 import { clearSessionCookies, refreshTokenFromCookie } from '../../../_lib/session-cookies';

@@ -1,4 +1,4 @@
-import { Prisma, PublicationStatus, prisma } from '@cleekto/db';
+import { Prisma, PublicationStatus, prisma } from '@kleekto/db';
 
 import { ACTIVITY } from '../activity/actions';
 import type { AuthContext } from '../auth/context';

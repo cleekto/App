@@ -1,5 +1,5 @@
 {
-  "name": "@cleekto/core",
+  "name": "@kleekto/core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,8 +13,8 @@
     "build": "tsc --noEmit"
   },
   "dependencies": {
-    "@cleekto/contracts": "workspace:*",
-    "@cleekto/db": "workspace:*",
+    "@kleekto/contracts": "workspace:*",
+    "@kleekto/db": "workspace:*",
     "@node-rs/argon2": "^2.0.0",
     "exceljs": "^4.4.0",
     "jose": "^5.9.0"

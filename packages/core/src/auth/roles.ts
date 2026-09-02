@@ -1,4 +1,4 @@
-import { RoleCode } from '@cleekto/db';
+import { RoleCode } from '@kleekto/db';
 
 import type { DbClient } from '../activity/write';
 

@@ -60,7 +60,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@cleekto/adapters', '@cleekto/adapters/*'],
+              group: ['@kleekto/adapters', '@kleekto/adapters/*'],
               message:
                 'Инвариант 6: ядро не знает о конкретных площадках. Логика ss.ge и myhome.ge живёт только в packages/adapters.',
             },
@@ -83,7 +83,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@cleekto/core', '@cleekto/core/*', '@cleekto/db', '@cleekto/db/*'],
+              group: ['@kleekto/core', '@kleekto/core/*', '@kleekto/db', '@kleekto/db/*'],
               message:
                 'Адаптер извлекает и заполняет. Решения принимает ядро; в базу адаптер не ходит (инвариант 2).',
             },
@@ -101,7 +101,7 @@ export default tseslint.config(
         {
           patterns: [
             {
-              group: ['@cleekto/*'],
+              group: ['@kleekto/*'],
               message:
                 'ADR-0001: contracts и i18n не зависят ни от чего внутри монорепозитория — их импортируют и веб, и расширение.',
             },

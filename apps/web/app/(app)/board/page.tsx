@@ -1,5 +1,5 @@
-import { listPipelineStatuses, listProperties } from '@cleekto/core';
-import { translate } from '@cleekto/i18n';
+import { listPipelineStatuses, listProperties } from '@kleekto/core';
+import { translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Board } from './board';

@@ -1,4 +1,4 @@
-import { applyMigration } from '@cleekto/core';
+import { applyMigration } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../../../_lib/handler';
 

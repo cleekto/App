@@ -1,13 +1,13 @@
 import { cookies } from 'next/headers';
 
-import { isLocale, type Locale } from '@cleekto/i18n';
+import { isLocale, type Locale } from '@kleekto/i18n';
 
 /**
  * Язык страницы.
  *
  * Порядок источников, от сильного к слабому:
  *
- *   1. **выбор человека**, сохранённый в cookie `cleekto_locale`;
+ *   1. **выбор человека**, сохранённый в cookie `kleekto_locale`;
  *   2. `DEFAULT_LOCALE` из окружения — язык компании до входа;
  *   3. английский.
  *
@@ -21,7 +21,7 @@ import { isLocale, type Locale } from '@cleekto/i18n';
  * Язык интерфейса — не секрет и не настройка компании, а удобство читающего.
  */
 
-export const LOCALE_COOKIE = 'cleekto_locale';
+export const LOCALE_COOKIE = 'kleekto_locale';
 
 export async function serverLocale(): Promise<Locale> {
   const chosen = (await cookies()).get(LOCALE_COOKIE)?.value;

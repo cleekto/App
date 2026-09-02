@@ -1,4 +1,4 @@
-import { ObservationStateValue, Prisma, prisma } from '@cleekto/db';
+import { ObservationStateValue, Prisma, prisma } from '@kleekto/db';
 
 import type { AuthContext } from '../auth/context';
 import { NotFoundError } from '../errors';

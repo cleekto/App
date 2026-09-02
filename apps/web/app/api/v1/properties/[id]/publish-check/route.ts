@@ -1,4 +1,4 @@
-import { ValidationError, publishCheck } from '@cleekto/core';
+import { ValidationError, publishCheck } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../../../_lib/handler';
 

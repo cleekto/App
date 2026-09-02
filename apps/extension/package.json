@@ -1,5 +1,5 @@
 {
-  "name": "@cleekto/extension",
+  "name": "@kleekto/extension",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,9 +8,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cleekto/adapters": "workspace:*",
-    "@cleekto/contracts": "workspace:*",
-    "@cleekto/i18n": "workspace:*"
+    "@kleekto/adapters": "workspace:*",
+    "@kleekto/contracts": "workspace:*",
+    "@kleekto/i18n": "workspace:*"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.280",

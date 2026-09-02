@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { createUser, listUsers } from '@cleekto/core';
+import { createUser, listUsers } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../_lib/handler';
 

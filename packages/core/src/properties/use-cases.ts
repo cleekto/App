@@ -1,5 +1,5 @@
-import { Prisma, prisma } from '@cleekto/db';
-import type { PropertyOrigin, PropertyType, TransactionType } from '@cleekto/db';
+import { Prisma, prisma } from '@kleekto/db';
+import type { PropertyOrigin, PropertyType, TransactionType } from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';

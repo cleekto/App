@@ -1,4 +1,4 @@
-import { RoleCode, prisma } from '@cleekto/db';
+import { RoleCode, prisma } from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity, writeSystemActivity } from '../activity/write';

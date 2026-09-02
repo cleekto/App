@@ -1,4 +1,4 @@
-import type { ExtractionResult, SourceId } from '@cleekto/contracts';
+import type { ExtractionResult, SourceId } from '@kleekto/contracts';
 
 /**
  * Общий интерфейс адаптера чтения (промпт §6.3).

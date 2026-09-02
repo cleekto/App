@@ -34,10 +34,10 @@ export type WorkerReply =
 
 /** Идентификаторы пунктов контекстного меню. Совпадают с исходами разговора. */
 export const MENU_IDS: Readonly<Record<CallOutcome, string>> = {
-  consent: 'cleekto-consent',
-  refused: 'cleekto-refused',
-  no_answer: 'cleekto-no-answer',
-  callback: 'cleekto-callback',
+  consent: 'kleekto-consent',
+  refused: 'kleekto-refused',
+  no_answer: 'kleekto-no-answer',
+  callback: 'kleekto-callback',
 };
 
 export function outcomeByMenuId(menuId: string): CallOutcome | null {

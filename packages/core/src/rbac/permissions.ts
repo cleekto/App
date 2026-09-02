@@ -1,4 +1,4 @@
-import type { RoleCode } from '@cleekto/db';
+import type { RoleCode } from '@kleekto/db';
 
 /**
  * Матрица прав. Источник: docs/architecture/rbac.md.

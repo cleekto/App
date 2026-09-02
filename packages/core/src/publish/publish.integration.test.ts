@@ -1,4 +1,4 @@
-import { PublicationStatus, prisma } from '@cleekto/db';
+import { PublicationStatus, prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { AuthContext } from '../auth/context';

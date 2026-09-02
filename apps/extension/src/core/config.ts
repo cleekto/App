@@ -13,11 +13,11 @@
  * публично по определению (правило 8).
  */
 
-declare const __CLEEKTO_API_URL__: string;
-declare const __CLEEKTO_APP_URL__: string;
+declare const __KLEEKTO_API_URL__: string;
+declare const __KLEEKTO_APP_URL__: string;
 
 /** Куда ходит service worker. */
-export const API_URL: string = __CLEEKTO_API_URL__;
+export const API_URL: string = __KLEEKTO_API_URL__;
 
-/** Куда ведёт ссылка «Открыть в Cleekto». */
-export const APP_URL: string = __CLEEKTO_APP_URL__;
+/** Куда ведёт ссылка «Открыть в kleekTo». */
+export const APP_URL: string = __KLEEKTO_APP_URL__;

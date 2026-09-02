@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { createTask, listTasks } from '@cleekto/core';
+import { createTask, listTasks } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../_lib/handler';
 

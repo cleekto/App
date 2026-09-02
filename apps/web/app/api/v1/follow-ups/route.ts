@@ -1,4 +1,4 @@
-import { listFollowUps } from '@cleekto/core';
+import { listFollowUps } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../_lib/handler';
 

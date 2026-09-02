@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
-import { translate } from '@cleekto/i18n';
+import { translate } from '@kleekto/i18n';
 
 import { contextLocale, me, requireContext } from '../_lib/session';
 import { LocaleSwitcher } from '../_ui/locale-switcher';

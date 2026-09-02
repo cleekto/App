@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { refreshSession } from '@cleekto/core';
+import { refreshSession } from '@kleekto/core';
 
 import { handle } from '../../../_lib/handler';
 import { refreshTokenFromCookie, setSessionCookies } from '../../../_lib/session-cookies';

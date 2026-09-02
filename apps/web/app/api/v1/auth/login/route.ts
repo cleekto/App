@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { RATE_LIMITS, consumeRateLimit, login } from '@cleekto/core';
+import { RATE_LIMITS, consumeRateLimit, login } from '@kleekto/core';
 
 import { clientAddress } from '../../../_lib/client-address';
 import { handle, parseBody } from '../../../_lib/handler';

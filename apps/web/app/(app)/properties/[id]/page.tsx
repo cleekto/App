@@ -6,8 +6,8 @@ import {
   listTasks,
   listUsers,
   propertyActivity,
-} from '@cleekto/core';
-import { translate } from '@cleekto/i18n';
+} from '@kleekto/core';
+import { translate } from '@kleekto/i18n';
 
 import { dateLine, factsLine, kindLine, placeLine, priceLine } from '../../../_lib/format';
 import { contextLocale, requireContext } from '../../../_lib/session';

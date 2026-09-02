@@ -1,6 +1,6 @@
-import { dashboard } from '@cleekto/core';
-import { formatNumber, translate } from '@cleekto/i18n';
-import type { MessageKey } from '@cleekto/i18n';
+import { dashboard } from '@kleekto/core';
+import { formatNumber, translate } from '@kleekto/i18n';
+import type { MessageKey } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
 

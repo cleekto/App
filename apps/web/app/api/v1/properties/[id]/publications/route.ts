@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { createPublicationDraft, listPublications } from '@cleekto/core';
+import { createPublicationDraft, listPublications } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 

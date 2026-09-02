@@ -38,8 +38,8 @@ const api = new ApiClient({
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
-      id: 'cleekto-root',
-      title: 'Cleekto',
+      id: 'kleekto-root',
+      title: 'kleekTo',
       contexts: ['page', 'selection', 'link'],
       documentUrlPatterns: LISTING_PATTERNS,
     });
@@ -49,7 +49,7 @@ chrome.runtime.onInstalled.addListener(() => {
     for (const [outcome, id] of Object.entries(MENU_IDS)) {
       chrome.contextMenus.create({
         id,
-        parentId: 'cleekto-root',
+        parentId: 'kleekto-root',
         title: menuTitle(outcome),
         contexts: ['page', 'selection', 'link'],
         documentUrlPatterns: LISTING_PATTERNS,
@@ -73,13 +73,13 @@ chrome.runtime.onInstalled.addListener(() => {
 function menuTitle(outcome: string): string {
   switch (outcome) {
     case 'consent':
-      return 'Cleekto: +';
+      return 'kleekTo: +';
     case 'refused':
-      return 'Cleekto: ×';
+      return 'kleekTo: ×';
     case 'no_answer':
-      return 'Cleekto: …';
+      return 'kleekTo: …';
     default:
-      return 'Cleekto: ⏰';
+      return 'kleekTo: ⏰';
   }
 }
 

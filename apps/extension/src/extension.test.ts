@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { LOCALES, formatMoney, translate, translator } from '@cleekto/i18n';
+import { LOCALES, formatMoney, translate, translator } from '@kleekto/i18n';
 import { parseHTML } from 'linkedom';
 import { describe, expect, it, vi } from 'vitest';
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { changeLocale } from '@cleekto/core';
+import { changeLocale } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
 import { setSessionCookies } from '../../../_lib/session-cookies';

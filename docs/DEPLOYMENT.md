@@ -1,6 +1,6 @@
 # Развёртывание
 
-Как поднять Cleekto для настоящего агентства. Локальный запуск — `README.md`.
+Как поднять kleekTo для настоящего агентства. Локальный запуск — `README.md`.
 
 Стек развёртывания: **Vercel для веба + управляемый PostgreSQL** (вопрос 15,
 `ADR-0001`). Расширение ставится агенту вручную: в магазине Chrome его нет.
@@ -108,7 +108,7 @@ pnpm db:migrate
 Сборка под ваш адрес:
 
 ```bash
-CLEEKTO_API_URL=https://ваш-домен CLEEKTO_APP_URL=https://ваш-домен pnpm --filter @cleekto/extension build
+KLEEKTO_API_URL=https://ваш-домен KLEEKTO_APP_URL=https://ваш-домен pnpm --filter @kleekto/extension build
 ```
 
 Сборка сама приводит `host_permissions` в манифесте к этому же адресу.

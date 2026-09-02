@@ -34,7 +34,7 @@ const config: NextConfig = {
   },
 
   // Пакеты монорепозитория поставляются исходниками на TypeScript.
-  transpilePackages: ['@cleekto/contracts', '@cleekto/core', '@cleekto/i18n', '@cleekto/db'],
+  transpilePackages: ['@kleekto/contracts', '@kleekto/core', '@kleekto/i18n', '@kleekto/db'],
 
   // Не бандлятся: оба пакета подгружают нативные бинарники по пути,
   // который бандлер переписать не может. Webpack пытается разобрать .node
@@ -42,7 +42,7 @@ const config: NextConfig = {
   serverExternalPackages: ['@prisma/client', '@node-rs/argon2'],
 
   // serverExternalPackages не действует на зависимости пакетов из
-  // transpilePackages: @cleekto/core транспилируется, и argon2 утягивается
+  // transpilePackages: @kleekto/core транспилируется, и argon2 утягивается
   // в бандл вместе с ним. Помечаем внешним напрямую.
   //
   // ВАЖНО: раз пакет объявлен внешним, собранный сервер требует его во время

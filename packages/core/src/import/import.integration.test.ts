@@ -1,4 +1,4 @@
-import { PropertyOrigin, prisma } from '@cleekto/db';
+import { PropertyOrigin, prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { AuthContext } from '../auth/context';

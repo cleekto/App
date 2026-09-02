@@ -3,8 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { middleware } from './middleware';
 
-const ACCESS_COOKIE = 'cleekto_access';
-const REFRESH_COOKIE = 'cleekto_refresh';
+const ACCESS_COOKIE = 'kleekto_access';
+const REFRESH_COOKIE = 'kleekto_refresh';
 
 function request(cookie: string, pathname = '/properties'): NextRequest {
   return new NextRequest(`http://localhost:3000${pathname}`, { headers: { cookie } });

@@ -1,5 +1,5 @@
-import type { FillResult, PublishedRef } from '@cleekto/contracts';
-import { isLocale, type Locale } from '@cleekto/i18n';
+import type { FillResult, PublishedRef } from '@kleekto/contracts';
+import { isLocale, type Locale } from '@kleekto/i18n';
 
 import type { ImportRequestBody, ImportResponse } from './import-manager';
 import type { DraftResponse } from './publish-manager';

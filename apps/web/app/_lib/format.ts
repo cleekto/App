@@ -1,5 +1,5 @@
-import { formatDate, formatMoney, formatNumber, translate, type Locale } from '@cleekto/i18n';
-import type { MessageKey } from '@cleekto/i18n';
+import { formatDate, formatMoney, formatNumber, translate, type Locale } from '@kleekto/i18n';
+import type { MessageKey } from '@kleekto/i18n';
 
 /**
  * Строки для показа.

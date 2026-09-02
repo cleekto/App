@@ -1,5 +1,5 @@
-import { adapterFor } from '@cleekto/adapters';
-import type { ExtractionResult, ListingImportPayload } from '@cleekto/contracts';
+import { adapterFor } from '@kleekto/adapters';
+import type { ExtractionResult, ListingImportPayload } from '@kleekto/contracts';
 
 /**
  * Оркестрация импорта: определить сайт → извлечь → проверить телефон → отправить.

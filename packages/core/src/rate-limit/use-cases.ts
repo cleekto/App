@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 
-import { prisma } from '@cleekto/db';
+import { prisma } from '@kleekto/db';
 
 import { RateLimitedError } from '../errors';
 

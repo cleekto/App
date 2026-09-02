@@ -1,4 +1,4 @@
-import type { ExtractionResult, ListingImportPayload } from '@cleekto/contracts';
+import type { ExtractionResult, ListingImportPayload } from '@kleekto/contracts';
 
 import {
   detectCurrency,

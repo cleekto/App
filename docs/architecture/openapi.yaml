@@ -1,10 +1,10 @@
 openapi: 3.0.3
 
 info:
-  title: Cleekto API
+  title: kleekTo API
   version: 1.0.0-draft
   description: |
-    API продукта Cleekto — CRM для агентств недвижимости Грузии.
+    API продукта kleekTo — CRM для агентств недвижимости Грузии.
 
     Проектная версия фазы 1. Кода ещё нет; этот файл — контракт, из которого код выводится.
 

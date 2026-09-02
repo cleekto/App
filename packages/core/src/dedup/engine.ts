@@ -1,4 +1,4 @@
-import { type Prisma, type PropertyType, type Source, prisma } from '@cleekto/db';
+import { type Prisma, type PropertyType, type Source, prisma } from '@kleekto/db';
 
 import type { AuthContext } from '../auth/context';
 import { dedupConfig } from './config';

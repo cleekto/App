@@ -3,12 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { LOCALES, type Locale } from '@cleekto/i18n';
+import { LOCALES, type Locale } from '@kleekto/i18n';
 
 /**
  * Переключатель языка.
  *
- * ЧТО ОН МЕНЯЕТ. Всегда — cookie `cleekto_locale`, то есть выбор на этом
+ * ЧТО ОН МЕНЯЕТ. Всегда — cookie `kleekto_locale`, то есть выбор на этом
  * устройстве. Дополнительно, если человек вошёл, — язык в его профиле,
  * чтобы выбор пережил другой браузер и достался расширению.
  *
@@ -64,7 +64,7 @@ export function LocaleSwitcher({
               // Cookie ставится сразу и на клиенте: язык страницы входа
               // должен меняться и тогда, когда сервер о человеке ничего
               // не знает. `max-age` — год: это предпочтение, а не сессия.
-              document.cookie = `cleekto_locale=${locale}; path=/; max-age=31536000; samesite=lax`;
+              document.cookie = `kleekto_locale=${locale}; path=/; max-age=31536000; samesite=lax`;
 
               const done = (): void => {
                 router.refresh();

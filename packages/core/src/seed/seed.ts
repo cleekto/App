@@ -1,4 +1,4 @@
-import { RoleCode, prisma } from '@cleekto/db';
+import { RoleCode, prisma } from '@kleekto/db';
 
 import { hashPassword } from '../auth/password';
 import { ensureRoles } from '../auth/roles';
@@ -16,7 +16,7 @@ import { DEFAULT_PIPELINE_STATUSES } from '../pipeline/defaults';
  * базе, и это проверяется в самом начале.
  */
 
-const SEED_PASSWORD = 'cleekto-local-dev-password';
+const SEED_PASSWORD = 'kleekto-local-dev-password';
 
 interface SeededUser {
   email: string;

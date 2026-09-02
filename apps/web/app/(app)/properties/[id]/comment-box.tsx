@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { formatDateTime, type Locale } from '@cleekto/i18n';
+import { formatDateTime, type Locale } from '@kleekto/i18n';
 
 interface Comment {
   id: string;

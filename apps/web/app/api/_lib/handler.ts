@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { HTTP_STATUS_BY_ERROR, errorEnvelope } from '@cleekto/contracts';
-import { UnauthenticatedError, isDomainError, verifyAccessToken } from '@cleekto/core';
-import type { AuthContext } from '@cleekto/core';
+import { HTTP_STATUS_BY_ERROR, errorEnvelope } from '@kleekto/contracts';
+import { UnauthenticatedError, isDomainError, verifyAccessToken } from '@kleekto/core';
+import type { AuthContext } from '@kleekto/core';
 
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
 
@@ -13,7 +13,7 @@ import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
  * Обработчик делает ровно четыре вещи (ADR-0001):
  *   1. разобрать и провалидировать вход;
  *   2. получить контекст ТОЛЬКО из сессии;
- *   3. вызвать сценарий из @cleekto/core, передав контекст аргументом;
+ *   3. вызвать сценарий из @kleekto/core, передав контекст аргументом;
  *   4. отобразить результат или доменную ошибку в HTTP-ответ.
  *
  * Бизнес-логики здесь нет и быть не должно.

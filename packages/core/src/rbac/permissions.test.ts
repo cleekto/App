@@ -1,4 +1,4 @@
-import { RoleCode } from '@cleekto/db';
+import { RoleCode } from '@kleekto/db';
 import { describe, expect, it } from 'vitest';
 
 import { ForbiddenError } from '../errors';

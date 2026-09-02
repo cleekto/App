@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
-import { listFollowUps, listTasks } from '@cleekto/core';
-import { formatDateTime, translate } from '@cleekto/i18n';
+import { listFollowUps, listTasks } from '@kleekto/core';
+import { formatDateTime, translate } from '@kleekto/i18n';
 
 import { dueLine } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';

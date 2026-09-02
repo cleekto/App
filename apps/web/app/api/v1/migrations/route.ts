@@ -1,4 +1,4 @@
-import { ValidationError, uploadMigrationFile } from '@cleekto/core';
+import { ValidationError, uploadMigrationFile } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../_lib/handler';
 

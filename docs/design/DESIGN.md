@@ -1,9 +1,9 @@
-# CLEEKTO — DESIGN ADDENDUM
+# KLEEKTO — DESIGN ADDENDUM
 ## Design Direction & UI/UX Guidelines for Claude Code
 
 > **Primary direction:** Modern B2B SaaS + Soft Minimalism + Data-driven Productivity UI.
 >
-> Cleekto should feel like a premium modern productivity tool, not a traditional enterprise CRM.
+> kleekTo should feel like a premium modern productivity tool, not a traditional enterprise CRM.
 >
 > **Status:** design source of truth. Lives at `docs/design/DESIGN.md` and is referenced from `docs/MASTER_PROMPT.md` §8. Where this document and the master prompt disagree on behaviour rather than appearance, the master prompt wins — it carries the hard rules (tenant isolation, revealed-phone rule, "the human publishes" rule).
 >
@@ -15,7 +15,7 @@
 
 ## 1. Design Objective
 
-Cleekto is a real-estate CRM designed to remove operational friction from the daily workflow of real-estate agents.
+kleekTo is a real-estate CRM designed to remove operational friction from the daily workflow of real-estate agents.
 
 The interface must optimize for:
 
@@ -46,7 +46,7 @@ The user should immediately understand:
 
 ## 2. Visual Personality
 
-Cleekto should be:
+kleekTo should be:
 
 - modern;
 - clean;
@@ -116,7 +116,7 @@ Use the **principles**, not the visual identity, of modern products such as:
 
 Do not copy their branding, layouts, colors, or components.
 
-Cleekto must have its own identity.
+kleekTo must have its own identity.
 
 ---
 
@@ -173,7 +173,7 @@ Surface → white
 Primary text → dark graphite
 Secondary text → muted gray
 Borders → subtle neutral
-Brand accent → one distinctive Cleekto accent
+Brand accent → one distinctive kleekTo accent
 Success → restrained green
 Warning → restrained amber
 Danger → restrained red
@@ -183,7 +183,7 @@ Do not use many saturated colors simultaneously.
 
 Color should communicate meaning, not decoration.
 
-The exact Cleekto brand color is not yet fixed. Implement it through centralized design tokens such as:
+The exact kleekTo brand color is not yet fixed. Implement it through centralized design tokens such as:
 
 ```css
 --color-brand-primary
@@ -276,7 +276,7 @@ Use a stable SaaS dashboard shell:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ CLEEKTO                 Search       Notifications    User │
+│ KLEEKTO                 Search       Notifications    User │
 ├───────────────┬─────────────────────────────────────────────┤
 │               │                                             │
 │ Dashboard     │                                             │
@@ -483,7 +483,7 @@ Other outcomes narrow visibility more gently — see 25.4.
 ```text
 Nothing new in your area today.
 
-Cleekto builds its picture of the market from listings
+kleekTo builds its picture of the market from listings
 your team opens. The more you browse, the better this
 gets.
 
@@ -735,7 +735,7 @@ Keep metadata subtle.
 
 ## 22. Import Experience
 
-Import is the signature interaction of Cleekto.
+Import is the signature interaction of kleekTo.
 
 Desired sequence:
 
@@ -748,7 +748,7 @@ Checking duplicates
 ↓
 Preview
 ↓
-Add to Cleekto
+Add to kleekTo
 ↓
 Success
 ```
@@ -776,7 +776,7 @@ Example:
 │                                    │
 │ ✓ No duplicate                     │
 │                                    │
-│ [ Add to Cleekto ]                 │
+│ [ Add to kleekTo ]                 │
 └────────────────────────────────────┘
 ```
 
@@ -791,7 +791,7 @@ Example:
 ```text
 ⚠ Possible duplicate
 
-This listing may already exist in Cleekto.
+This listing may already exist in kleekTo.
 
 Reason:
 Owner phone number matches.
@@ -836,28 +836,28 @@ Vake
 
 ✓ No duplicate
 
-[ Add to Cleekto ]
+[ Add to kleekTo ]
 ```
 
 After success:
 
 ```text
-✓ Added to Cleekto
+✓ Added to kleekTo
 
-Open in Cleekto →
+Open in kleekTo →
 ```
 
 ---
 
 ## 25.1 Extension — Phone Not Revealed
 
-On ss.ge and myhome.ge the owner phone is hidden until the agent reveals it. Cleekto never reveals it for them, and never imports a listing without it.
+On ss.ge and myhome.ge the owner phone is hidden until the agent reveals it. kleekTo never reveals it for them, and never imports a listing without it.
 
 This is a blocking state, not an error state. Nothing failed — a step is simply missing.
 
 ```text
 Reveal the phone number on the page,
-then press "Add to Cleekto" again.
+then press "Add to kleekTo" again.
 
 [ Retry ]
 ```
@@ -872,10 +872,10 @@ Rules:
 
 ## 25.2 Extension — Fill Listing Form
 
-The reverse flow: the agent is on the "new listing" form of a portal and wants Cleekto to type the data for them.
+The reverse flow: the agent is on the "new listing" form of a portal and wants kleekTo to type the data for them.
 
 ```text
-Fill from Cleekto
+Fill from kleekTo
 Vake · 72 m² · 3 rooms
 Publishing as: Giorgi · +995 XXX XX XX XX
 
@@ -901,7 +901,7 @@ Rules:
 - The list of remaining fields is compact and inline — never a modal, never blocking. The agent is looking at the form, not at us.
 - The publishing profile in use is always visible. It is the agency's public face.
 - "Clear form" stays available until the agent leaves the page.
-- Cleekto never presses the portal's publish button. There is no UI element in Cleekto that could be mistaken for one.
+- kleekTo never presses the portal's publish button. There is no UI element in kleekTo that could be mistaken for one.
 
 ---
 
@@ -951,7 +951,7 @@ Call result
 Vake · 72 m² · $120,000
 Giorgi · +995 XXX XX XX XX
 
-[ ✓ Agreed — add to Cleekto ]
+[ ✓ Agreed — add to kleekTo ]
 
   Declined / do not call
   No answer
@@ -962,17 +962,17 @@ Giorgi · +995 XXX XX XX XX
 
 **One primary, three plain.** "Agreed" carries the brand accent and the full button treatment; the others are quiet text rows. This is not a ranking of importance — all four are recorded — it is a reflection of consequence. Only the first one writes an owner's contact into the agency database.
 
-The copy says what happens: **"add to Cleekto"**, not "Agreed". The agent should never be surprised by what a click did.
+The copy says what happens: **"add to kleekTo"**, not "Agreed". The agent should never be surprised by what a click did.
 
 Nothing is pre-selected. The menu opens with no default.
 
 ### After "Agreed"
 
 ```text
-✓ Added to Cleekto
+✓ Added to kleekTo
 In base · assigned to you
 
-Open in Cleekto →
+Open in kleekTo →
 ```
 
 The new status is named out loud. "In base" is the first funnel stage, and the agent should recognize it later on the board.
@@ -1045,7 +1045,7 @@ Use meaningful states:
 ```text
 Extracting listing...
 Checking duplicates...
-Saving to Cleekto...
+Saving to kleekTo...
 ```
 
 Avoid generic “Loading...” when the operation is known.
@@ -1066,7 +1066,7 @@ Example:
 No properties yet.
 
 Open an announcement on ss.ge or myhome.ge
-and use the Cleekto Extension to add it.
+and use the kleekTo Extension to add it.
 
 [Learn how]
 ```
@@ -1099,7 +1099,7 @@ Try refreshing the listing and importing again.
 Use short confirmations:
 
 ```text
-✓ Added to Cleekto
+✓ Added to kleekTo
 ```
 
 Avoid large celebratory animations for routine actions.
@@ -1184,9 +1184,9 @@ All UI strings live in a dictionary from day one. No user-visible text is hardco
 Georgian and Russian run noticeably longer than English. A button laid out to fit "Add" breaks in both.
 
 ```text
-en   Add to Cleekto
-ru   Добавить в Cleekto
-ka   დამატება Cleekto-ში
+en   Add to kleekTo
+ru   Добавить в kleekTo
+ka   დამატება kleekTo-ში
 ```
 
 - Never size a control to its English label. Buttons, tabs, table headers and badges size to content with sensible minimums.
@@ -1297,7 +1297,7 @@ If the file has several sheets, the sheet picker appears here, showing row count
 ```text
 Sheet "Объекты" · 1,847 rows · 14 columns
 
-Column in file              Cleekto field
+Column in file              kleekTo field
 ──────────────────────────────────────────────
 ფართობი / Площадь           [ Area              ▾ ]
 Цена $                      [ Price             ▾ ]
@@ -1316,7 +1316,7 @@ Rules:
 
 - Every column is listed, including the ones being skipped. A silently ignored column is a column someone will later swear was imported.
 - "Don't import" is a normal choice, not a failure — it is the default for anything unrecognized.
-- Cleekto proposes a mapping where it can and never hides that the proposal is a guess.
+- kleekTo proposes a mapping where it can and never hides that the proposal is a guess.
 - The saved mapping belongs to the agency. Their second file lands on a ready scheme.
 
 ### Step 3 — Preview
@@ -1558,17 +1558,17 @@ Use semantic design tokens rather than hardcoded colors.
 
 Primary brand:
 
-# CLEEKTO
+# KLEEKTO
 
 Possible product architecture:
 
 ```text
-Cleekto
-Cleekto CRM
-Cleekto Extension
-Cleekto Analytics
-Cleekto AI
-Cleekto Phone
+kleekTo
+kleekTo CRM
+kleekTo Extension
+kleekTo Analytics
+kleekTo AI
+kleekTo Phone
 ```
 
 Do not introduce unrelated product names.
@@ -1595,7 +1595,7 @@ Avoid generic house/roof icons unless strongly justified.
 
 Avoid generic AI sparkle imagery.
 
-Cleekto should feel technological rather than like a traditional real-estate agency.
+kleekTo should feel technological rather than like a traditional real-estate agency.
 
 ---
 
@@ -1616,7 +1616,7 @@ Do not fill the UI with generic house icons.
 
 Photography should provide much of the visual richness.
 
-One constraint to design around: in the MVP, photos are stored as URLs pointing at the source portal, not copied into Cleekto. Those URLs can break — the listing is removed, the portal blocks hotlinking, the path changes. Every surface that shows a photo needs a deliberate fallback: a neutral placeholder carrying the property type and address, never a broken-image icon and never a collapsed layout. Card and gallery heights must not depend on the image loading.
+One constraint to design around: in the MVP, photos are stored as URLs pointing at the source portal, not copied into kleekTo. Those URLs can break — the listing is removed, the portal blocks hotlinking, the path changes. Every surface that shows a photo needs a deliberate fallback: a neutral placeholder carrying the property type and address, never a broken-image icon and never a collapsed layout. Card and gallery heights must not depend on the image loading.
 
 ---
 
@@ -1822,14 +1822,14 @@ The first successful import should happen quickly.
 Example:
 
 ```text
-Welcome to Cleekto
+Welcome to kleekTo
 
 Your next listing is one click away.
 
 1. Install the Chrome Extension
 2. Open ss.ge or myhome.ge
 3. Find a listing
-4. Click "Add to Cleekto"
+4. Click "Add to kleekTo"
 
 [Install Extension]
 ```
@@ -1937,7 +1937,7 @@ When implementing UI:
 
 ## 57. Final Design Statement
 
-> **Cleekto is a modern, lightweight, data-driven B2B SaaS product for real-estate professionals. It should feel fast, calm, intelligent and premium. It should help agents work faster rather than make them admire the interface.**
+> **kleekTo is a modern, lightweight, data-driven B2B SaaS product for real-estate professionals. It should feel fast, calm, intelligent and premium. It should help agents work faster rather than make them admire the interface.**
 
 The design should communicate:
 
@@ -1951,4 +1951,4 @@ EFFICIENCY
 
 The core experience should feel like:
 
-> **Find a listing → Click → Cleekto handles the boring part.**
+> **Find a listing → Click → kleekTo handles the boring part.**

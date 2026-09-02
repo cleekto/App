@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
-import { healthResponseSchema, type HealthResponse } from '@cleekto/contracts';
-import { checkDatabase } from '@cleekto/db';
+import { healthResponseSchema, type HealthResponse } from '@kleekto/contracts';
+import { checkDatabase } from '@kleekto/db';
 
 import { APP_VERSION } from '../../../version';
 

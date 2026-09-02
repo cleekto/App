@@ -1,5 +1,5 @@
 {
-  "name": "@cleekto/db",
+  "name": "@kleekto/db",
   "version": "0.1.0",
   "private": true,
   "main": "./src/index.ts",

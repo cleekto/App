@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { Inter, Noto_Sans_Georgian } from 'next/font/google';
 import type { ReactNode } from 'react';
 
-import { translate } from '@cleekto/i18n';
+import { translate } from '@kleekto/i18n';
 
 import { serverLocale } from './locale';
 import './globals.css';

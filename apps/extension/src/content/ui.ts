@@ -1,4 +1,4 @@
-import { formatMoney, formatNumber, translator, type Locale, type MessageKey } from '@cleekto/i18n';
+import { formatMoney, formatNumber, translator, type Locale, type MessageKey } from '@kleekto/i18n';
 
 import type { CallOutcome, ListingPreview } from '../core/import-manager';
 
@@ -25,7 +25,7 @@ export type UiAction =
   | { type: 'clear-form'; includeEdited: boolean }
   | { type: 'close' };
 
-const HOST_ID = 'cleekto-root';
+const HOST_ID = 'kleekto-root';
 
 export class Ui {
   private readonly host: HTMLElement;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { reportPublicationFilled } from '@cleekto/core';
+import { reportPublicationFilled } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 

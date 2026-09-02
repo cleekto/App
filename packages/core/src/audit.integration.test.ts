@@ -1,4 +1,4 @@
-import { RoleCode, prisma } from '@cleekto/db';
+import { RoleCode, prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { dashboard } from './analytics/use-cases';

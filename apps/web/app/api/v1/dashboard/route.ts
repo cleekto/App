@@ -1,4 +1,4 @@
-import { dashboard } from '@cleekto/core';
+import { dashboard } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../_lib/handler';
 

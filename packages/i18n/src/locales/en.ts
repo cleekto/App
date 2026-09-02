@@ -7,7 +7,7 @@
  */
 export const en = {
   app: {
-    name: 'Cleekto',
+    name: 'kleekTo',
     tagline: 'Real estate CRM',
   },
   health: {
@@ -179,7 +179,7 @@ export const en = {
   },
 
   extension: {
-    signInPrompt: 'Sign in to Cleekto to start importing listings',
+    signInPrompt: 'Sign in to kleekTo to start importing listings',
     signIn: 'Sign in',
     email: 'Email',
     password: 'Password',
@@ -198,7 +198,7 @@ export const en = {
 
     outcome: {
       /** Формулировка говорит, что произойдёт, а не «согласен» (DESIGN §25.4). */
-      consent: 'Agreed — add to Cleekto',
+      consent: 'Agreed — add to kleekTo',
       refused: 'Declined / do not call',
       noAnswer: 'No answer',
       callback: 'Call back in…',
@@ -211,10 +211,10 @@ export const en = {
     phoneNotRevealed: 'Reveal the phone number on the page, then press “Agreed” again.',
 
     added: {
-      title: 'Added to Cleekto',
+      title: 'Added to kleekTo',
       /** Статус называется вслух: агент узнает его потом на доске. */
       status: 'In base · assigned to you',
-      open: 'Open in Cleekto',
+      open: 'Open in kleekTo',
     },
 
     refusedRecorded: {
@@ -266,7 +266,7 @@ export const en = {
     },
 
     error: {
-      network: 'No connection to Cleekto. Your data is kept — try again.',
+      network: 'No connection to kleekTo. Your data is kept — try again.',
       session: 'Your session has expired. Sign in again.',
       unknown: 'Something went wrong. Try again.',
     },

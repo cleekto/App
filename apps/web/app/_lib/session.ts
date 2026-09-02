@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { currentUser, verifyAccessToken } from '@cleekto/core';
-import type { AuthContext, CurrentUser } from '@cleekto/core';
-import { isLocale, type Locale } from '@cleekto/i18n';
+import { currentUser, verifyAccessToken } from '@kleekto/core';
+import type { AuthContext, CurrentUser } from '@kleekto/core';
+import { isLocale, type Locale } from '@kleekto/i18n';
 
 import { ACCESS_COOKIE } from '../api/_lib/handler';
 
@@ -14,7 +14,7 @@ import { ACCESS_COOKIE } from '../api/_lib/handler';
  * в маршрутах (правило 5). Страница не принимает его параметром и не может:
  * взять его неоткуда, кроме подписанного токена.
  *
- * Страницы читают домен напрямую через `@cleekto/core`, а не ходят по HTTP
+ * Страницы читают домен напрямую через `@kleekto/core`, а не ходят по HTTP
  * в собственный API. Это тот же слой прав и та же изоляция — просто без
  * лишнего круга через сеть. Изменения по-прежнему идут через API: они
  * приходят из браузера.

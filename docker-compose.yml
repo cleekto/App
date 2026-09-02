@@ -3,15 +3,19 @@
 # Расширения pg_trgm и pgcrypto включает первая миграция, а не этот файл:
 # они часть схемы, и на любой другой базе должны появиться тем же способом.
 
+# Имя проекта задано явно: иначе Docker Compose берёт его из имени папки на
+# диске, а она называется CleekTo, а не kleekto.
+name: kleekto
+
 services:
   postgres:
     image: postgres:17-alpine
-    container_name: cleekto-postgres
+    container_name: kleekto-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: cleekto
-      POSTGRES_PASSWORD: cleekto_local_dev
-      POSTGRES_DB: cleekto
+      POSTGRES_USER: kleekto
+      POSTGRES_PASSWORD: kleekto_local_dev
+      POSTGRES_DB: kleekto
       # Грузинский, русский и английский в одной базе — сортировка должна
       # вести себя предсказуемо для всех трёх (ADR-0008).
       POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=und --encoding=UTF8'
@@ -20,7 +24,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U cleekto -d cleekto']
+      test: ['CMD-SHELL', 'pg_isready -U kleekto -d kleekto']
       interval: 5s
       timeout: 5s
       retries: 10

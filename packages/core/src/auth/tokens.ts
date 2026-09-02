@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 
-import type { RoleCode } from '@cleekto/db';
+import type { RoleCode } from '@kleekto/db';
 import { SignJWT, jwtVerify } from 'jose';
 
 import { authConfig } from '../config';
@@ -8,7 +8,7 @@ import { UnauthenticatedError } from '../errors';
 import type { AuthContext } from './context';
 
 const ALGORITHM = 'HS256';
-const ISSUER = 'cleekto';
+const ISSUER = 'kleekto';
 
 /**
  * Полезная нагрузка access-токена.

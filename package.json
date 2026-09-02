@@ -1,8 +1,8 @@
 {
-  "name": "cleekto",
+  "name": "kleekto",
   "version": "0.1.0",
   "private": true,
-  "description": "Cleekto — CRM для агентств недвижимости Грузии",
+  "description": "kleekTo — CRM для агентств недвижимости Грузии",
   "packageManager": "pnpm@11.7.0",
   "engines": {
     "node": ">=22"

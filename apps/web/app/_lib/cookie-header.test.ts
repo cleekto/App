@@ -12,15 +12,15 @@ describe('withCookie', () => {
   });
 
   it('заменяет значение существующей куки, не трогая соседние', () => {
-    expect(withCookie('cleekto_access=old; cleekto_refresh=r', 'cleekto_access', 'new')).toBe(
-      'cleekto_refresh=r; cleekto_access=new',
+    expect(withCookie('kleekto_access=old; kleekto_refresh=r', 'kleekto_access', 'new')).toBe(
+      'kleekto_refresh=r; kleekto_access=new',
     );
   });
 
   it('не путает куку с именем-префиксом другой', () => {
-    // Раньше `startsWith` совпал бы с `cleekto_access_extra` и стёр её.
-    expect(withCookie('cleekto_access_extra=keep', 'cleekto_access', 'new')).toBe(
-      'cleekto_access_extra=keep; cleekto_access=new',
+    // Раньше `startsWith` совпал бы с `kleekto_access_extra` и стёр её.
+    expect(withCookie('kleekto_access_extra=keep', 'kleekto_access', 'new')).toBe(
+      'kleekto_access_extra=keep; kleekto_access=new',
     );
   });
 

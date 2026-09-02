@@ -16,7 +16,7 @@ import type { DeepPartial, Dictionary } from '../types';
  */
 export const ka: DeepPartial<Dictionary> = {
   app: {
-    name: 'Cleekto',
+    name: 'kleekTo',
     tagline: 'უძრავი ქონების CRM',
   },
   health: {
@@ -186,7 +186,7 @@ export const ka: DeepPartial<Dictionary> = {
   },
 
   extension: {
-    signInPrompt: 'შედით Cleekto-ში განცხადებების იმპორტისთვის',
+    signInPrompt: 'შედით kleekTo-ში განცხადებების იმპორტისთვის',
     signIn: 'შესვლა',
     email: 'ელ. ფოსტა',
     password: 'პაროლი',
@@ -199,7 +199,7 @@ export const ka: DeepPartial<Dictionary> = {
     callResult: 'ზარის შედეგი',
 
     outcome: {
-      consent: 'დათანხმდა — დაემატოს Cleekto-ში',
+      consent: 'დათანხმდა — დაემატოს kleekTo-ში',
       refused: 'უარი / აღარ დავურეკოთ',
       noAnswer: 'არ პასუხობს',
       callback: 'დავურეკოთ მოგვიანებით…',
@@ -208,9 +208,9 @@ export const ka: DeepPartial<Dictionary> = {
     phoneNotRevealed: 'ჯერ გახსენით ტელეფონის ნომერი გვერდზე, შემდეგ კვლავ დააჭირეთ „დათანხმდა“.',
 
     added: {
-      title: 'დაემატა Cleekto-ში',
+      title: 'დაემატა kleekTo-ში',
       status: 'ბაზაში · მიმაგრებულია თქვენზე',
-      open: 'გახსენით Cleekto-ში',
+      open: 'გახსენით kleekTo-ში',
     },
 
     refusedRecorded: {
@@ -259,7 +259,7 @@ export const ka: DeepPartial<Dictionary> = {
     },
 
     error: {
-      network: 'Cleekto-სთან კავშირი არ არის. მონაცემები შენახულია — სცადეთ ხელახლა.',
+      network: 'kleekTo-სთან კავშირი არ არის. მონაცემები შენახულია — სცადეთ ხელახლა.',
       session: 'სესიის ვადა ამოიწურა. შედით თავიდან.',
       unknown: 'რაღაც ვერ მოხერხდა. სცადეთ ხელახლა.',
     },

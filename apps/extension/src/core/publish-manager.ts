@@ -1,6 +1,6 @@
-import { publishAdapterFor, restoreSnapshot } from '@cleekto/adapters';
-import type { FormSnapshot, ListingPublishAdapter } from '@cleekto/adapters';
-import type { FillResult, ListingPublishDraft } from '@cleekto/contracts';
+import { publishAdapterFor, restoreSnapshot } from '@kleekto/adapters';
+import type { FormSnapshot, ListingPublishAdapter } from '@kleekto/adapters';
+import type { FillResult, ListingPublishDraft } from '@kleekto/contracts';
 
 /**
  * Оркестрация заполнения формы размещения (§6А).

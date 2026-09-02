@@ -1,4 +1,4 @@
-import { isLocale, type Locale } from '@cleekto/i18n';
+import { isLocale, type Locale } from '@kleekto/i18n';
 
 /**
  * Хранилище расширения.

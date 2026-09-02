@@ -1,4 +1,4 @@
-import { currentUser } from '@cleekto/core';
+import { currentUser } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../../_lib/handler';
 

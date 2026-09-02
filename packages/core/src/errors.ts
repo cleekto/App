@@ -1,4 +1,4 @@
-import type { ErrorCode } from '@cleekto/contracts';
+import type { ErrorCode } from '@kleekto/contracts';
 
 /**
  * Доменная ошибка. Несёт код контракта, но ничего не знает о HTTP —

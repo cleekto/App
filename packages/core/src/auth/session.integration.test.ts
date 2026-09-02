@@ -1,4 +1,4 @@
-import { prisma } from '@cleekto/db';
+import { prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { ACTIVITY } from '../activity/actions';

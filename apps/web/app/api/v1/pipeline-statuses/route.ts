@@ -1,4 +1,4 @@
-import { listPipelineStatuses } from '@cleekto/core';
+import { listPipelineStatuses } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../_lib/handler';
 

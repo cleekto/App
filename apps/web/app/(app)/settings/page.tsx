@@ -1,5 +1,5 @@
-import { listPublishProfiles, listTeams, listUsers } from '@cleekto/core';
-import { LOCALES, translate } from '@cleekto/i18n';
+import { listPublishProfiles, listTeams, listUsers } from '@kleekto/core';
+import { LOCALES, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Badge, Card, EmptyState, PageHeader, SectionHeader } from '../../_ui/primitives';

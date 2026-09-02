@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { addComment, listComments } from '@cleekto/core';
+import { addComment, listComments } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 

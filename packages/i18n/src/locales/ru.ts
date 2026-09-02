@@ -12,7 +12,7 @@ import type { DeepPartial, Dictionary } from '../types';
  */
 export const ru: DeepPartial<Dictionary> = {
   app: {
-    name: 'Cleekto',
+    name: 'kleekTo',
     tagline: 'CRM для агентств недвижимости',
   },
   health: {
@@ -184,7 +184,7 @@ export const ru: DeepPartial<Dictionary> = {
   },
 
   extension: {
-    signInPrompt: 'Войдите в Cleekto, чтобы импортировать объявления',
+    signInPrompt: 'Войдите в kleekTo, чтобы импортировать объявления',
     signIn: 'Войти',
     email: 'Почта',
     password: 'Пароль',
@@ -197,7 +197,7 @@ export const ru: DeepPartial<Dictionary> = {
     callResult: 'Результат разговора',
 
     outcome: {
-      consent: 'Согласен — добавить в Cleekto',
+      consent: 'Согласен — добавить в kleekTo',
       refused: 'Отказ / не звонить',
       noAnswer: 'Недозвон',
       callback: 'Перезвонить через…',
@@ -207,9 +207,9 @@ export const ru: DeepPartial<Dictionary> = {
       'Сначала откройте номер телефона на странице, затем нажмите «Согласен» ещё раз.',
 
     added: {
-      title: 'Добавлено в Cleekto',
+      title: 'Добавлено в kleekTo',
       status: 'В базе · закреплено за вами',
-      open: 'Открыть в Cleekto',
+      open: 'Открыть в kleekTo',
     },
 
     refusedRecorded: {
@@ -258,7 +258,7 @@ export const ru: DeepPartial<Dictionary> = {
     },
 
     error: {
-      network: 'Нет связи с Cleekto. Данные сохранены — попробуйте ещё раз.',
+      network: 'Нет связи с kleekTo. Данные сохранены — попробуйте ещё раз.',
       session: 'Сессия истекла. Войдите заново.',
       unknown: 'Что-то пошло не так. Попробуйте ещё раз.',
     },

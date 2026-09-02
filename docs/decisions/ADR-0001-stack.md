@@ -83,7 +83,7 @@ Vercel + serverless + Prisma даёт исчерпание пула соедин
 ## Решение 3. Структура репозитория
 
 ```text
-CleekTo/
+kleekTo/
 ├── apps/
 │   ├── web/                  Next.js: интерфейс CRM + route handlers /api/v1/*
 │   └── extension/            Chrome MV3: popup, service worker, content scripts

@@ -22,8 +22,8 @@ await cp(resolve(root, 'public'), outdir, { recursive: true });
  * в бандл расширения, публично по определению.
  */
 const define = {
-  __CLEEKTO_API_URL__: JSON.stringify(process.env.CLEEKTO_API_URL ?? 'http://localhost:3000'),
-  __CLEEKTO_APP_URL__: JSON.stringify(process.env.CLEEKTO_APP_URL ?? 'http://localhost:3000'),
+  __KLEEKTO_API_URL__: JSON.stringify(process.env.KLEEKTO_API_URL ?? 'http://localhost:3000'),
+  __KLEEKTO_APP_URL__: JSON.stringify(process.env.KLEEKTO_APP_URL ?? 'http://localhost:3000'),
 };
 
 /**
@@ -38,7 +38,7 @@ const define = {
   const manifestPath = resolve(outdir, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-  const api = new URL(process.env.CLEEKTO_API_URL ?? 'http://localhost:3000');
+  const api = new URL(process.env.KLEEKTO_API_URL ?? 'http://localhost:3000');
   manifest.host_permissions = [`${api.origin}/*`];
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');

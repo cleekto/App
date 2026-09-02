@@ -1,4 +1,4 @@
-import type { FillResult, ListingPublishDraft, PublishedRef } from '@cleekto/contracts';
+import type { FillResult, ListingPublishDraft, PublishedRef } from '@kleekto/contracts';
 
 import type { FormSnapshot } from './form-fill';
 

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { setMigrationMapping } from '@cleekto/core';
+import { setMigrationMapping } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 

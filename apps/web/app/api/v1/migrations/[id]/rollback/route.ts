@@ -1,4 +1,4 @@
-import { rollbackMigration } from '@cleekto/core';
+import { rollbackMigration } from '@kleekto/core';
 
 import { handle, requireAuth } from '../../../../_lib/handler';
 

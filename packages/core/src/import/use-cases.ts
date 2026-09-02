@@ -6,7 +6,7 @@ import {
   type Source,
   type TransactionType,
   prisma,
-} from '@cleekto/db';
+} from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';

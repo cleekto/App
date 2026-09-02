@@ -1,4 +1,4 @@
-import { prisma } from '@cleekto/db';
+import { prisma } from '@kleekto/db';
 
 import type { AuthContext } from '../auth/context';
 import { requirePermission } from '../rbac/guard';

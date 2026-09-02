@@ -1,4 +1,4 @@
-# Cleekto
+# kleekTo
 
 CRM для агентств недвижимости. Рынок — Грузия.
 
@@ -22,7 +22,7 @@ CRM для агентств недвижимости. Рынок — Грузи�
 
 ```bash
 git clone <адрес репозитория>
-cd CleekTo
+cd kleekTo
 
 pnpm install
 cp .env.example .env          # значения по умолчанию рабочие, править не нужно
@@ -114,7 +114,7 @@ packages/contracts, packages/i18n → (ничего)
 Адрес сервера подставляется на сборке и по умолчанию `http://localhost:3000`:
 
 ```bash
-CLEEKTO_API_URL=https://app.example CLEEKTO_APP_URL=https://app.example pnpm --filter @cleekto/extension build
+KLEEKTO_API_URL=https://app.example KLEEKTO_APP_URL=https://app.example pnpm --filter @kleekto/extension build
 ```
 
 `host_permissions` в манифесте сборка приводит к этому же адресу — иначе

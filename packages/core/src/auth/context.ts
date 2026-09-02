@@ -1,4 +1,4 @@
-import type { RoleCode } from '@cleekto/db';
+import type { RoleCode } from '@kleekto/db';
 
 /**
  * Кто выполняет действие.

@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from '@cleekto/db';
+import type { Prisma, PrismaClient } from '@kleekto/db';
 
 import type { AuthContext } from '../auth/context';
 import type { ActivityAction, ActivityEntity } from './actions';

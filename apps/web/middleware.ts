@@ -35,7 +35,7 @@ import { withCookie } from './app/_lib/cookie-header';
  * и достаточный признак «токен истёк по времени»; проверять подпись здесь
  * незачем, а страница и так проверит её заново (`requireContext`).
  *
- * ПОЧЕМУ ЧЕРЕЗ HTTP, А НЕ ЧЕРЕЗ `@cleekto/core` НАПРЯМУЮ. `refreshSession`
+ * ПОЧЕМУ ЧЕРЕЗ HTTP, А НЕ ЧЕРЕЗ `@kleekto/core` НАПРЯМУЮ. `refreshSession`
  * тянет за собой Prisma, а Prisma не работает в Edge-окружении middleware.
  * Внутренний запрос к уже существующему `/api/v1/auth/refresh` держит
  * доменную логику в обработчике маршрута (ADR-0001) — переводить middleware

@@ -1,5 +1,5 @@
-import { adapterFor } from '@cleekto/adapters';
-import { isLocale, type Locale } from '@cleekto/i18n';
+import { adapterFor } from '@kleekto/adapters';
+import { isLocale, type Locale } from '@kleekto/i18n';
 
 import { APP_URL } from '../core/config';
 import type { CallOutcome, ImportRequestBody, ImportResponse } from '../core/import-manager';

@@ -1,4 +1,4 @@
-import { isLocale, translator, type Locale, type MessageKey } from '@cleekto/i18n';
+import { isLocale, translator, type Locale, type MessageKey } from '@kleekto/i18n';
 
 import type { ContentToWorker, WorkerReply } from '../core/messages';
 
