@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { Photo } from '../../_ui/photo';
+import { NewProperty } from './new-property';
 import { Badge, Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
-import { listPipelineStatuses, listProperties } from '@kleekto/core';
+import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
 import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
@@ -38,6 +39,11 @@ export default async function PropertiesPage({
     listPipelineStatuses(ctx),
   ]);
 
+  // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
+  // Заводить объекты может участник команды — администратор без команды
+  // получит отказ, и предлагать ему кнопку незачем.
+  const canCreate = permissionScope(ctx.role, 'property', 'create') !== null && ctx.teamId !== null;
+
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
   const foundLine = `${String(total)} ${t('property.found')}`;
 
@@ -45,7 +51,50 @@ export default async function PropertiesPage({
     <div className="flex flex-col gap-6">
       <PageHeader
         title={t('nav.properties')}
-        action={<p className="text-sm text-[var(--color-text-secondary)]">{foundLine}</p>}
+        action={
+          <div className="flex flex-wrap items-center gap-4">
+            <p className="text-sm text-[var(--color-text-secondary)]">{foundLine}</p>
+            {canCreate ? (
+              <NewProperty
+                labels={{
+                  trigger: t('property.addManually'),
+                  submit: t('common.save'),
+                  cancel: t('common.cancel'),
+                  saving: t('common.loading'),
+                  failed: t('property.addFailed'),
+                  ownerName: t('property.ownerName'),
+                  ownerPhone: t('property.ownerPhone'),
+                  ownerPhoneHint: t('property.ownerPhoneHint'),
+                  transactionType: t('property.transactionLabel'),
+                  propertyType: t('property.typeLabel'),
+                  rooms: t('property.roomsLabel'),
+                  area: t('property.areaLabel'),
+                  floor: t('property.floorLabel'),
+                  totalFloors: t('property.totalFloorsLabel'),
+                  district: t('property.districtLabel'),
+                  address: t('property.addressLabel'),
+                  price: t('property.priceLabel'),
+                  currency: t('property.currencyLabel'),
+                  duplicateTitle: t('property.duplicateTitle'),
+                  duplicateHint: t('property.duplicateHint'),
+                  openExisting: t('property.publishCheckOpenExisting'),
+                  createAnyway: t('property.createAnyway'),
+                }}
+                types={[
+                  { value: 'APARTMENT', label: t('property.type.APARTMENT') },
+                  { value: 'HOUSE', label: t('property.type.HOUSE') },
+                  { value: 'LAND', label: t('property.type.LAND') },
+                  { value: 'COMMERCIAL', label: t('property.type.COMMERCIAL') },
+                ]}
+                transactions={[
+                  { value: 'SALE', label: t('property.transaction.SALE') },
+                  { value: 'RENT', label: t('property.transaction.RENT') },
+                ]}
+                currencies={CURRENCIES}
+              />
+            ) : null}
+          </div>
+        }
       />
 
       <PropertyFilters
@@ -133,3 +182,12 @@ export default async function PropertiesPage({
     </div>
   );
 }
+
+/**
+ * Валюты, в которых агентства ведут объекты в Грузии.
+ *
+ * Доллар первым: цены на недвижимость в Тбилиси называют в нём, а лари —
+ * валюта расчётов. Список закрыт: свободное поле здесь дало бы «USD»,
+ * «usd» и «долл.» в одной базе, и сравнивать цены стало бы нечем.
+ */
+const CURRENCIES = ['USD', 'GEL', 'EUR'] as const;

@@ -17,9 +17,19 @@ import { compare, reasonHuman, verdictFor, type Facts, type Reason, type Verdict
  */
 
 export interface DedupInput {
-  source: Source;
+  /**
+   * Объявление, из которого пришёл объект. `null` — объекта завели руками,
+   * объявления за ним нет.
+   *
+   * Без объявления не работают ровно два признака: точное совпадение
+   * по ключу идемпотентности и «своё объявление вернулось обратно». Оба
+   * ищут запись объявления, которой не существует. Всё остальное —
+   * телефон, адрес, площадь, комнатность — считается как обычно, и объект,
+   * заведённый руками, честно участвует в поиске дублей.
+   */
+  source: Source | null;
   externalId: string | null;
-  canonicalUrl: string;
+  canonicalUrl: string | null;
   facts: Facts;
 }
 
@@ -157,6 +167,9 @@ async function findExact(
   input: DedupInput,
 ): Promise<{ sourceListingId: string; propertyId: string } | null> {
   if (ctx.teamId === null) return null;
+  // Ключ идемпотентности — это ключ ОБЪЯВЛЕНИЯ. Объекту, заведённому руками,
+  // совпадать нечем.
+  if (input.source === null || input.canonicalUrl === null) return null;
 
   const byExternalId =
     input.externalId === null
@@ -196,6 +209,17 @@ async function findSelfPublication(
   ctx: AuthContext,
   input: DedupInput,
 ): Promise<SelfPublication | null> {
+  /*
+   * Без объявления искать нечего: все три признака опознают ИМЕННО ЕГО —
+   * по идентификатору, по адресу страницы или по номеру в самом объявлении.
+   * У объекта, заведённого руками, объявления нет.
+   *
+   * Номер сотрудника в поле собственника при ручном заводе всё равно
+   * не пройдёт незамеченным: `classifyPhones` опознаёт его отдельно
+   * и исключает из признаков.
+   */
+  if (input.source === null || input.canonicalUrl === null) return null;
+
   // Пункт 1: подтверждённый идентификатор. Самый надёжный признак —
   // и самый ненадёжный по доступности: он появляется только после того,
   // как агент нажал «подтвердить» (инвариант 13).

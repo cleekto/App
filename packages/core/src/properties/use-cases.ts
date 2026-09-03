@@ -4,7 +4,10 @@ import type { PropertyOrigin, PropertyType, TransactionType } from '@kleekto/db'
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';
 import type { AuthContext } from '../auth/context';
-import { NotFoundError, ValidationError } from '../errors';
+import { analyze, type DedupMatch } from '../dedup/engine';
+import { ForbiddenError, NotFoundError, ValidationError } from '../errors';
+import { normalizeAddress } from '../normalize';
+import { normalizePhone } from '../phone';
 import { assertScope, requirePermission, scopeFilter } from '../rbac/guard';
 
 /**
@@ -529,4 +532,220 @@ async function sharedLinks(
   });
 
   return new Set(rows.map((row) => row.propertyLinkId).filter((id): id is string => id !== null));
+}
+
+// ── Ручное заведение объекта ─────────────────────────────────────────────────
+
+export interface CreatePropertyInput {
+  owner: { name?: string | null | undefined; phone: string };
+  transactionType: TransactionType;
+  propertyType: PropertyType;
+  rooms?: number | null | undefined;
+  areaTotal?: number | null | undefined;
+  floor?: number | null | undefined;
+  totalFloors?: number | null | undefined;
+  district?: string | null | undefined;
+  addressRaw?: string | null | undefined;
+  price?: number | null | undefined;
+  currency?: string | null | undefined;
+  publicDescription?: string | null | undefined;
+  /**
+   * Дубли, которые агент увидел и всё равно настаивает.
+   *
+   * Тот же механизм, что у импорта: система предупреждает, но не запрещает.
+   * Настаивать нельзя только на точном совпадении — там объект уже есть.
+   */
+  acknowledgedDuplicateOf?: readonly string[] | undefined;
+}
+
+export interface CreatePropertyResult {
+  result: 'created' | 'duplicate';
+  propertyId: string | null;
+  /** Совпадения СВОЕЙ команды: они и останавливают заведение. */
+  matches: DedupMatch[];
+  /** Совпадения соседних команд компании: пометка, никогда не блокировка. */
+  otherTeamMatches: DedupMatch[];
+}
+
+/**
+ * Объект, заведённый руками.
+ *
+ * ИСКЛЮЧЕНИЕ ИЗ ПРАВИЛА 0, а не обход его. Объект появляется по «Согласен»,
+ * и ручное заведение — один из двух названных правилом путей помимо него
+ * (второй — миграция). Оба помечаются полем `origin`, и по нему всегда видно,
+ * откуда объект взялся: `manual` здесь ставится явно и никогда не подменяется
+ * на `consent`.
+ *
+ * Зачем он нужен. Собственник пришёл в офис, контакт передал коллега, объект
+ * нашли не на площадке — во всех этих случаях объявления не существует,
+ * а объект существует. Без этого пути агентство держало бы такие объекты
+ * в тетради.
+ *
+ * ДЕДУПЛИКАЦИЯ ТА ЖЕ, ЧТО У ИМПОРТА. Иначе ручное заведение стало бы дырой
+ * в ней: двое агентов завели бы одного собственника с разницей в час, и никто
+ * бы не узнал. Объявления за объектом нет, поэтому два признака из пяти
+ * не работают (см. `DedupInput`), а остальные — телефон, адрес, площадь,
+ * комнатность — считаются как обычно.
+ */
+export async function createPropertyManually(
+  ctx: AuthContext,
+  input: CreatePropertyInput,
+): Promise<CreatePropertyResult> {
+  requirePermission(ctx, 'property', 'create');
+
+  if (ctx.teamId === null) {
+    throw new ForbiddenError('Объект принадлежит команде. Заводить объекты может её участник');
+  }
+  const teamId = ctx.teamId;
+
+  /*
+   * ТЕЛЕФОН СОБСТВЕННИКА ОБЯЗАТЕЛЕН.
+   *
+   * Он ключ дедупликации уровней 2 и 3. Объект без него не участвует
+   * в поиске дублей ни сегодня, ни потом: он не найдётся, когда тот же
+   * собственник придёт с площадки, и второй агент возьмётся за него заново.
+   *
+   * Требование то же, что и у импорта (правило 11), и по той же причине —
+   * дедупликация, а не формальность.
+   */
+  const phone = normalizePhone(input.owner.phone);
+
+  const addressNormalized =
+    input.addressRaw === null || input.addressRaw === undefined || input.addressRaw.trim() === ''
+      ? null
+      : normalizeAddress(input.addressRaw);
+
+  const dedup = await analyze(ctx, {
+    // Объявления нет — и это не пропуск, а факт (см. `DedupInput`).
+    source: null,
+    externalId: null,
+    canonicalUrl: null,
+    facts: {
+      phones: [phone.normalized],
+      addressNormalized,
+      area: input.areaTotal ?? null,
+      rooms: input.rooms ?? null,
+      floor: input.floor ?? null,
+      totalFloors: input.totalFloors ?? null,
+      price: input.price ?? null,
+      currency: input.currency ?? null,
+      propertyType: input.propertyType,
+      photos: [],
+      district: input.district ?? null,
+    },
+  });
+
+  const acknowledged = new Set(input.acknowledgedDuplicateOf ?? []);
+  const blocking = dedup.teamMatches.filter(
+    (match) =>
+      !acknowledged.has(match.propertyId) &&
+      (match.verdict === 'EXACT' || match.verdict === 'STRONG'),
+  );
+
+  if (blocking.length > 0) {
+    // Заведение останавливается, но объект не создаётся и ничего не портится.
+    // Агент увидит, на что похоже, и решит сам: открыть найденное или
+    // настоять. Система настойчива только на точном совпадении.
+    return {
+      result: 'duplicate',
+      propertyId: null,
+      matches: blocking,
+      otherTeamMatches: dedup.companyMatches,
+    };
+  }
+
+  const status = await prisma.pipelineStatus.findFirst({
+    where: { companyId: ctx.companyId, code: 'IN_BASE' },
+    select: { id: true },
+  });
+  if (status === null) {
+    throw new NotFoundError('В компании нет статуса «В базе». Проверьте сид статусов воронки');
+  }
+
+  // Тот же объект уже ведёт другая команда — связываем записи на уровне
+  // компании. Связка НЕ даёт прав: она нужна самоимпорту, предупреждению
+  // о повторной публикации и отчётности (Q33, ADR-0006).
+  const crossTeam = dedup.companyMatches.find(
+    (match) => match.verdict === 'STRONG' || match.verdict === 'EXACT',
+  );
+
+  const created = await prisma.$transaction(async (tx) => {
+    let propertyLinkId = crossTeam?.propertyLinkId ?? null;
+
+    if (crossTeam !== undefined && propertyLinkId === null) {
+      const link = await tx.propertyLink.create({
+        data: { companyId: ctx.companyId },
+        select: { id: true },
+      });
+      propertyLinkId = link.id;
+      await tx.property.update({ where: { id: crossTeam.propertyId }, data: { propertyLinkId } });
+    }
+
+    const ownerContact = await tx.ownerContact.create({
+      data: {
+        companyId: ctx.companyId,
+        fullName: input.owner.name ?? null,
+        phones: {
+          create: {
+            companyId: ctx.companyId,
+            phoneOriginal: phone.original,
+            phoneNormalized: phone.normalized,
+            isPrimary: true,
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    const property = await tx.property.create({
+      data: {
+        // Из контекста, не из входных данных (правило 5).
+        companyId: ctx.companyId,
+        teamId,
+        assignedUserId: ctx.userId,
+        createdByUserId: ctx.userId,
+        propertyLinkId,
+        pipelineStatusId: status.id,
+        // Помечен явно: по `origin` всегда видно, что объявления за ним нет.
+        origin: 'manual',
+        ownerContactId: ownerContact.id,
+        transactionType: input.transactionType,
+        propertyType: input.propertyType,
+        rooms: input.rooms ?? null,
+        areaTotal: input.areaTotal ?? null,
+        floor: input.floor ?? null,
+        totalFloors: input.totalFloors ?? null,
+        district: input.district ?? null,
+        addressRaw: input.addressRaw ?? null,
+        addressNormalized,
+        price: input.price ?? null,
+        currency: input.currency ?? null,
+        publicDescription: input.publicDescription ?? null,
+        photos: [],
+      },
+      select: { id: true },
+    });
+
+    await writeActivity(tx, ctx, {
+      entityType: ENTITY.PROPERTY,
+      entityId: property.id,
+      action: ACTIVITY.PROPERTY_CREATED_MANUALLY,
+      // Ни имени собственника, ни телефона: в журнале только факт
+      // и обстоятельства (правило 10).
+      after: {
+        origin: 'manual',
+        acknowledgedDuplicates: acknowledged.size,
+        linkedToOtherTeam: crossTeam !== undefined,
+      },
+    });
+
+    return property;
+  });
+
+  return {
+    result: 'created',
+    propertyId: created.id,
+    matches: [],
+    otherTeamMatches: dedup.companyMatches,
+  };
 }

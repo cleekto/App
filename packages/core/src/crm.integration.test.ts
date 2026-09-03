@@ -4,9 +4,10 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { propertyActivity } from './activity/feed';
 import type { AuthContext } from './auth/context';
 import { addComment, listComments } from './comments/use-cases';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { importListing, type ImportInput } from './import/use-cases';
 import { listPipelineStatuses } from './pipeline/use-cases';
+import { createPropertyManually } from './properties/use-cases';
 import {
   assignProperty,
   changePropertyStatus,
@@ -437,5 +438,195 @@ describe('изоляция компаний', () => {
 
     const managerView = await listProperties(actors.manager, { limit: 100 });
     expect(managerView.items.map((item) => item.id)).toContain(id);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ручное заведение объекта: исключение из правила 0, но не из дедупликации
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('объект, заведённый руками', () => {
+  it('создаётся и помечается origin = manual', async () => {
+    const result = await createPropertyManually(actors.vake, {
+      owner: { name: 'Нино', phone: '+995555777701' },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 3,
+      areaTotal: 84,
+      addressRaw: 'Ваке, улица Чавчавадзе 12',
+      price: 160000,
+      currency: 'USD',
+    });
+
+    expect(result.result).toBe('created');
+    expect(result.propertyId).not.toBeNull();
+
+    const row = await prisma.property.findUniqueOrThrow({
+      where: { id: result.propertyId as string },
+      select: { origin: true, teamId: true, assignedUserId: true, pipelineStatus: true },
+    });
+
+    // По `origin` всегда видно, что объявления за объектом нет (правило 0).
+    expect(row.origin).toBe('manual');
+    expect(row.teamId).toBe(actors.vake.teamId);
+    expect(row.assignedUserId).toBe(actors.vake.userId);
+    // Воронка начинается с «В базе» — так же, как у объекта по «Согласен».
+    expect(row.pipelineStatus.code).toBe('IN_BASE');
+  });
+
+  it('без телефона собственника не заводится', async () => {
+    // Телефон — ключ дедупликации уровней 2 и 3. Объект без него не найдётся,
+    // когда тот же собственник придёт с площадки, и второй агент возьмётся
+    // за него заново.
+    await expect(
+      createPropertyManually(actors.vake, {
+        owner: { phone: '' },
+        transactionType: 'SALE',
+        propertyType: 'APARTMENT',
+      }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('ГЛАВНОЕ: ручной путь не обходит дедупликацию', async () => {
+    const phone = '+995555777702';
+
+    // Первый объект приходит обычным путём — по «Согласен» с площадки.
+    const imported = await makeProperty(actors.vake, {
+      owner: { name: 'Гиорги', phone },
+      area: 60,
+      rooms: 2,
+      address: 'Ваке, улица Абашидзе 9',
+    });
+
+    // Второй агент той же команды заводит того же собственника руками.
+    const manual = await createPropertyManually(actors.vake, {
+      owner: { name: 'Гиорги', phone },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 2,
+      areaTotal: 60,
+      addressRaw: 'Ваке, улица Абашидзе 9',
+    });
+
+    // Заведение остановлено, объект не создан, найденное показано.
+    expect(manual.result).toBe('duplicate');
+    expect(manual.propertyId).toBeNull();
+    expect(manual.matches.map((match) => match.propertyId)).toContain(imported);
+  });
+
+  it('на своём настоять можно — так же, как при импорте', async () => {
+    const phone = '+995555777703';
+
+    const first = await makeProperty(actors.vake, {
+      owner: { name: 'Ана', phone },
+      area: 45,
+      rooms: 1,
+      address: 'Ваке, улица Тархнишвили 3',
+    });
+
+    const blocked = await createPropertyManually(actors.vake, {
+      owner: { name: 'Ана', phone },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 1,
+      areaTotal: 45,
+      addressRaw: 'Ваке, улица Тархнишвили 3',
+    });
+    expect(blocked.result).toBe('duplicate');
+
+    // Агент увидел, на что похоже, и настаивает. Система предупреждает,
+    // но не запрещает.
+    const forced = await createPropertyManually(actors.vake, {
+      owner: { name: 'Ана', phone },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 1,
+      areaTotal: 45,
+      addressRaw: 'Ваке, улица Тархнишвили 3',
+      acknowledgedDuplicateOf: blocked.matches.map((match) => match.propertyId),
+    });
+
+    expect(forced.result).toBe('created');
+    expect(forced.propertyId).not.toBe(first);
+  });
+
+  it('соседняя команда не блокирует, но связка объектов ставится', async () => {
+    const phone = '+995555777704';
+
+    const theirs = await makeProperty(actors.saburtalo, {
+      owner: { name: 'Леван', phone },
+      area: 72,
+      rooms: 3,
+      address: 'Сабуртало, улица Кавтарадзе 15',
+    });
+
+    // Конкуренция между командами разрешена владельцем (инвариант 9):
+    // соседняя команда мешать не должна.
+    const mine = await createPropertyManually(actors.vake, {
+      owner: { name: 'Леван', phone },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 3,
+      areaTotal: 72,
+      addressRaw: 'Сабуртало, улица Кавтарадзе 15',
+    });
+
+    expect(mine.result).toBe('created');
+
+    // Но записи связываются на уровне компании: связка не даёт прав,
+    // она нужна самоимпорту и отчётности.
+    const [a, b] = await Promise.all([
+      prisma.property.findUniqueOrThrow({
+        where: { id: theirs },
+        select: { propertyLinkId: true },
+      }),
+      prisma.property.findUniqueOrThrow({
+        where: { id: mine.propertyId as string },
+        select: { propertyLinkId: true },
+      }),
+    ]);
+
+    expect(a.propertyLinkId).not.toBeNull();
+    expect(b.propertyLinkId).toBe(a.propertyLinkId);
+  });
+
+  it('тому, у кого нет команды, заводить объект некуда', async () => {
+    // Объект принадлежит команде, а не человеку. Администратор в сиде
+    // команды не имеет — и это не оплошность сида, а норма: звонят
+    // и заводят объекты агенты.
+    const admin = await contextFor('admin@tbilisi-estate.test');
+    expect(admin.teamId).toBeNull();
+
+    await expect(
+      createPropertyManually(admin, {
+        owner: { phone: '+995555777705' },
+        transactionType: 'SALE',
+        propertyType: 'APARTMENT',
+      }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('объект другой компании ручным заведением не достать', async () => {
+    const phone = '+995555777706';
+
+    await makeProperty(actors.batumi, {
+      owner: { name: 'Дато', phone },
+      area: 55,
+      rooms: 2,
+      address: 'Батуми, улица Руставели 1',
+    });
+
+    // Тот же телефон в другой компании — не дубль: базы изолированы жёстко.
+    const mine = await createPropertyManually(actors.vake, {
+      owner: { name: 'Дато', phone },
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      rooms: 2,
+      areaTotal: 55,
+      addressRaw: 'Батуми, улица Руставели 1',
+    });
+
+    expect(mine.result).toBe('created');
+    expect(mine.matches).toEqual([]);
   });
 });
