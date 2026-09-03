@@ -78,10 +78,20 @@ describe('матрица прав', () => {
     }
   });
 
-  it('статусы воронки меняет только администратор (инвариант 4)', () => {
-    expect(permissionScope(RoleCode.MANAGER, 'pipelineStatus', 'update')).toBeNull();
-    expect(permissionScope(RoleCode.AGENT, 'pipelineStatus', 'update')).toBeNull();
-    expect(permissionScope(RoleCode.ADMIN, 'pipelineStatus', 'update')).toBe('company');
+  it('воронку настраивают руководители, агент её только читает', () => {
+    // Решение владельца 2026-09-03: стадии заводит, переименовывает и удаляет
+    // и менеджер тоже. Агент двигает по воронке объекты, но состав стадий
+    // не меняет — иначе доска у команды разъезжалась бы под руками.
+    for (const action of ['create', 'update', 'delete'] as const) {
+      expect(permissionScope(RoleCode.ADMIN, 'pipelineStatus', action), action).toBe('company');
+      expect(permissionScope(RoleCode.MANAGER, 'pipelineStatus', action), action).toBe('company');
+      expect(permissionScope(RoleCode.AGENT, 'pipelineStatus', action), action).toBeNull();
+    }
+
+    // Читают все: без списка стадий доска не рисуется.
+    for (const role of [RoleCode.ADMIN, RoleCode.MANAGER, RoleCode.AGENT]) {
+      expect(permissionScope(role, 'pipelineStatus', 'read'), role).toBe('company');
+    }
   });
 });
 
@@ -93,7 +103,7 @@ describe('requirePermission', () => {
 
   it('запрещённое действие бросает ForbiddenError', () => {
     expect(() => requirePermission(ctx(RoleCode.AGENT), 'team', 'create')).toThrow(ForbiddenError);
-    expect(() => requirePermission(ctx(RoleCode.MANAGER), 'pipelineStatus', 'delete')).toThrow(
+    expect(() => requirePermission(ctx(RoleCode.AGENT), 'pipelineStatus', 'delete')).toThrow(
       ForbiddenError,
     );
   });

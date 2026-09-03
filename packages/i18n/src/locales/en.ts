@@ -121,6 +121,25 @@ export const en = {
   board: {
     title: 'Board',
     empty: 'Nothing in this status',
+
+    manage: 'Stage settings',
+    addStage: 'Add stage',
+    stageName: 'Stage name',
+    rename: 'Rename',
+    color: 'Colour',
+    deleteStage: 'Delete stage',
+    confirmDelete: 'Delete — confirm',
+    moveTo: 'Move the objects to',
+    occupied: 'The stage holds {count} objects. They will move, not disappear.',
+    systemStage: 'Objects land here on import and on publishing, so the stage cannot be deleted.',
+    failed: 'Could not save. Try again.',
+    colors: {
+      brand: 'Primary',
+      success: 'Success',
+      warning: 'Attention',
+      danger: 'Alarm',
+      neutral: 'Neutral',
+    },
   },
   task: {
     title: 'Tasks',

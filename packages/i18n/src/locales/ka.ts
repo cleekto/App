@@ -128,6 +128,25 @@ export const ka: DeepPartial<Dictionary> = {
   board: {
     title: 'დაფა',
     empty: 'ამ სტატუსში ცარიელია',
+
+    manage: 'ეტაპის პარამეტრები',
+    addStage: 'ეტაპის დამატება',
+    stageName: 'ეტაპის სახელი',
+    rename: 'გადარქმევა',
+    color: 'ფერი',
+    deleteStage: 'ეტაპის წაშლა',
+    confirmDelete: 'წაშლა — დადასტურება',
+    moveTo: 'ობიექტების გადატანა',
+    occupied: 'ეტაპზეა {count} ობიექტი. ისინი გადავა, არ დაიკარგება.',
+    systemStage: 'აქ ობიექტები დგება იმპორტისა და გამოქვეყნებისას, ამიტომ ეტაპი არ იშლება.',
+    failed: 'ვერ შეინახა. სცადეთ თავიდან.',
+    colors: {
+      brand: 'ძირითადი',
+      success: 'წარმატება',
+      warning: 'ყურადღება',
+      danger: 'განგაში',
+      neutral: 'ნეიტრალური',
+    },
   },
   task: {
     title: 'დავალებები',

@@ -83,10 +83,17 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
   },
 
   pipelineStatus: {
-    create: { ADMIN: 'company' },
+    // Воронку настраивают руководители — админ и менеджер (решение владельца
+    // 2026-09-03. Область — КОМПАНИЯ, а не команда: статус привязан к компании
+    // (инвариант 4), и доска у всех команд агентства одна. Менеджер, меняющий
+    // воронку, меняет её и соседней команде — это следствие модели данных,
+    // а не недосмотр прав.
+    create: { ADMIN: 'company', MANAGER: 'company' },
     read: { ADMIN: 'company', MANAGER: 'company', AGENT: 'company' },
-    update: { ADMIN: 'company' },
-    delete: { ADMIN: 'company' },
+    update: { ADMIN: 'company', MANAGER: 'company' },
+    delete: { ADMIN: 'company', MANAGER: 'company' },
+    // Агент воронку только читает: он двигает по ней объекты, а состав
+    // стадий — настройка агентства.
     manage: { ADMIN: 'company' },
   },
 

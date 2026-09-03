@@ -4,7 +4,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { AuthContext } from './auth/context';
 import { currentUser } from './auth/use-cases';
 import { ForbiddenError, NotFoundError, ValidationError } from './errors';
-import { listPipelineStatuses } from './pipeline/use-cases';
+import {
+  createPipelineStatus,
+  deletePipelineStatus,
+  listPipelineStatuses,
+  reorderPipelineStatuses,
+  updatePipelineStatus,
+} from './pipeline/use-cases';
 import {
   createPublishProfile,
   deletePublishProfile,
@@ -545,5 +551,220 @@ describe('изменение сотрудника', () => {
       displayName: 'Личный профиль агента',
       phone: '+995 599 10 10 10',
     });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Настройка воронки: стадии заводит руководитель, агент их только читает
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Объект в базе — руками, минуя сценарии.
+ *
+ * Сид объектов не создаёт и создавать не должен: объект появляется только
+ * по «Согласен» (правило 0). А проверяется здесь удаление стадии, а не импорт,
+ * и гонять ради одной строки весь импорт значило бы завязать тест воронки
+ * на исправность импорта.
+ */
+async function propertyInStatus(ctx: AuthContext, pipelineStatusId: string): Promise<string> {
+  const row = await prisma.property.create({
+    data: {
+      companyId: ctx.companyId,
+      teamId: ctx.teamId as string,
+      pipelineStatusId,
+      origin: 'manual',
+      transactionType: 'SALE',
+      propertyType: 'APARTMENT',
+      addressRaw: 'Тестовый адрес для стадии',
+    },
+    select: { id: true },
+  });
+
+  return row.id;
+}
+
+describe('стадии воронки', () => {
+  it('агент не заводит, не переименовывает и не удаляет стадии', async () => {
+    await expect(createPipelineStatus(actors.agentA, { name: 'Своя стадия' })).rejects.toThrow(
+      ForbiddenError,
+    );
+
+    const statuses = await listPipelineStatuses(actors.agentA);
+    const some = statuses[0];
+    if (some === undefined) throw new Error('в сиде нет ни одной стадии');
+
+    await expect(
+      updatePipelineStatus(actors.agentA, some.id, { name: 'Переименовал' }),
+    ).rejects.toThrow(ForbiddenError);
+    await expect(deletePipelineStatus(actors.agentA, some.id)).rejects.toThrow(ForbiddenError);
+    await expect(
+      reorderPipelineStatuses(
+        actors.agentA,
+        statuses.map((status) => status.id),
+      ),
+    ).rejects.toThrow(ForbiddenError);
+
+    // Читать — читает: без списка стадий доска не рисуется.
+    expect(statuses.length).toBeGreaterThan(0);
+  });
+
+  it('менеджер заводит стадию, и её видят все в компании', async () => {
+    const created = await createPipelineStatus(actors.managerA, { name: 'Показ назначен' });
+
+    expect(created.nameIsCustom).toBe(true);
+    expect(created.isSystem).toBe(false);
+
+    // Стадия — настройка компании: её видит и агент соседней команды.
+    for (const ctx of [actors.adminA, actors.agentA, actors.agentAOtherTeam]) {
+      const visible = await listPipelineStatuses(ctx);
+      expect(visible.map((status) => status.id)).toContain(created.id);
+    }
+
+    await deletePipelineStatus(actors.adminA, created.id);
+  });
+
+  it('стадия другой компании неотличима от несуществующей', async () => {
+    const foreign = await prisma.pipelineStatus.findFirstOrThrow({
+      where: { companyId: actors.adminB.companyId },
+    });
+
+    // companyId берётся из контекста (правило 5), поэтому существующий
+    // идентификатор из компании B отсюда выглядит как ничей.
+    await expect(
+      updatePipelineStatus(actors.adminA, foreign.id, { name: 'Захвачено' }),
+    ).rejects.toThrow(NotFoundError);
+    await expect(deletePipelineStatus(actors.adminA, foreign.id)).rejects.toThrow(NotFoundError);
+
+    const untouched = await prisma.pipelineStatus.findUniqueOrThrow({ where: { id: foreign.id } });
+    expect(untouched.name).not.toBe('Захвачено');
+  });
+
+  it('переименование поднимает флаг своего имени, но код не трогает', async () => {
+    const statuses = await listPipelineStatuses(actors.adminA);
+    const inBase = statuses.find((status) => status.code === 'IN_BASE');
+    if (inBase === undefined) throw new Error('в сиде нет стадии IN_BASE');
+
+    const renamed = await updatePipelineStatus(actors.adminA, inBase.id, {
+      name: 'В работе у нас',
+    });
+
+    // Код — ключ, на котором держатся переходы импорта и публикации.
+    // Переименование обязано его не задевать, иначе «Согласен» перестанет
+    // находить, куда ставить объект.
+    expect(renamed.code).toBe('IN_BASE');
+    expect(renamed.name).toBe('В работе у нас');
+    expect(renamed.nameIsCustom).toBe(true);
+
+    // Возвращается и имя, и флаг: через сценарий флаг обратно не опускается —
+    // переименование в то же самое имя остаётся переименованием. Иначе
+    // следующий тест увидел бы английское «In base» вместо перевода.
+    await prisma.pipelineStatus.update({
+      where: { id: inBase.id },
+      data: { name: inBase.name, nameIsCustom: false },
+    });
+  });
+
+  it('системную стадию удалить нельзя', async () => {
+    const statuses = await listPipelineStatuses(actors.adminA);
+
+    const system = statuses.filter((status) => status.isSystem);
+    expect(system.length).toBeGreaterThan(0);
+
+    for (const status of system) {
+      // На них встают объекты при импорте и публикации. Удаление сломало бы
+      // главный цикл, причём позже и в другом месте.
+      await expect(deletePipelineStatus(actors.adminA, status.id)).rejects.toThrow(ValidationError);
+    }
+  });
+
+  it('непустую стадию не удалить, не сказав, куда девать объекты', async () => {
+    const target = await createPipelineStatus(actors.managerA, { name: 'Временная' });
+    const propertyId = await propertyInStatus(actors.managerA, target.id);
+
+    await expect(deletePipelineStatus(actors.adminA, target.id)).rejects.toThrow(ValidationError);
+
+    // Стадия на месте, объект тоже: отказ ничего не испортил.
+    const stillThere = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
+    expect(stillThere.pipelineStatusId).toBe(target.id);
+
+    const statuses = await listPipelineStatuses(actors.adminA);
+    const home = statuses.find((status) => status.code === 'IN_BASE');
+    if (home === undefined) throw new Error('в сиде нет стадии IN_BASE');
+
+    const result = await deletePipelineStatus(actors.adminA, target.id, {
+      moveToStatusId: home.id,
+    });
+    expect(result.movedProperties).toBe(1);
+
+    // Объект переехал, а не исчез вместе со стадией.
+    const moved = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
+    expect(moved.pipelineStatusId).toBe(home.id);
+
+    await prisma.property.delete({ where: { id: propertyId } });
+  });
+
+  it('объекты не переносятся в чужую стадию', async () => {
+    const target = await createPipelineStatus(actors.managerA, { name: 'Ещё одна временная' });
+    const propertyId = await propertyInStatus(actors.managerA, target.id);
+
+    const foreign = await prisma.pipelineStatus.findFirstOrThrow({
+      where: { companyId: actors.adminB.companyId },
+    });
+
+    // Чужая стадия как цель переноса — это чужая компания через параметр,
+    // а не через контекст. Ровно то, что правило 5 и запрещает.
+    await expect(
+      deletePipelineStatus(actors.adminA, target.id, { moveToStatusId: foreign.id }),
+    ).rejects.toThrow(NotFoundError);
+
+    // Ни объект, ни стадия не пострадали от отказа.
+    const untouched = await prisma.property.findUniqueOrThrow({ where: { id: propertyId } });
+    expect(untouched.pipelineStatusId).toBe(target.id);
+
+    await prisma.property.delete({ where: { id: propertyId } });
+    await deletePipelineStatus(actors.adminA, target.id);
+  });
+
+  it('порядок принимается только целиком и только своей воронкой', async () => {
+    const statuses = await listPipelineStatuses(actors.adminA);
+    const ids = statuses.map((status) => status.id);
+    const first = ids[0];
+    const second = ids[1];
+    if (first === undefined || second === undefined) throw new Error('нужно две стадии');
+
+    // Неполный список: стадия, не попавшая в него, осталась бы без порядка.
+    await expect(reorderPipelineStatuses(actors.adminA, [first])).rejects.toThrow(ValidationError);
+
+    // Повторы.
+    await expect(
+      reorderPipelineStatuses(actors.adminA, [...ids.slice(1), first, first]),
+    ).rejects.toThrow(ValidationError);
+
+    // Чужая стадия вместо своей.
+    const foreign = await prisma.pipelineStatus.findFirstOrThrow({
+      where: { companyId: actors.adminB.companyId },
+    });
+    await expect(
+      reorderPipelineStatuses(actors.adminA, [...ids.slice(1), foreign.id]),
+    ).rejects.toThrow(ValidationError);
+
+    // А целиком и своей — принимается.
+    const swapped = [second, first, ...ids.slice(2)];
+    const result = await reorderPipelineStatuses(actors.adminA, swapped);
+    expect(result.map((status) => status.id)).toEqual(swapped);
+
+    await reorderPipelineStatuses(actors.adminA, ids);
+  });
+
+  it('пустое имя и неизвестный цвет отклоняются', async () => {
+    await expect(createPipelineStatus(actors.adminA, { name: '   ' })).rejects.toThrow(
+      ValidationError,
+    );
+
+    // Значение уходит в разметку доски: произвольная строка здесь означала бы
+    // произвольный CSS на странице.
+    await expect(
+      createPipelineStatus(actors.adminA, { name: 'Цветная', colorToken: 'red; content: hack' }),
+    ).rejects.toThrow(ValidationError);
   });
 });

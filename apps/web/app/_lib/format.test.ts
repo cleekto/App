@@ -17,7 +17,7 @@ describe('названия статусов воронки', () => {
     ['ka', 'ARCHIVED', 'არქივი'],
     ['ru', 'OFFERED', 'Предложен клиенту'],
   ] as const)('на языке %s код %s читается как «%s»', (locale, code, expected) => {
-    expect(statusLabel(locale, { code, name: 'In base' })).toBe(expected);
+    expect(statusLabel(locale, { code, name: 'In base', nameIsCustom: false })).toBe(expected);
   });
 
   /**
@@ -28,9 +28,9 @@ describe('названия статусов воронки', () => {
    * текст, который человек сам же и вписал. Показывается ровно имя.
    */
   it('свой статус компании остаётся с её именем', () => {
-    expect(statusLabel('ka', { code: 'SHOWN_TWICE', name: 'Показан дважды' })).toBe(
-      'Показан дважды',
-    );
+    expect(
+      statusLabel('ka', { code: 'SHOWN_TWICE', name: 'Показан дважды', nameIsCustom: true }),
+    ).toBe('Показан дважды');
   });
 
   /**
@@ -39,7 +39,11 @@ describe('названия статусов воронки', () => {
    * из данных, и дыра была бы ошибкой, а не честной пометкой.
    */
   it('у неизвестного кода не появляется метка непереведённого', () => {
-    const label = statusLabel('ru', { code: 'ЧТО_УГОДНО', name: 'Моё название' });
+    const label = statusLabel('ru', {
+      code: 'ЧТО_УГОДНО',
+      name: 'Моё название',
+      nameIsCustom: true,
+    });
 
     expect(label).not.toContain('⟦');
     expect(label).toBe('Моё название');
@@ -50,9 +54,32 @@ describe('названия статусов воронки', () => {
     // увидит английское слово среди грузинских — тест ловит это раньше него.
     for (const code of ['IN_BASE', 'IN_PROGRESS', 'OFFERED', 'CLOSED', 'ARCHIVED']) {
       for (const locale of LOCALES) {
-        const label = statusLabel(locale, { code, name: 'НЕ ДОЛЖНО ПОКАЗАТЬСЯ' });
+        const label = statusLabel(locale, {
+          code,
+          name: 'НЕ ДОЛЖНО ПОКАЗАТЬСЯ',
+          nameIsCustom: false,
+        });
         expect(label, `${locale}/${code}`).not.toBe('НЕ ДОЛЖНО ПОКАЗАТЬСЯ');
       }
+    }
+  });
+  /**
+   * РЕГРЕССИЯ НА ПЕРЕИМЕНОВАНИЕ.
+   *
+   * Код у переименованной стадии остаётся прежним — на нём держатся переходы
+   * импорта и публикации. Поэтому без флага перевод по коду молча возвращал бы
+   * старое название: агентство переименовало бы «В базе» и не увидело бы
+   * на доске ничего.
+   */
+  it('переименованная стадия показывается своим именем, а не переводом по коду', () => {
+    for (const locale of LOCALES) {
+      const label = statusLabel(locale, {
+        code: 'IN_BASE',
+        name: 'Собственник согласился',
+        nameIsCustom: true,
+      });
+
+      expect(label, locale).toBe('Собственник согласился');
     }
   });
 });

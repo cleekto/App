@@ -113,7 +113,25 @@ export function dueLine(locale: Locale, iso: string | null): string {
  *
  * Найдено ручным проходом: грузинский агент видел «In base» и «Offered to
  * client» посреди грузинского интерфейса — и это самые частые надписи в CRM.
+ *
+ * ПЕРЕИМЕНОВАННАЯ СТАДИЯ ПЕРЕВОДА НЕ ПОЛУЧАЕТ. Код у неё остаётся прежним —
+ * на нём держатся переходы импорта и публикации, — и без флага перевод по
+ * коду молча возвращал бы старое название: агентство переименовало бы «В базе»
+ * и не увидело бы на доске ничего.
  */
-export function statusLabel(locale: Locale, status: { code: string; name: string }): string {
+export function statusLabel(
+  locale: Locale,
+  /**
+   * `nameIsCustom` обязателен намеренно.
+   *
+   * Пока он был необязательным, половина экранов собирала объект статуса
+   * руками и флаг не передавала — переименованная стадия показывалась
+   * на доске новым именем, а в списке объектов и в сводке прежним переводом.
+   * Обязательное поле превращает такой промах в ошибку компиляции.
+   */
+  status: { code: string; name: string; nameIsCustom: boolean },
+): string {
+  if (status.nameIsCustom) return status.name;
+
   return optionalMessage(locale, `pipeline.${status.code}`) ?? status.name;
 }

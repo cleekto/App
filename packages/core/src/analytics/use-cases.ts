@@ -33,6 +33,8 @@ export interface Dashboard {
        */
       statusCode: string;
       statusName: string;
+      /** Имя дано агентством: тогда показывается оно, а не перевод по коду. */
+      statusNameIsCustom: boolean;
       count: number;
     }>;
   };
@@ -128,7 +130,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
 
   const statusNames = await prisma.pipelineStatus.findMany({
     where: { companyId: ctx.companyId },
-    select: { id: true, code: true, name: true },
+    select: { id: true, code: true, name: true, nameIsCustom: true },
     orderBy: { sortOrder: 'asc' },
   });
 
@@ -148,6 +150,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
         statusId: status.id,
         statusCode: status.code,
         statusName: status.name,
+        statusNameIsCustom: status.nameIsCustom,
         count: counts.get(status.id) ?? 0,
       })),
     },

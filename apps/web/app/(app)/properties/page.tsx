@@ -94,6 +94,7 @@ export default async function PropertiesPage({
                     {statusLabel(locale, {
                       code: item.pipelineStatusCode,
                       name: item.pipelineStatusName,
+                      nameIsCustom: item.pipelineStatusNameIsCustom,
                     })}
                   </p>
                   <p className="text-xs text-[var(--color-text-secondary)]">

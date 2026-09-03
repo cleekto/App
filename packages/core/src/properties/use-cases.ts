@@ -55,6 +55,13 @@ export interface PropertyListItem {
    */
   pipelineStatusCode: string;
   pipelineStatusName: string;
+  /**
+   * Имя дано агентством, а не сидом.
+   *
+   * Без этого флага показ подставил бы перевод по коду и переименованная
+   * стадия осталась бы на экране под прежним названием.
+   */
+  pipelineStatusNameIsCustom: boolean;
   assignedUserId: string | null;
   assignedUserName: string | null;
   origin: PropertyOrigin;
@@ -143,7 +150,7 @@ export async function listProperties(
       take: limit,
       skip: filters.offset ?? 0,
       include: {
-        pipelineStatus: { select: { id: true, code: true, name: true } },
+        pipelineStatus: { select: { id: true, code: true, name: true, nameIsCustom: true } },
       },
     }),
     prisma.property.count({ where }),
@@ -173,6 +180,7 @@ export async function listProperties(
       pipelineStatusId: row.pipelineStatus.id,
       pipelineStatusCode: row.pipelineStatus.code,
       pipelineStatusName: row.pipelineStatus.name,
+      pipelineStatusNameIsCustom: row.pipelineStatus.nameIsCustom,
       assignedUserId: row.assignedUserId,
       assignedUserName:
         row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),
@@ -213,7 +221,7 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
   const row = await prisma.property.findFirst({
     where: { id, companyId: ctx.companyId },
     include: {
-      pipelineStatus: { select: { id: true, code: true, name: true } },
+      pipelineStatus: { select: { id: true, code: true, name: true, nameIsCustom: true } },
       ownerContact: { include: { phones: { select: { phoneOriginal: true } } } },
       sourceListings: {
         select: {
@@ -251,6 +259,7 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
     pipelineStatusId: row.pipelineStatus.id,
     pipelineStatusCode: row.pipelineStatus.code,
     pipelineStatusName: row.pipelineStatus.name,
+    pipelineStatusNameIsCustom: row.pipelineStatus.nameIsCustom,
     assignedUserId: row.assignedUserId,
     assignedUserName:
       row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),

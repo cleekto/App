@@ -83,7 +83,11 @@ export default async function DashboardPage() {
               className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm"
             >
               <span>
-                {statusLabel(locale, { code: status.statusCode, name: status.statusName })}
+                {statusLabel(locale, {
+                  code: status.statusCode,
+                  name: status.statusName,
+                  nameIsCustom: status.statusNameIsCustom,
+                })}
               </span>
               <span className="font-semibold">{n(status.count)}</span>
             </li>

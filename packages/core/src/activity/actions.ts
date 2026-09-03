@@ -66,6 +66,14 @@ export const ACTIVITY = {
   TASK_CANCELLED: 'TASK_CANCELLED',
   COMMENT_ADDED: 'COMMENT_ADDED',
 
+  /// Изменения самой воронки: стадии заведены, переименованы, удалены
+  /// или переставлены. Пишется потому, что переименованная стадия меняет
+  /// смысл всей прошлой аналитики, а удалённая — переносит на себе объекты.
+  PIPELINE_STATUS_CREATED: 'PIPELINE_STATUS_CREATED',
+  PIPELINE_STATUS_UPDATED: 'PIPELINE_STATUS_UPDATED',
+  PIPELINE_STATUS_DELETED: 'PIPELINE_STATUS_DELETED',
+  PIPELINE_STATUS_REORDERED: 'PIPELINE_STATUS_REORDERED',
+
   PUBLISH_PROFILE_CREATED: 'PUBLISH_PROFILE_CREATED',
   PUBLISH_PROFILE_UPDATED: 'PUBLISH_PROFILE_UPDATED',
   PUBLISH_PROFILE_DELETED: 'PUBLISH_PROFILE_DELETED',
@@ -85,6 +93,7 @@ export const ENTITY = {
   MIGRATION_BATCH: 'MigrationBatch',
   TASK: 'Task',
   COMMENT: 'Comment',
+  PIPELINE_STATUS: 'PipelineStatus',
 } as const;
 
 export type ActivityEntity = (typeof ENTITY)[keyof typeof ENTITY];

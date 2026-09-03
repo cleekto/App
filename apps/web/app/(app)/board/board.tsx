@@ -3,6 +3,9 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Button, Input } from '../../_ui/primitives';
+import { ColumnMenu, columnColor, type ColumnMenuLabels } from './column-menu';
+
 /**
  * Строки, УЖЕ СОБРАННЫЕ НА СЕРВЕРЕ.
  *
@@ -27,31 +30,113 @@ interface Card extends CardLines {
   pipelineStatusId: string;
 }
 
+interface Column {
+  id: string;
+  name: string;
+  colorToken: string | null;
+  isSystem: boolean;
+}
+
+export interface BoardLabels extends ColumnMenuLabels {
+  empty: string;
+  addStage: string;
+  stageName: string;
+  manage: string;
+}
+
 /**
- * Перетаскивание карточек — DESIGN §17.
+ * Что именно тащат сейчас.
  *
- * На нативном HTML5 drag & drop, без библиотеки: перетаскивание карточки
- * между колонками — ровно то, для чего он и предназначен, а зависимость
- * ради этого пришлось бы обосновывать.
+ * Доска понимает два перетаскивания — карточки между колонками и колонки
+ * между собой, — и на обоих стоит один и тот же нативный drag & drop.
+ * Без явного вида перетаскиваемого колонка, брошенная на колонку, читалась
+ * бы как карточка, брошенная на колонку.
+ */
+type Dragging = { kind: 'card'; id: string } | { kind: 'column'; id: string } | null;
+
+/**
+ * Значок кнопки настройки стадии.
  *
- * Карточка переезжает в новую колонку сразу, до ответа сервера: агент
- * тащил её мышью и ждать подтверждения не должен. Если сервер откажет,
+ * Константой, а не литералом в разметке: правило запрещает строки в JSX,
+ * потому что строка в разметке — это непереведённая строка. Здесь строки нет,
+ * есть знак, и подпись к нему приходит из словаря отдельно.
+ */
+const MENU_GLYPH = '⋯';
+
+/**
+ * Доска воронки — DESIGN §16–17.
+ *
+ * Перетаскивание на нативном HTML5 drag & drop, без библиотеки: перенос
+ * карточки между колонками — ровно то, для чего он предназначен,
+ * а зависимость ради этого пришлось бы обосновывать.
+ *
+ * Карточка переезжает в новую колонку сразу, до ответа сервера: агент тащил
+ * её мышью и ждать подтверждения не должен. Если сервер откажет,
  * `router.refresh()` вернёт правду.
  */
 export function Board({
   columns,
   items,
-  emptyLabel,
+  labels,
+  canManage,
 }: {
-  columns: Array<{ id: string; name: string }>;
+  columns: Column[];
   items: Card[];
-  emptyLabel: string;
+  labels: BoardLabels;
+  /**
+   * Настройка воронки — право руководителя (админ и менеджер). Агент доску
+   * читает и двигает по ней свои объекты, но состав стадий не меняет.
+   *
+   * Правило 6: это только показ. Запрещает сервер.
+   */
+  canManage: boolean;
 }) {
   const router = useRouter();
   const [cards, setCards] = useState(items);
-  const [dragging, setDragging] = useState<string | null>(null);
+  const [order, setOrder] = useState(columns);
+  const [dragging, setDragging] = useState<Dragging>(null);
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [busy, setBusy] = useState(false);
 
-  const move = (cardId: string, statusId: string): void => {
+  /**
+   * ПЕРЕСИНХРОНИЗАЦИЯ С СЕРВЕРОМ.
+   *
+   * Карточки и колонки живут в состоянии, потому что переезжают под мышью
+   * раньше ответа сервера. Но `useState(props)` берёт значение один раз,
+   * при монтировании: после `router.refresh()` сервер прислал бы новую доску,
+   * а на экране осталась бы старая — заведённая стадия не появлялась бы
+   * до перезагрузки страницы.
+   *
+   * Сравнивается не ссылка (серверный рендер каждый раз даёт новый массив,
+   * и сброс был бы бесконечным), а отпечаток содержимого.
+   */
+  const columnsFingerprint = columns
+    .map((column) => `${column.id}:${column.name}:${column.colorToken ?? ''}`)
+    .join('|');
+  // Только из пропсов: подмешать сюда локальное состояние значило бы сбрасывать
+  // карточку обратно в исходную колонку сразу после того, как её перетащили.
+  const cardsFingerprint = items.map((item) => `${item.id}:${item.pipelineStatusId}`).join('|');
+
+  const [seenColumns, setSeenColumns] = useState(columnsFingerprint);
+  const [seenCards, setSeenCards] = useState(cardsFingerprint);
+
+  if (seenColumns !== columnsFingerprint) {
+    setSeenColumns(columnsFingerprint);
+    setOrder(columns);
+  }
+  if (seenCards !== cardsFingerprint) {
+    setSeenCards(cardsFingerprint);
+    setCards(items);
+  }
+
+  const done = (): void => {
+    setOpenMenu(null);
+    setAdding(false);
+    router.refresh();
+  };
+
+  const moveCard = (cardId: string, statusId: string): void => {
     const card = cards.find((item) => item.id === cardId);
     if (card === undefined || card.pipelineStatusId === statusId) return;
 
@@ -66,9 +151,33 @@ export function Board({
     }).then(() => router.refresh());
   };
 
+  const moveColumn = (columnId: string, beforeId: string): void => {
+    if (columnId === beforeId) return;
+
+    const next = [...order];
+    const from = next.findIndex((column) => column.id === columnId);
+    const to = next.findIndex((column) => column.id === beforeId);
+    if (from === -1 || to === -1) return;
+
+    const [moved] = next.splice(from, 1);
+    if (moved === undefined) return;
+    next.splice(to, 0, moved);
+
+    setOrder(next);
+
+    // Уходит весь порядок целиком: перестановка одной колонки меняет позиции
+    // всех, и пятью запросами подряд доска побывала бы в состоянии,
+    // которого никто не задавал.
+    void fetch('/api/v1/pipeline-statuses/order', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ order: next.map((column) => column.id) }),
+    }).then(() => router.refresh());
+  };
+
   return (
-    <div className="flex gap-4 overflow-x-auto pb-4">
-      {columns.map((column) => {
+    <div className="flex items-start gap-4 overflow-x-auto pb-4">
+      {order.map((column) => {
         const inColumn = cards.filter((card) => card.pipelineStatusId === column.id);
 
         return (
@@ -77,21 +186,63 @@ export function Board({
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
-              if (dragging !== null) move(dragging, column.id);
+              if (dragging === null) return;
+
+              if (dragging.kind === 'card') moveCard(dragging.id, column.id);
+              else moveColumn(dragging.id, column.id);
+
               setDragging(null);
             }}
             className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius-card)] bg-[var(--color-surface)] p-3"
           >
-            <h2 className="flex items-baseline justify-between text-sm font-semibold">
-              <span>{column.name}</span>
-              <span className="text-xs text-[var(--color-text-secondary)]">
-                {String(inColumn.length)}
-              </span>
-            </h2>
+            <div
+              draggable={canManage}
+              onDragStart={() => canManage && setDragging({ kind: 'column', id: column.id })}
+              onDragEnd={() => setDragging(null)}
+              className={canManage ? 'cursor-grab active:cursor-grabbing' : ''}
+            >
+              <h2 className="flex items-center gap-2 text-sm font-semibold">
+                {/* Цвет стадии — то, по чему колонку находят взглядом,
+                    не перечитывая заголовков. */}
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: columnColor(column.colorToken) }}
+                />
+                <span className="min-w-0 flex-1 truncate">{column.name}</span>
+                <span className="text-xs font-normal text-[var(--color-text-secondary)]">
+                  {String(inColumn.length)}
+                </span>
+
+                {canManage ? (
+                  <button
+                    type="button"
+                    aria-label={labels.manage}
+                    title={labels.manage}
+                    onClick={() => setOpenMenu(openMenu === column.id ? null : column.id)}
+                    className="rounded px-1 text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                  >
+                    {MENU_GLYPH}
+                  </button>
+                ) : null}
+              </h2>
+            </div>
+
+            {openMenu === column.id ? (
+              <ColumnMenu
+                column={column}
+                otherColumns={order
+                  .filter((other) => other.id !== column.id)
+                  .map((other) => ({ id: other.id, name: other.name }))}
+                occupiedCount={inColumn.length}
+                labels={labels}
+                onDone={done}
+              />
+            ) : null}
 
             {inColumn.length === 0 ? (
               <p className="rounded-lg border border-dashed border-[var(--color-border)] px-3 py-6 text-center text-xs text-[var(--color-text-secondary)]">
-                {emptyLabel}
+                {labels.empty}
               </p>
             ) : (
               inColumn.map((card) => (
@@ -99,7 +250,7 @@ export function Board({
                   key={card.id}
                   href={`/properties/${card.id}`}
                   draggable
-                  onDragStart={() => setDragging(card.id)}
+                  onDragStart={() => setDragging({ kind: 'card', id: card.id })}
                   onDragEnd={() => setDragging(null)}
                   className="cursor-grab rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 active:cursor-grabbing"
                 >
@@ -117,6 +268,50 @@ export function Board({
           </section>
         );
       })}
+
+      {canManage ? (
+        <section className="flex w-56 shrink-0 flex-col gap-2 p-3">
+          {adding ? (
+            <form
+              className="flex flex-col gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const name = String(new FormData(event.currentTarget).get('name') ?? '');
+
+                setBusy(true);
+                void fetch('/api/v1/pipeline-statuses', {
+                  method: 'POST',
+                  headers: { 'content-type': 'application/json' },
+                  body: JSON.stringify({ name }),
+                })
+                  .then(() => done())
+                  .finally(() => setBusy(false));
+              }}
+            >
+              <Input
+                name="name"
+                placeholder={labels.stageName}
+                aria-label={labels.stageName}
+                maxLength={60}
+                required
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button type="submit" size="sm" disabled={busy}>
+                  {busy ? labels.saving : labels.save}
+                </Button>
+                <Button tone="ghost" size="sm" type="button" onClick={() => setAdding(false)}>
+                  {labels.cancel}
+                </Button>
+              </div>
+            </form>
+          ) : (
+            <Button tone="ghost" size="sm" type="button" onClick={() => setAdding(true)}>
+              {labels.addStage}
+            </Button>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }

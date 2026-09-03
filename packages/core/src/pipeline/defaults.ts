@@ -11,7 +11,12 @@
  *
  * Названия на английском: язык живёт на пользователе, а статусы — данные
  * компании, и агентство переименовывает их под себя на своём языке
- * (ADR-0008, следствие 7).
+ * (ADR-0008, следствие 7). До переименования на экране показывается перевод
+ * по коду — английское имя из этого файла агент не видит.
+ *
+ * Цвета — из палитры `STATUS_COLORS`, той же, что предлагается при правке
+ * стадии. Иначе у только что зарегистрированной компании ни один кружок
+ * в выборе цвета не был бы отмечен как текущий.
  */
 export interface PipelineStatusSeed {
   code: string;
@@ -28,7 +33,7 @@ export const DEFAULT_PIPELINE_STATUSES: readonly PipelineStatusSeed[] = [
     sortOrder: 10,
     // Защищён от удаления: сюда попадает объект по «Согласен».
     isSystem: true,
-    colorToken: 'brand-primary',
+    colorToken: 'brand',
   },
   {
     code: 'IN_PROGRESS',
@@ -43,7 +48,7 @@ export const DEFAULT_PIPELINE_STATUSES: readonly PipelineStatusSeed[] = [
     name: 'Offered to client',
     sortOrder: 30,
     isSystem: false,
-    colorToken: 'text-secondary',
+    colorToken: 'neutral',
   },
   { code: 'CLOSED', name: 'Closed', sortOrder: 40, isSystem: false, colorToken: 'success' },
   {
@@ -51,7 +56,7 @@ export const DEFAULT_PIPELINE_STATUSES: readonly PipelineStatusSeed[] = [
     name: 'Archived',
     sortOrder: 50,
     isSystem: false,
-    colorToken: 'text-secondary',
+    colorToken: 'neutral',
   },
 ];
 

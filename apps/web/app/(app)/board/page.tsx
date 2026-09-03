@@ -1,4 +1,4 @@
-import { listPipelineStatuses, listProperties } from '@kleekto/core';
+import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
 import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
@@ -21,17 +21,27 @@ export default async function BoardPage() {
     listProperties(ctx, { limit: 100 }),
   ]);
 
+  // Настройка воронки — право руководителя. Проверяется по матрице, а не по
+  // списку ролей: право отзовут в матрице, а выписанный здесь заново список
+  // останется и поведёт человека в отказ.
+  const canManage = permissionScope(ctx.role, 'pipelineStatus', 'update') !== null;
+
+  const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
+
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{translate(locale, 'board.title')}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{t('board.title')}</h1>
 
       <Board
-        emptyLabel={translate(locale, 'board.empty')}
+        canManage={canManage}
         columns={statuses.map((status) => ({
           id: status.id,
           // Название переводится по коду: имя в базе английское, его туда
           // положила регистрация, когда язык компании ещё не был известен.
+          // Переименованная агентством стадия показывается своим именем.
           name: statusLabel(locale, status),
+          colorToken: status.colorToken,
+          isSystem: status.isSystem,
         }))}
         items={items.map((item) => ({
           id: item.id,
@@ -43,6 +53,30 @@ export default async function BoardPage() {
           facts: factsLine(locale, item),
           place: placeLine(item),
         }))}
+        labels={{
+          empty: t('board.empty'),
+          manage: t('board.manage'),
+          addStage: t('board.addStage'),
+          stageName: t('board.stageName'),
+          rename: t('board.rename'),
+          color: t('board.color'),
+          deleteStage: t('board.deleteStage'),
+          moveTo: t('board.moveTo'),
+          occupied: t('board.occupied'),
+          systemStage: t('board.systemStage'),
+          confirm: t('board.confirmDelete'),
+          save: t('common.save'),
+          cancel: t('common.cancel'),
+          saving: t('common.loading'),
+          failed: t('board.failed'),
+          colors: {
+            brand: t('board.colors.brand'),
+            success: t('board.colors.success'),
+            warning: t('board.colors.warning'),
+            danger: t('board.colors.danger'),
+            neutral: t('board.colors.neutral'),
+          },
+        }}
       />
     </div>
   );
