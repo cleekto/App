@@ -4,9 +4,11 @@ import type { MessageKey } from '@kleekto/i18n';
 
 import { statusLabel } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
+import { Card } from '../../_ui/primitives';
+import { FunnelRow, Metric, MetricGroup, Rule } from './parts';
 
 /**
- * Сводка — DESIGN §12.
+ * Аналитика — DESIGN §12.
  *
  * Область не выбирается: её задаёт роль. Администратор видит компанию,
  * менеджер и агент — свою команду, и это написано на экране, чтобы никто
@@ -25,11 +27,15 @@ export default async function DashboardPage() {
   const n = (value: number): string => formatNumber(locale, value);
   const percent = (value: number): string => `${formatNumber(locale, Math.round(value * 100))}%`;
 
-  const headline = [
-    { label: t('dashboard.newToday'), value: n(data.properties.createdToday) },
-    { label: t('dashboard.newThisWeek'), value: n(data.properties.createdThisWeek) },
-    { label: t('dashboard.totalProperties'), value: n(data.properties.total) },
-  ];
+  /*
+   * Доля стадии считается от САМОЙ ЗАПОЛНЕННОЙ, а не от общего числа.
+   *
+   * От общего числа полосы получились бы одинаково короткими: в исправной
+   * воронке почти всё лежит в первой стадии, и остальные превратились бы
+   * в незаметные чёрточки. От максимума видно соотношение — а именно оно
+   * и отвечает на вопрос «где затор».
+   */
+  const peak = Math.max(...data.properties.byStatus.map((status) => status.count), 1);
 
   const quality = [
     {
@@ -54,139 +60,153 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex max-w-5xl flex-col gap-8">
       <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('dashboard.title')}</h1>
-        <p className="text-sm text-[var(--color-text-secondary)]">
+        <h1 className="text-[1.75rem] leading-9 font-semibold tracking-tight">
+          {t('dashboard.title')}
+        </h1>
+        <p className="mt-0.5 text-[0.8125rem] text-[var(--color-text-secondary)]">
           {data.scope === 'company' ? t('dashboard.scopeCompany') : t('dashboard.scopeTeam')}
         </p>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        {headline.map((tile) => (
-          <div
-            key={tile.label}
-            className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"
-          >
-            <p className="text-xs text-[var(--color-text-secondary)]">{tile.label}</p>
-            <p className="mt-1 text-2xl font-semibold">{tile.value}</p>
-          </div>
-        ))}
-      </section>
+      {/* ── Главные числа ────────────────────────────────────────────────── */}
+      <MetricGroup columns={3}>
+        <Metric size="lg" label={t('dashboard.newToday')} value={n(data.properties.createdToday)} />
+        <Metric
+          size="lg"
+          label={t('dashboard.newThisWeek')}
+          value={n(data.properties.createdThisWeek)}
+        />
+        <Metric size="lg" label={t('dashboard.totalProperties')} value={n(data.properties.total)} />
+      </MetricGroup>
 
+      {/* ── Воронка ──────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">{t('dashboard.byStatus')}</h2>
-        <ul className="flex flex-col gap-1">
-          {data.properties.byStatus.map((status) => (
-            <li
-              key={status.statusId}
-              className="flex items-center justify-between rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm"
-            >
-              <span>
-                {statusLabel(locale, {
+        <Rule title={t('dashboard.byStatus')} />
+        <Card>
+          <ul className="divide-y divide-[var(--color-border)]">
+            {data.properties.byStatus.map((status) => (
+              <FunnelRow
+                key={status.statusId}
+                name={statusLabel(locale, {
                   code: status.statusCode,
                   name: status.statusName,
                   nameIsCustom: status.statusNameIsCustom,
                 })}
-              </span>
-              <span className="font-semibold">{n(status.count)}</span>
-            </li>
-          ))}
-        </ul>
+                count={n(status.count)}
+                share={status.count / peak}
+                color={FUNNEL_COLOR}
+              />
+            ))}
+          </ul>
+        </Card>
       </section>
 
+      {/* ── Люди ─────────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">{t('dashboard.people')}</h2>
+        <Rule title={t('dashboard.people')} />
         {data.people.length === 0 ? (
-          <p className="text-sm text-[var(--color-text-secondary)]">{t('dashboard.noData')}</p>
+          <p className="text-[0.8125rem] text-[var(--color-text-secondary)]">
+            {t('dashboard.noData')}
+          </p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {data.people.map((person) => {
-              const consents = `${t('dashboard.consentsThisWeek')}: ${n(person.consentsThisWeek)}`;
-              const owned = `${t('dashboard.propertiesOwned')}: ${n(person.propertiesOwned)}`;
-
-              return (
+          <Card>
+            <ul className="divide-y divide-[var(--color-border)]">
+              {data.people.map((person) => (
                 <li
                   key={person.userId}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-2 text-sm"
+                  className="grid grid-cols-[1fr_auto_auto] items-baseline gap-6 px-4 py-2.5"
                 >
-                  <span className="min-w-0 truncate">{person.fullName}</span>
-                  <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">
-                    {consents}
+                  <span className="min-w-0 truncate text-[0.8125rem]">{person.fullName}</span>
+                  <span className="text-right text-[0.8125rem]">
+                    <span className="text-[var(--color-text-secondary)]">
+                      {t('dashboard.consentsThisWeek')}
+                    </span>
+                    <span className="ml-2 font-medium">{n(person.consentsThisWeek)}</span>
                   </span>
-                  <span className="shrink-0 text-xs text-[var(--color-text-secondary)]">
-                    {owned}
+                  <span className="w-40 text-right text-[0.8125rem]">
+                    <span className="text-[var(--color-text-secondary)]">
+                      {t('dashboard.propertiesOwned')}
+                    </span>
+                    <span className="ml-2 font-medium">{n(person.propertiesOwned)}</span>
                   </span>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          </Card>
         )}
       </section>
 
+      {/* ── Качество ─────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">{t('dashboard.quality')}</h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <Rule title={t('dashboard.quality')} />
+
+        <MetricGroup columns={2}>
           {quality.map((tile) => (
-            <div
-              key={tile.label}
-              className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"
-            >
-              <p className="text-xs text-[var(--color-text-secondary)]">{tile.label}</p>
-              <p className="mt-1 text-2xl font-semibold">{tile.value}</p>
-              <p className="mt-2 text-xs text-[var(--color-text-secondary)]">{tile.hint}</p>
-            </div>
+            <Metric key={tile.label} label={tile.label} value={tile.value} hint={tile.hint} />
           ))}
-        </div>
+        </MetricGroup>
 
         {data.quality.topMissingFields.length === 0 ? null : (
-          <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-            <p className="text-xs text-[var(--color-text-secondary)]">
+          <Card className="px-4 py-3.5">
+            <p className="text-[0.8125rem] text-[var(--color-text-secondary)]">
               {t('dashboard.topMissing')}
             </p>
-            <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+            <ul className="mt-2.5 flex flex-wrap gap-1.5">
               {data.quality.topMissingFields.map((entry) => (
-                <li key={entry.field} className="rounded-lg bg-[var(--color-background)] px-2 py-1">
+                <li
+                  key={entry.field}
+                  className="rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] px-2 py-1 text-[0.75rem]"
+                >
                   {[entry.field, n(entry.count)].join(' · ')}
                 </li>
               ))}
             </ul>
-          </div>
+          </Card>
         )}
       </section>
 
+      {/* ── Публикация ───────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold">{t('dashboard.publishing')}</h2>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <Rule title={t('dashboard.publishing')} />
+
+        <MetricGroup columns={3}>
           {publishing.map((tile) => (
-            <div
-              key={tile.label}
-              className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"
-            >
-              <p className="text-xs text-[var(--color-text-secondary)]">{tile.label}</p>
-              <p className="mt-1 text-xl font-semibold">{tile.value}</p>
-            </div>
+            <Metric key={tile.label} label={tile.label} value={tile.value} />
           ))}
-        </div>
+        </MetricGroup>
 
         {data.publishing.chronicallyUnfilled.length === 0 ? null : (
-          <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
-            <p className="text-xs text-[var(--color-text-secondary)]">
+          <Card className="px-4 py-3.5">
+            <p className="text-[0.8125rem] text-[var(--color-text-secondary)]">
               {t('dashboard.chronicallyUnfilled')}
             </p>
-            <ul className="mt-2 flex flex-wrap gap-2 text-sm">
+            <p className="mt-1 text-[0.75rem] text-[var(--color-text-tertiary)]">
+              {t('dashboard.chronicHint')}
+            </p>
+            <ul className="mt-2.5 flex flex-wrap gap-1.5">
               {data.publishing.chronicallyUnfilled.map((entry) => (
-                <li key={entry.field} className="rounded-lg bg-[var(--color-background)] px-2 py-1">
+                <li
+                  key={entry.field}
+                  className="rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] px-2 py-1 text-[0.75rem]"
+                >
                   {[entry.field, percent(entry.share)].join(' · ')}
                 </li>
               ))}
             </ul>
-            <p className="mt-2 text-xs text-[var(--color-text-secondary)]">
-              {t('dashboard.chronicHint')}
-            </p>
-          </div>
+          </Card>
         )}
       </section>
     </div>
   );
 }
+
+/**
+ * Цвет полосы воронки — один на все стадии.
+ *
+ * Раскрашивать стадии в разные цвета заманчиво, но цвет тогда перестаёт
+ * что-либо значить: в продукте он уже занят — успех, внимание, тревога.
+ * Полосе достаточно длины, она сравнивает, а не сигнализирует.
+ */
+const FUNNEL_COLOR = 'var(--color-brand)';

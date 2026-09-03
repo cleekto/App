@@ -193,7 +193,7 @@ export function Board({
 
               setDragging(null);
             }}
-            className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius-card)] bg-[var(--color-surface)] p-3"
+            className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius-card)] bg-[var(--color-surface-muted)] p-3"
           >
             <div
               draggable={canManage}
@@ -252,7 +252,7 @@ export function Board({
                   draggable
                   onDragStart={() => setDragging({ kind: 'card', id: card.id })}
                   onDragEnd={() => setDragging(null)}
-                  className="cursor-grab rounded-lg border border-[var(--color-border)] bg-[var(--color-background)] px-3 py-2 active:cursor-grabbing"
+                  className="cursor-grab rounded-lg bg-[var(--color-surface)] px-3 py-2 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-raised)]"
                 >
                   <p className="text-sm font-medium">{card.price}</p>
                   <p className="text-xs text-[var(--color-text-secondary)]">{card.kind}</p>

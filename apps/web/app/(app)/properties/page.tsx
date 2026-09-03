@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { EmptyState, PageHeader } from '../../_ui/primitives';
+import { Badge, Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
 import { listPipelineStatuses, listProperties } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
@@ -64,47 +64,66 @@ export default async function PropertiesPage({
       {items.length === 0 ? (
         <EmptyState title={t('property.empty')} hint={t('property.emptyHint')} />
       ) : (
-        <ul className="flex flex-col gap-2">
-          {items.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={`/properties/${item.id}`}
-                className="flex items-start justify-between gap-6 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 shadow-[var(--shadow-card)] transition-colors hover:border-[var(--color-brand)] hover:bg-[var(--color-surface-muted)]"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{kindLine(locale, item)}</p>
-                  <p className="truncate text-sm text-[var(--color-text-secondary)]">
-                    {factsLine(locale, item)}
-                  </p>
-                  {placeLine(item) === '' ? null : (
-                    <p className="truncate text-sm text-[var(--color-text-secondary)]">
-                      {placeLine(item)}
+        /*
+         * ОДНА ПОВЕРХНОСТЬ, СТРОКИ ВНУТРИ — а не двадцать одна отдельная
+         * карточка с зазорами.
+         *
+         * Карточка обособляет то, что внутри неё, от всего остального.
+         * Когда карточек столько же, сколько строк, обособлять нечего:
+         * получается рябь из одинаковых прямоугольников, по которой глаз
+         * не может идти сверху вниз. Список — это список: общий лист,
+         * волосяные линии, ровные колонки.
+         */
+        <Card className="overflow-hidden">
+          <ul className="divide-y divide-[var(--color-border)]">
+            {items.map((item) => (
+              <li key={item.id}>
+                <Link
+                  href={`/properties/${item.id}`}
+                  className="grid grid-cols-[1fr_auto] items-center gap-6 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-[0.9375rem] leading-5 font-medium">
+                      {kindLine(locale, item)}
                     </p>
-                  )}
-                  {item.sharedWithOtherTeam ? (
-                    <p className="mt-1 text-xs text-[var(--color-warning)]">
-                      {t('property.sharedWithOtherTeam')}
+                    <p className="mt-0.5 truncate text-[0.8125rem] leading-5 text-[var(--color-text-secondary)]">
+                      {[factsLine(locale, item), placeLine(item)].filter(Boolean).join(' · ')}
                     </p>
-                  ) : null}
-                </div>
+                    {item.sharedWithOtherTeam ? (
+                      <p className="mt-1 text-[0.75rem] text-[var(--color-warning)]">
+                        {t('property.sharedWithOtherTeam')}
+                      </p>
+                    ) : null}
+                  </div>
 
-                <div className="shrink-0 text-right">
-                  <p className="font-semibold">{priceLine(locale, item)}</p>
-                  <p className="text-sm text-[var(--color-text-secondary)]">
-                    {statusLabel(locale, {
-                      code: item.pipelineStatusCode,
-                      name: item.pipelineStatusName,
-                      nameIsCustom: item.pipelineStatusNameIsCustom,
-                    })}
-                  </p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">
-                    {item.assignedUserName ?? t('property.unassigned')}
-                  </p>
-                </div>
-              </Link>
-            </li>
-          ))}
-        </ul>
+                  <div className="flex shrink-0 items-center gap-4">
+                    <div className="text-right">
+                      {/* Цена — якорь строки: по ней список и просматривают.
+                          Раньше она была того же веса, что и тип объекта,
+                          и глазу не за что было зацепиться. */}
+                      <p className="text-[0.9375rem] leading-5 font-semibold">
+                        {priceLine(locale, item)}
+                      </p>
+                      <p className="mt-0.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
+                        {item.assignedUserName ?? t('property.unassigned')}
+                      </p>
+                    </div>
+
+                    <span className="w-36 shrink-0">
+                      <Badge tone="neutral">
+                        {statusLabel(locale, {
+                          code: item.pipelineStatusCode,
+                          name: item.pipelineStatusName,
+                          nameIsCustom: item.pipelineStatusNameIsCustom,
+                        })}
+                      </Badge>
+                    </span>
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
     </div>
   );

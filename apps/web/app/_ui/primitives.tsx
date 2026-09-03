@@ -19,7 +19,7 @@ type ButtonSize = 'md' | 'sm';
 
 const BUTTON_TONE: Record<ButtonTone, string> = {
   primary:
-    'bg-[var(--color-brand)] text-white hover:bg-[var(--color-brand-hover)] disabled:bg-[var(--color-border-strong)]',
+    'bg-[var(--color-brand)] text-white shadow-[var(--shadow-card)] hover:bg-[var(--color-brand-hover)] disabled:bg-[var(--color-border-strong)] disabled:shadow-none',
   secondary:
     'bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]',
   ghost:
@@ -41,7 +41,21 @@ export function Button({
   return (
     <button
       {...rest}
-      className={`inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-70 ${BUTTON_TONE[tone]} ${BUTTON_SIZE[size]} ${className}`}
+      /*
+       * ОТКЛИК НА НАЖАТИЕ, а не только на наведение.
+       *
+       * Кнопка, которая никак не отвечает на палец, ощущается сломанной
+       * ещё до того, как придёт ответ сервера, — а ответ здесь идёт через
+       * океан и занимает секунды. Просадка на 1% и есть та обратная связь,
+       * которую человек ждёт в первые 50 мс.
+       *
+       * `active:` без `transition` был бы мгновенным скачком; с общей
+       * длительностью он читается как нажатие, а не как подмена картинки.
+       *
+       * Масштаб 0.97, а не 0.99: разница в один процент на глаз не читается
+       * вовсе, и вся затея теряет смысл.
+       */
+      className={`inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] font-medium transition-[background-color,box-shadow,transform,color] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-70 disabled:active:scale-100 ${BUTTON_TONE[tone]} ${BUTTON_SIZE[size]} ${className}`}
     />
   );
 }
@@ -55,7 +69,7 @@ export function Button({
  * и фильтры на списке объектов встали в столбец вместо строки.
  */
 const FIELD_BASE =
-  'rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] transition-colors hover:border-[var(--color-text-tertiary)] disabled:bg-[var(--color-surface-muted)]';
+  'rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] transition-[border-color,box-shadow] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:border-[var(--color-text-tertiary)] focus:border-[var(--color-brand)] disabled:bg-[var(--color-surface-muted)]';
 
 export function Input({ className = '', ...rest }: ComponentPropsWithoutRef<'input'>) {
   return <input {...rest} className={`${FIELD_BASE} h-10 ${className}`} />;
@@ -104,7 +118,15 @@ export function Card({ className = '', ...rest }: ComponentPropsWithoutRef<'div'
   return (
     <div
       {...rest}
-      className={`rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] ${className}`}
+      /*
+       * Ни одной рамки: контур даёт первый слой тени (`0 0 0 1px`).
+       *
+       * Рамка и тень вместе обводят карточку дважды и делают экран
+       * решётчатым — это и есть тот «дешёвый админ-шаблон», которого
+       * велит избегать DESIGN §3. Тень-контур держит границу там, где она
+       * нужна, и исчезает там, где карточка лежит на своём же фоне.
+       */
+      className={`rounded-[var(--radius-card)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] ${className}`}
     />
   );
 }
@@ -122,9 +144,14 @@ export function SectionHeader({
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        {/* Заголовок обязан быть заметнее данных под ним. Пока он был
+            того же размера, что и строки таблицы, страница читалась как
+            один сплошной список без разделов. */}
+        <h2 className="text-[0.9375rem] leading-6 font-semibold">{title}</h2>
         {hint === undefined ? null : (
-          <p className="mt-0.5 text-sm text-[var(--color-text-secondary)]">{hint}</p>
+          <p className="mt-1 max-w-prose text-[0.8125rem] leading-5 text-[var(--color-text-secondary)]">
+            {hint}
+          </p>
         )}
       </div>
       {action}
