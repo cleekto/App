@@ -159,7 +159,7 @@ export function TeamCard({
 
       {mode === 'rename' ? (
         <form
-          className="mt-3 flex items-center gap-2"
+          className="appear mt-3 flex items-center gap-2"
           onSubmit={(event) => {
             event.preventDefault();
             const name = String(new FormData(event.currentTarget).get('name') ?? '');
@@ -183,7 +183,7 @@ export function TeamCard({
       )}
 
       {open ? (
-        <div className="mt-3 divide-y divide-[var(--color-border)] rounded-[var(--radius-card)] border border-[var(--color-border)]">
+        <div className="appear mt-3 divide-y divide-[var(--color-border)] rounded-[var(--radius-card)] border border-[var(--color-border)]">
           {team.members.length === 0 ? (
             <p className="px-4 py-3 text-xs text-[var(--color-text-secondary)]">{labels.empty}</p>
           ) : (

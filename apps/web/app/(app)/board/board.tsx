@@ -325,7 +325,7 @@ export function Board({
         <section className="flex w-56 shrink-0 flex-col gap-2 p-3">
           {adding ? (
             <form
-              className="flex flex-col gap-2"
+              className="appear flex flex-col gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 const name = String(new FormData(event.currentTarget).get('name') ?? '');

@@ -58,7 +58,7 @@ function Disclosure({
 
   return (
     <form
-      className="flex w-full flex-col gap-4"
+      className="appear flex w-full flex-col gap-4"
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);

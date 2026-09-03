@@ -121,7 +121,7 @@ export function ColumnMenu({
   if (mode === 'rename') {
     return (
       <form
-        className="flex flex-col gap-2 pt-2"
+        className="appear flex flex-col gap-2 pt-2"
         onSubmit={(event) => {
           event.preventDefault();
           const name = String(new FormData(event.currentTarget).get('name') ?? '');
@@ -170,7 +170,7 @@ export function ColumnMenu({
   if (mode === 'delete') {
     return (
       <form
-        className="flex flex-col gap-2 pt-2"
+        className="appear flex flex-col gap-2 pt-2"
         onSubmit={(event) => {
           event.preventDefault();
           const moveTo = String(new FormData(event.currentTarget).get('moveTo') ?? '');
@@ -213,7 +213,7 @@ export function ColumnMenu({
   }
 
   return (
-    <div className="flex flex-col gap-1 pt-2">
+    <div className="appear flex flex-col gap-1 pt-2">
       <Button tone="ghost" size="sm" type="button" onClick={() => setMode('rename')}>
         {labels.rename}
       </Button>

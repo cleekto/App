@@ -116,7 +116,7 @@ export function UserRow({
   if (editing) {
     return (
       <form
-        className="flex flex-col gap-4 px-4 py-4"
+        className="appear flex flex-col gap-4 px-4 py-4"
         onSubmit={(event) => {
           event.preventDefault();
           const form = new FormData(event.currentTarget);
