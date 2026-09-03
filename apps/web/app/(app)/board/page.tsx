@@ -40,6 +40,8 @@ export default async function BoardPage() {
           // положила регистрация, когда язык компании ещё не был известен.
           // Переименованная агентством стадия показывается своим именем.
           name: statusLabel(locale, status),
+          fallbackName: status.name,
+          names: status.names,
           colorToken: status.colorToken,
           isSystem: status.isSystem,
         }))}
@@ -58,6 +60,7 @@ export default async function BoardPage() {
           manage: t('board.manage'),
           addStage: t('board.addStage'),
           stageName: t('board.stageName'),
+          localeNames: LOCALE_NAMES,
           rename: t('board.rename'),
           color: t('board.color'),
           deleteStage: t('board.deleteStage'),
@@ -87,3 +90,16 @@ export default async function BoardPage() {
     </div>
   );
 }
+
+/**
+ * Подписи языков у полей имени стадии — каждая на своём языке.
+ *
+ * Не переводятся: человек ищет глазами «ქართული», а не «грузинский»,
+ * на каком бы языке ни был остальной интерфейс. Тот же приём, что
+ * в переключателе языка.
+ */
+const LOCALE_NAMES: Record<string, string> = {
+  ka: 'ქართული',
+  en: 'English',
+  ru: 'Русский',
+};

@@ -32,9 +32,10 @@ export interface Dashboard {
        * когда язык компании ещё не был известен (инвариант 4).
        */
       statusCode: string;
+      /** Запасное имя: показывается там, где у языка своего нет. */
       statusName: string;
-      /** Имя дано агентством: тогда показывается оно, а не перевод по коду. */
-      statusNameIsCustom: boolean;
+      /** Имя на каждом языке. Пусто — берётся запасное. */
+      statusNames: { ka: string | null; en: string | null; ru: string | null };
       count: number;
     }>;
   };
@@ -130,7 +131,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
 
   const statusNames = await prisma.pipelineStatus.findMany({
     where: { companyId: ctx.companyId },
-    select: { id: true, code: true, name: true, nameIsCustom: true },
+    select: { id: true, code: true, name: true, nameKa: true, nameEn: true, nameRu: true },
     orderBy: { sortOrder: 'asc' },
   });
 
@@ -150,7 +151,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
         statusId: status.id,
         statusCode: status.code,
         statusName: status.name,
-        statusNameIsCustom: status.nameIsCustom,
+        statusNames: { ka: status.nameKa, en: status.nameEn, ru: status.nameRu },
         count: counts.get(status.id) ?? 0,
       })),
     },

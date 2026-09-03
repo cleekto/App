@@ -118,9 +118,8 @@ export default async function PropertiesPage({
                     <span className="w-36 shrink-0">
                       <Badge tone="neutral">
                         {statusLabel(locale, {
-                          code: item.pipelineStatusCode,
                           name: item.pipelineStatusName,
-                          nameIsCustom: item.pipelineStatusNameIsCustom,
+                          names: item.pipelineStatusNames,
                         })}
                       </Badge>
                     </span>

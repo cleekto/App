@@ -6,18 +6,25 @@ import type { AuthContext } from '../auth/context';
 import { NotFoundError, ValidationError } from '../errors';
 import { requirePermission } from '../rbac/guard';
 
+/**
+ * Имя стадии на каждом языке. Пусто — берётся запасное `name`.
+ *
+ * Ключи перечислены явно, а не собраны из `LOCALES` на лету: в базе это
+ * отдельные колонки, и связь между языком и колонкой должна быть видна
+ * глазом, а не выводиться типом.
+ */
+export interface PipelineStatusNames {
+  ka: string | null;
+  en: string | null;
+  ru: string | null;
+}
+
 export interface PipelineStatusSummary {
   id: string;
   code: string;
+  /** Запасное имя: показывается там, где у языка своего нет. */
   name: string;
-  /**
-   * Имя дано агентством, а не сидом.
-   *
-   * Экран показывает перевод по коду, пока имя не тронуто: у стадий из сида
-   * оно английское, и грузинский агент видел бы «In base». Как только
-   * агентство назвало стадию по-своему, побеждает его имя.
-   */
-  nameIsCustom: boolean;
+  names: PipelineStatusNames;
   sortOrder: number;
   isSystem: boolean;
   colorToken: string | null;
@@ -28,11 +35,25 @@ function toSummary(status: PipelineStatus): PipelineStatusSummary {
     id: status.id,
     code: status.code,
     name: status.name,
-    nameIsCustom: status.nameIsCustom,
+    names: { ka: status.nameKa, en: status.nameEn, ru: status.nameRu },
     sortOrder: status.sortOrder,
     isSystem: status.isSystem,
     colorToken: status.colorToken,
   };
+}
+
+/**
+ * Язык → колонка. Одно место, где эта связь записана.
+ *
+ * `LOCALES` живёт в пакете переводов, а колонки — в схеме базы; между ними
+ * нужен явный мост, иначе добавленный язык молча не получит своей колонки.
+ */
+const NAME_COLUMN = { ka: 'nameKa', en: 'nameEn', ru: 'nameRu' } as const;
+
+export type StatusLocale = keyof typeof NAME_COLUMN;
+
+function isStatusLocale(value: string): value is StatusLocale {
+  return value in NAME_COLUMN;
 }
 
 /**
@@ -144,8 +165,11 @@ export async function createPipelineStatus(
         companyId: ctx.companyId,
         code: customCode(),
         name,
-        // Заведена агентством — значит, имя своё и переводом не подменяется.
-        nameIsCustom: true,
+        // Имя записывается и в колонку языка, на котором его напечатали:
+        // остальные два останутся пустыми и покажут `name`, пока никто
+        // не вписал перевод. Придумывать перевод за человека нельзя
+        // (правило 14).
+        ...(isStatusLocale(ctx.locale) ? { [NAME_COLUMN[ctx.locale]]: name } : {}),
         sortOrder: (last?.sortOrder ?? 0) + SORT_STEP,
         isSystem: false,
         ...(input.colorToken === undefined ? {} : { colorToken: cleanColor(input.colorToken) }),
@@ -166,16 +190,28 @@ export async function createPipelineStatus(
 }
 
 export interface UpdatePipelineStatusInput {
-  name?: string | undefined;
+  /**
+   * Имена по языкам. Передаются только те, что менялись.
+   *
+   * Пустая строка означает «своего имени на этом языке нет» — стадия
+   * вернётся к запасному. Это законное состояние, а не ошибка ввода:
+   * агентство вправе не переводить стадию на язык, на котором не работает.
+   */
+  names?: { ka?: string | undefined; en?: string | undefined; ru?: string | undefined } | undefined;
   colorToken?: string | null | undefined;
 }
 
 /**
  * Переименование стадии и смена её цвета.
  *
- * Переименовать можно и системную: `isSystem` защищает от удаления, а не от
- * собственного названия агентства. Код при этом не меняется — на нём держатся
- * переходы импорта и публикации, и переименование не должно их задевать.
+ * ИМЯ МЕНЯЕТСЯ ПО ЯЗЫКАМ ОТДЕЛЬНО. Раньше оно было одно, и переименование
+ * по-русски меняло надпись и грузинскому агенту: он видел русское слово
+ * посреди грузинского интерфейса. Теперь у каждого языка своё поле,
+ * а незаполненные показывают запасное имя.
+ *
+ * Переименовать можно и системную стадию: `isSystem` защищает от удаления,
+ * а не от собственного названия агентства. Код при этом не меняется —
+ * на нём держатся переходы импорта и публикации.
  */
 export async function updatePipelineStatus(
   ctx: AuthContext,
@@ -190,19 +226,39 @@ export async function updatePipelineStatus(
   });
   if (status === null) throw new NotFoundError('Стадия не найдена');
 
-  const name = input.name === undefined ? undefined : cleanName(input.name);
+  const names: Record<string, string | null> = {};
+  for (const [locale, value] of Object.entries(input.names ?? {})) {
+    if (value === undefined) continue;
+    if (!isStatusLocale(locale)) {
+      throw new ValidationError('Неизвестный язык', { fields: ['names'] });
+    }
+    // Пусто — язык возвращается к запасному имени, а не получает пробелы.
+    names[NAME_COLUMN[locale]] = value.trim() === '' ? null : cleanName(value);
+  }
 
-  if (name === undefined && input.colorToken === undefined) {
+  if (Object.keys(names).length === 0 && input.colorToken === undefined) {
     throw new ValidationError('Менять нечего: не передано ни одного поля');
   }
+
+  /*
+   * Запасное имя следует за языком того, кто правит.
+   *
+   * Оно показывается там, где своего имени у языка нет, и должно быть
+   * осмысленным. Брать его наугад из первого непустого поля значило бы
+   * показывать грузинскому агенту то русское, то английское, в зависимости
+   * от порядка колонок.
+   */
+  const fallback =
+    isStatusLocale(ctx.locale) && typeof names[NAME_COLUMN[ctx.locale]] === 'string'
+      ? { name: names[NAME_COLUMN[ctx.locale]] as string }
+      : {};
 
   const updated = await prisma.$transaction(async (tx) => {
     const row = await tx.pipelineStatus.update({
       where: { id: statusId },
       data: {
-        // Переименование поднимает флаг: иначе на экране осталось бы имя,
-        // переведённое по коду, и правка была бы не видна.
-        ...(name === undefined ? {} : { name, nameIsCustom: true }),
+        ...names,
+        ...fallback,
         ...(input.colorToken === undefined
           ? {}
           : { colorToken: input.colorToken === null ? null : cleanColor(input.colorToken) }),

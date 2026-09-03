@@ -90,9 +90,8 @@ export default async function DashboardPage() {
               <FunnelRow
                 key={status.statusId}
                 name={statusLabel(locale, {
-                  code: status.statusCode,
                   name: status.statusName,
-                  nameIsCustom: status.statusNameIsCustom,
+                  names: status.statusNames,
                 })}
                 count={n(status.count)}
                 share={status.count / peak}

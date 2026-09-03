@@ -173,13 +173,6 @@ export const en = {
    * они переводятся. Свой статус компании остаётся с её собственным именем:
    * подменять его переводом было бы враньём.
    */
-  pipeline: {
-    IN_BASE: 'In base',
-    IN_PROGRESS: 'In progress',
-    OFFERED: 'Offered to client',
-    CLOSED: 'Closed',
-    ARCHIVED: 'Archived',
-  },
 
   settings: {
     title: 'Settings',

@@ -589,7 +589,7 @@ describe('стадии воронки', () => {
     if (some === undefined) throw new Error('в сиде нет ни одной стадии');
 
     await expect(
-      updatePipelineStatus(actors.agentA, some.id, { name: 'Переименовал' }),
+      updatePipelineStatus(actors.agentA, some.id, { names: { ru: 'Переименовал' } }),
     ).rejects.toThrow(ForbiddenError);
     await expect(deletePipelineStatus(actors.agentA, some.id)).rejects.toThrow(ForbiddenError);
     await expect(
@@ -606,8 +606,10 @@ describe('стадии воронки', () => {
   it('менеджер заводит стадию, и её видят все в компании', async () => {
     const created = await createPipelineStatus(actors.managerA, { name: 'Показ назначен' });
 
-    expect(created.nameIsCustom).toBe(true);
     expect(created.isSystem).toBe(false);
+    // Имя записано и в запасное поле, и в колонку языка того, кто заводил.
+    // Остальные языки пусты: придумывать перевод за человека нельзя.
+    expect(created.name).toBe('Показ назначен');
 
     // Стадия — настройка компании: её видит и агент соседней команды.
     for (const ctx of [actors.adminA, actors.agentA, actors.agentAOtherTeam]) {
@@ -626,7 +628,7 @@ describe('стадии воронки', () => {
     // companyId берётся из контекста (правило 5), поэтому существующий
     // идентификатор из компании B отсюда выглядит как ничей.
     await expect(
-      updatePipelineStatus(actors.adminA, foreign.id, { name: 'Захвачено' }),
+      updatePipelineStatus(actors.adminA, foreign.id, { names: { ru: 'Захвачено' } }),
     ).rejects.toThrow(NotFoundError);
     await expect(deletePipelineStatus(actors.adminA, foreign.id)).rejects.toThrow(NotFoundError);
 
@@ -634,29 +636,49 @@ describe('стадии воронки', () => {
     expect(untouched.name).not.toBe('Захвачено');
   });
 
-  it('переименование поднимает флаг своего имени, но код не трогает', async () => {
+  it('переименование меняет ТОЛЬКО свой язык и не трогает код', async () => {
     const statuses = await listPipelineStatuses(actors.adminA);
     const inBase = statuses.find((status) => status.code === 'IN_BASE');
     if (inBase === undefined) throw new Error('в сиде нет стадии IN_BASE');
 
+    const before = inBase.names;
+
     const renamed = await updatePipelineStatus(actors.adminA, inBase.id, {
-      name: 'В работе у нас',
+      names: { ru: 'В работе у нас' },
     });
 
     // Код — ключ, на котором держатся переходы импорта и публикации.
     // Переименование обязано его не задевать, иначе «Согласен» перестанет
     // находить, куда ставить объект.
     expect(renamed.code).toBe('IN_BASE');
-    expect(renamed.name).toBe('В работе у нас');
-    expect(renamed.nameIsCustom).toBe(true);
 
-    // Возвращается и имя, и флаг: через сценарий флаг обратно не опускается —
-    // переименование в то же самое имя остаётся переименованием. Иначе
-    // следующий тест увидел бы английское «In base» вместо перевода.
-    await prisma.pipelineStatus.update({
-      where: { id: inBase.id },
-      data: { name: inBase.name, nameIsCustom: false },
+    // ГЛАВНОЕ В ЭТОМ ТЕСТЕ: правка русского не тронула грузинский
+    // и английский. Раньше имя было одно на всех, и переименование
+    // по-русски показывало русское слово грузинскому агенту.
+    expect(renamed.names.ru).toBe('В работе у нас');
+    expect(renamed.names.ka).toBe(before.ka);
+    expect(renamed.names.en).toBe(before.en);
+
+    await updatePipelineStatus(actors.adminA, inBase.id, {
+      names: { ru: before.ru ?? inBase.name },
     });
+  });
+
+  it('пустое имя языка возвращает стадию к запасному, а не стирает её', async () => {
+    const created = await createPipelineStatus(actors.adminA, { name: 'Временная для языков' });
+
+    const withKa = await updatePipelineStatus(actors.adminA, created.id, {
+      names: { ka: 'დროებითი' },
+    });
+    expect(withKa.names.ka).toBe('დროებითი');
+
+    // Пустая строка — законное «перевода на этот язык нет», а не ошибка ввода:
+    // агентство вправе не переводить стадию на язык, на котором не работает.
+    const cleared = await updatePipelineStatus(actors.adminA, created.id, { names: { ka: '' } });
+    expect(cleared.names.ka).toBeNull();
+    expect(cleared.name).not.toBe('');
+
+    await deletePipelineStatus(actors.adminA, created.id);
   });
 
   it('системную стадию удалить нельзя', async () => {

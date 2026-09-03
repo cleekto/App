@@ -170,13 +170,6 @@ export const ru: DeepPartial<Dictionary> = {
     open: 'Открыта',
     create: 'Создать',
   },
-  pipeline: {
-    IN_BASE: 'В базе',
-    IN_PROGRESS: 'Принят в работу',
-    OFFERED: 'Предложен клиенту',
-    CLOSED: 'Закрыт',
-    ARCHIVED: 'Архив',
-  },
 
   settings: {
     title: 'Параметры',

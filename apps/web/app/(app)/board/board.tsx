@@ -33,7 +33,11 @@ interface Card extends CardLines {
 
 interface Column {
   id: string;
+  /** Имя на языке смотрящего — уже выбранное на сервере. */
   name: string;
+  /** Запасное имя: подставляется в форме правки как подсказка. */
+  fallbackName: string;
+  names: { ka: string | null; en: string | null; ru: string | null };
   colorToken: string | null;
   isSystem: boolean;
 }
@@ -117,7 +121,10 @@ export function Board({
    * и сброс был бы бесконечным), а отпечаток содержимого.
    */
   const columnsFingerprint = columns
-    .map((column) => `${column.id}:${column.name}:${column.colorToken ?? ''}`)
+    .map(
+      (column) =>
+        `${column.id}:${column.name}:${column.names.ka ?? ''}:${column.names.en ?? ''}:${column.names.ru ?? ''}:${column.colorToken ?? ''}`,
+    )
     .join('|');
   // Только из пропсов: подмешать сюда локальное состояние значило бы сбрасывать
   // карточку обратно в исходную колонку сразу после того, как её перетащили.
@@ -282,7 +289,13 @@ export function Board({
 
             {openMenu === column.id ? (
               <ColumnMenu
-                column={column}
+                column={{
+                  id: column.id,
+                  name: column.fallbackName,
+                  names: column.names,
+                  colorToken: column.colorToken,
+                  isSystem: column.isSystem,
+                }}
                 otherColumns={order
                   .filter((other) => other.id !== column.id)
                   .map((other) => ({ id: other.id, name: other.name }))}

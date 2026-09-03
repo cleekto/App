@@ -54,14 +54,10 @@ export interface PropertyListItem {
    * регистрация, когда язык компании ещё не был известен (инвариант 4).
    */
   pipelineStatusCode: string;
+  /** Запасное имя стадии: показывается там, где у языка своего нет. */
   pipelineStatusName: string;
-  /**
-   * Имя дано агентством, а не сидом.
-   *
-   * Без этого флага показ подставил бы перевод по коду и переименованная
-   * стадия осталась бы на экране под прежним названием.
-   */
-  pipelineStatusNameIsCustom: boolean;
+  /** Имя стадии на каждом языке. Пусто — берётся запасное. */
+  pipelineStatusNames: { ka: string | null; en: string | null; ru: string | null };
   assignedUserId: string | null;
   assignedUserName: string | null;
   origin: PropertyOrigin;
@@ -150,7 +146,9 @@ export async function listProperties(
       take: limit,
       skip: filters.offset ?? 0,
       include: {
-        pipelineStatus: { select: { id: true, code: true, name: true, nameIsCustom: true } },
+        pipelineStatus: {
+          select: { id: true, code: true, name: true, nameKa: true, nameEn: true, nameRu: true },
+        },
       },
     }),
     prisma.property.count({ where }),
@@ -180,7 +178,11 @@ export async function listProperties(
       pipelineStatusId: row.pipelineStatus.id,
       pipelineStatusCode: row.pipelineStatus.code,
       pipelineStatusName: row.pipelineStatus.name,
-      pipelineStatusNameIsCustom: row.pipelineStatus.nameIsCustom,
+      pipelineStatusNames: {
+        ka: row.pipelineStatus.nameKa,
+        en: row.pipelineStatus.nameEn,
+        ru: row.pipelineStatus.nameRu,
+      },
       assignedUserId: row.assignedUserId,
       assignedUserName:
         row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),
@@ -221,7 +223,9 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
   const row = await prisma.property.findFirst({
     where: { id, companyId: ctx.companyId },
     include: {
-      pipelineStatus: { select: { id: true, code: true, name: true, nameIsCustom: true } },
+      pipelineStatus: {
+        select: { id: true, code: true, name: true, nameKa: true, nameEn: true, nameRu: true },
+      },
       ownerContact: { include: { phones: { select: { phoneOriginal: true } } } },
       sourceListings: {
         select: {
@@ -259,7 +263,11 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
     pipelineStatusId: row.pipelineStatus.id,
     pipelineStatusCode: row.pipelineStatus.code,
     pipelineStatusName: row.pipelineStatus.name,
-    pipelineStatusNameIsCustom: row.pipelineStatus.nameIsCustom,
+    pipelineStatusNames: {
+      ka: row.pipelineStatus.nameKa,
+      en: row.pipelineStatus.nameEn,
+      ru: row.pipelineStatus.nameRu,
+    },
     assignedUserId: row.assignedUserId,
     assignedUserName:
       row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),

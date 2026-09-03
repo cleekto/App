@@ -8,9 +8,24 @@ export const dynamic = 'force-dynamic';
 
 type Params = { params: Promise<{ id: string }> };
 
+/**
+ * Имена по языкам. Передаются только те, что менялись.
+ *
+ * Пустая строка разрешена намеренно: она означает «перевода на этот язык
+ * нет», и стадия вернётся к запасному имени. Запрещать её значило бы
+ * заставлять агентство придумывать перевод там, где оно на этом языке
+ * не работает.
+ */
 const updateSchema = z
   .object({
-    name: z.string().min(1).max(60).optional(),
+    names: z
+      .object({
+        ka: z.string().max(60).optional(),
+        en: z.string().max(60).optional(),
+        ru: z.string().max(60).optional(),
+      })
+      .strict()
+      .optional(),
     colorToken: z.string().max(40).nullable().optional(),
   })
   .strict();

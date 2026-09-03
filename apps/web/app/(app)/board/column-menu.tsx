@@ -20,6 +20,8 @@ import { Button, Input, Select } from '../../_ui/primitives';
 export interface ColumnMenuLabels {
   rename: string;
   stageName: string;
+  /** Подписи языков у полей имени. Каждая — на своём языке. */
+  localeNames: Record<string, string>;
   color: string;
   deleteStage: string;
   moveTo: string;
@@ -63,6 +65,16 @@ const COLOR_VALUE: Record<string, string> = {
 
 export const SELECTABLE_COLORS = ['brand', 'success', 'warning', 'danger', 'neutral'] as const;
 
+/**
+ * Порядок языков в форме имени.
+ *
+ * Грузинский первым: продукт для Грузии, и агентство заполняет его чаще
+ * прочих. Порядок один и тот же всегда — переставлять поля под язык
+ * интерфейса значило бы заставлять человека каждый раз искать своё поле
+ * заново.
+ */
+const STAGE_LOCALES = ['ka', 'en', 'ru'] as const;
+
 export function columnColor(token: string | null): string {
   return (token === null ? undefined : COLOR_VALUE[token]) ?? 'var(--color-border-strong)';
 }
@@ -74,7 +86,14 @@ export function ColumnMenu({
   labels,
   onDone,
 }: {
-  column: { id: string; name: string; colorToken: string | null; isSystem: boolean };
+  column: {
+    id: string;
+    name: string;
+    /** Имя на каждом языке. Пусто — на экране показывается запасное `name`. */
+    names: { ka: string | null; en: string | null; ru: string | null };
+    colorToken: string | null;
+    isSystem: boolean;
+  };
   /** Куда переносить объекты при удалении. Себя в списке нет. */
   otherColumns: Array<{ id: string; name: string }>;
   occupiedCount: number;
@@ -124,11 +143,34 @@ export function ColumnMenu({
         className="appear flex flex-col gap-2 pt-2"
         onSubmit={(event) => {
           event.preventDefault();
-          const name = String(new FormData(event.currentTarget).get('name') ?? '');
-          void send('PATCH', `/api/v1/pipeline-statuses/${column.id}`, { name });
+          const form = new FormData(event.currentTarget);
+          const names = Object.fromEntries(
+            STAGE_LOCALES.map((locale) => [locale, String(form.get(locale) ?? '')]),
+          );
+          void send('PATCH', `/api/v1/pipeline-statuses/${column.id}`, { names });
         }}
       >
-        <Input name="name" defaultValue={column.name} maxLength={60} required autoFocus />
+        {/* ПО ПОЛЮ НА ЯЗЫК. Раньше поле было одно, и правка по-русски меняла
+            надпись и грузинскому агенту: он видел русское слово посреди
+            грузинского интерфейса.
+
+            Пустое поле — не ошибка, а «перевода на этот язык нет»: агентство
+            вправе не переводить стадию на язык, на котором не работает.
+            Тогда покажется запасное имя, и подсказка это говорит. */}
+        {STAGE_LOCALES.map((locale, index) => (
+          <label key={locale} className="flex flex-col gap-1">
+            <span className="text-xs text-[var(--color-text-secondary)]">
+              {labels.localeNames[locale] ?? locale}
+            </span>
+            <Input
+              name={locale}
+              defaultValue={column.names[locale] ?? ''}
+              placeholder={column.name}
+              maxLength={60}
+              autoFocus={index === 0}
+            />
+          </label>
+        ))}
 
         <div className="flex flex-wrap items-center gap-1">
           <span className="mr-1 text-xs text-[var(--color-text-secondary)]">{labels.color}</span>

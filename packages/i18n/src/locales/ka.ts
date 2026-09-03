@@ -171,13 +171,6 @@ export const ka: DeepPartial<Dictionary> = {
     open: 'ღიაა',
     create: 'შექმნა',
   },
-  pipeline: {
-    IN_BASE: 'ბაზაში',
-    IN_PROGRESS: 'მუშავდება',
-    OFFERED: 'შეთავაზებულია კლიენტს',
-    CLOSED: 'დახურული',
-    ARCHIVED: 'არქივი',
-  },
 
   settings: {
     title: 'პარამეტრები',
