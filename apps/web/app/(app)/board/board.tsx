@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Button, Input } from '../../_ui/primitives';
+import { notifyError } from '../../_ui/toast';
 import { ColumnMenu, columnColor, type ColumnMenuLabels } from './column-menu';
 
 /**
@@ -42,6 +43,10 @@ export interface BoardLabels extends ColumnMenuLabels {
   addStage: string;
   stageName: string;
   manage: string;
+  /** Сервер отказал в переносе карточки — например, объект чужой команды. */
+  moveFailed: string;
+  /** Сервер отказал в перестановке колонок. */
+  orderFailed: string;
 }
 
 /**
@@ -136,19 +141,52 @@ export function Board({
     router.refresh();
   };
 
+  /**
+   * Перенос карточки в другую стадию.
+   *
+   * Карточка переезжает сразу, до ответа сервера: агент тащил её мышью
+   * и ждать не должен.
+   *
+   * НО ЕСЛИ СЕРВЕР ОТКАЗАЛ, ЭТО НАДО СКАЗАТЬ ВСЛУХ. Раньше карточка просто
+   * возвращалась на место при обновлении, без единого слова, — и человек
+   * видел не «мне нельзя», а «продукт сломался». Отказы тут настоящие:
+   * агент двигает объекты только своей команды.
+   *
+   * Успех при этом молчит: результат человек видит своими глазами,
+   * а плашка на каждое перетаскивание за день стала бы помехой.
+   */
   const moveCard = (cardId: string, statusId: string): void => {
     const card = cards.find((item) => item.id === cardId);
     if (card === undefined || card.pipelineStatusId === statusId) return;
+
+    const previous = card.pipelineStatusId;
 
     setCards((current) =>
       current.map((item) => (item.id === cardId ? { ...item, pipelineStatusId: statusId } : item)),
     );
 
+    const revert = (): void => {
+      setCards((current) =>
+        current.map((item) =>
+          item.id === cardId ? { ...item, pipelineStatusId: previous } : item,
+        ),
+      );
+      notifyError(labels.moveFailed);
+    };
+
     void fetch(`/api/v1/properties/${cardId}/status`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ pipelineStatusId: statusId }),
-    }).then(() => router.refresh());
+    })
+      .then((response) => {
+        if (!response.ok) {
+          revert();
+          return;
+        }
+        router.refresh();
+      })
+      .catch(revert);
   };
 
   const moveColumn = (columnId: string, beforeId: string): void => {
@@ -163,7 +201,13 @@ export function Board({
     if (moved === undefined) return;
     next.splice(to, 0, moved);
 
+    const previous = order;
     setOrder(next);
+
+    const revert = (): void => {
+      setOrder(previous);
+      notifyError(labels.orderFailed);
+    };
 
     // Уходит весь порядок целиком: перестановка одной колонки меняет позиции
     // всех, и пятью запросами подряд доска побывала бы в состоянии,
@@ -172,7 +216,15 @@ export function Board({
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ order: next.map((column) => column.id) }),
-    }).then(() => router.refresh());
+    })
+      .then((response) => {
+        if (!response.ok) {
+          revert();
+          return;
+        }
+        router.refresh();
+      })
+      .catch(revert);
   };
 
   return (

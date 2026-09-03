@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { failureText } from '../../_ui/failure';
+import { notifyError } from '../../_ui/toast';
 import { Button, Input, Select } from '../../_ui/primitives';
 
 /**
@@ -28,6 +30,14 @@ export interface ColumnMenuLabels {
   confirm: string;
   saving: string;
   failed: string;
+  /**
+   * Отказы, у которых есть внятная причина.
+   *
+   * Ключ — машинный признак из деталей ошибки, значение — фраза на языке
+   * человека. Сообщение самого сервера показывать нельзя: оно русское
+   * (правило 18).
+   */
+  reasons: Record<string, string>;
   colors: Record<string, string>;
 }
 
@@ -88,10 +98,15 @@ export function ColumnMenu({
       });
 
       if (!response.ok) {
-        // Сообщение сервера здесь не показывается: оно на русском, а у агента
-        // может быть грузинский интерфейс (правило 18). Показывается общая
-        // фраза из словаря.
-        setFailed(labels.failed);
+        // Причина берётся по машинному признаку из ответа, а не из его текста:
+        // текст сервера русский (правило 18). Признака нет — остаётся общая
+        // фраза.
+        //
+        // И плашкой, и уведомлением сразу: плашка объясняет, где именно
+        // не вышло, уведомление видно, даже если меню уже закрылось.
+        const text = await failureText(response, labels.reasons, labels.failed);
+        setFailed(text);
+        notifyError(text);
         return;
       }
 

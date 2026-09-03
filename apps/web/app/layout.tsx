@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 
 import { translate } from '@kleekto/i18n';
 
+import { Toaster } from './_ui/toast';
 import { serverLocale } from './locale';
 import './globals.css';
 
@@ -56,7 +57,12 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       className={`${manrope.variable} ${georgian.variable}`}
       style={{ '--font-app': `var(--font-latin), var(--font-georgian)` } as React.CSSProperties}
     >
-      <body>{children}</body>
+      <body>
+        {children}
+        {/* Один на всё приложение: второй такой же дублировал бы
+            каждое сообщение (см. `_ui/toast.tsx`). */}
+        <Toaster />
+      </body>
     </html>
   );
 }

@@ -69,6 +69,12 @@ export default async function BoardPage() {
           cancel: t('common.cancel'),
           saving: t('common.loading'),
           failed: t('board.failed'),
+          moveFailed: t('board.moveFailed'),
+          orderFailed: t('board.orderFailed'),
+          reasons: {
+            stage_is_system: t('board.stageIsSystem'),
+            stage_not_empty: t('board.stageNotEmpty'),
+          },
           colors: {
             brand: t('board.colors.brand'),
             success: t('board.colors.success'),

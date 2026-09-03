@@ -253,7 +253,7 @@ export async function deletePipelineStatus(
   if (status.isSystem) {
     throw new ValidationError(
       'Эту стадию удалить нельзя: на неё встают объекты при импорте и публикации',
-      { fields: ['statusId'] },
+      { fields: ['statusId'], reason: 'stage_is_system' },
     );
   }
 
@@ -267,7 +267,7 @@ export async function deletePipelineStatus(
     if (moveTo === undefined) {
       throw new ValidationError(
         'В стадии ' + String(occupied) + ' объектов. Укажите, куда их перенести',
-        { fields: ['moveToStatusId'] },
+        { fields: ['moveToStatusId'], reason: 'stage_not_empty', count: occupied },
       );
     }
     if (moveTo === statusId) {

@@ -191,11 +191,19 @@ export async function deleteTeam(ctx: AuthContext, teamId: string): Promise<void
   });
   if (team === null) throw new NotFoundError('Команда не найдена');
 
+  /*
+   * У отказа есть МАШИННЫЙ ПРИЗНАК ПРИЧИНЫ, а не только текст.
+   *
+   * Сообщение здесь русское — ядро о языках не знает, — и показывать его
+   * грузинскому агенту нельзя (правило 18). Без признака экран мог сказать
+   * только «не удалось сохранить», и человек не понимал, что именно мешает:
+   * объекты в команде или люди. Признак переводится на месте показа.
+   */
   const properties = await prisma.property.count({ where: { teamId, companyId: ctx.companyId } });
   if (properties > 0) {
     throw new ValidationError(
       'В команде ' + String(properties) + ' объектов. Сначала переведите их в другую команду',
-      { fields: ['teamId'] },
+      { fields: ['teamId'], reason: 'team_has_properties', count: properties },
     );
   }
 
@@ -203,7 +211,7 @@ export async function deleteTeam(ctx: AuthContext, teamId: string): Promise<void
   if (members > 0) {
     throw new ValidationError(
       'В команде ' + String(members) + ' сотрудников. Сначала переведите их в другую команду',
-      { fields: ['teamId'] },
+      { fields: ['teamId'], reason: 'team_has_members', count: members },
     );
   }
 

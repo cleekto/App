@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { failureText } from '../../_ui/failure';
+import { notifyError } from '../../_ui/toast';
 import { Badge, Button, Input, Notice } from '../../_ui/primitives';
 import { UserRow, type UserItem, type UserRowLabels } from './user-row';
 
@@ -27,12 +29,15 @@ export interface TeamCardLabels extends UserRowLabels {
   deleteTeam: string;
   confirmDelete: string;
   empty: string;
+  /** Отказы с внятной причиной: ключ — машинный признак из деталей ошибки. */
+  reasons: Record<string, string>;
 }
 
 export function TeamCard({
   team,
   currentUserId,
   canManage,
+  canDeleteTeam,
   canChangeTeam,
   roles,
   teams,
@@ -47,6 +52,14 @@ export function TeamCard({
   };
   currentUserId: string;
   canManage: boolean;
+  /**
+   * Удаление команды — право администратора, а не менеджера.
+   *
+   * Отдельным пропсом, а не вместе с `canManage`: менеджер правит состав
+   * и переименовывает свою команду, но удалить её не может. Показать ему
+   * кнопку значило бы предложить действие, которое всегда кончается отказом.
+   */
+  canDeleteTeam: boolean;
   canChangeTeam: boolean;
   roles: Array<{ value: string; label: string }>;
   teams: Array<{ id: string; name: string }>;
@@ -56,11 +69,11 @@ export function TeamCard({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<'idle' | 'rename' | 'delete'>('idle');
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   async function send(method: 'PATCH' | 'DELETE', body?: unknown): Promise<void> {
     setBusy(true);
-    setFailed(false);
+    setFailed(null);
 
     try {
       const response = await fetch(`/api/v1/teams/${team.id}`, {
@@ -71,14 +84,18 @@ export function TeamCard({
       });
 
       if (!response.ok) {
-        setFailed(true);
+        // «Не удалось сохранить» здесь бесполезно: менеджер жмёт «удалить
+        // команду» и должен узнать, что мешает — люди в ней или объекты.
+        const text = await failureText(response, labels.reasons, labels.failed);
+        setFailed(text);
+        notifyError(text);
         return;
       }
 
       setMode('idle');
       router.refresh();
     } catch {
-      setFailed(true);
+      setFailed(labels.failed);
     } finally {
       setBusy(false);
     }
@@ -115,7 +132,7 @@ export function TeamCard({
               <Button tone="ghost" size="sm" type="button" onClick={() => setMode('rename')}>
                 {labels.rename}
               </Button>
-              {mode === 'delete' ? (
+              {!canDeleteTeam ? null : mode === 'delete' ? (
                 <>
                   <Button
                     tone="danger"
@@ -159,11 +176,11 @@ export function TeamCard({
         </form>
       ) : null}
 
-      {failed ? (
+      {failed === null ? null : (
         <div className="mt-3">
-          <Notice tone="error">{labels.failed}</Notice>
+          <Notice tone="error">{failed}</Notice>
         </div>
-      ) : null}
+      )}
 
       {open ? (
         <div className="mt-3 divide-y divide-[var(--color-border)] rounded-[var(--radius-card)] border border-[var(--color-border)]">

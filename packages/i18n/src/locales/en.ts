@@ -133,6 +133,11 @@ export const en = {
     occupied: 'The stage holds {count} objects. They will move, not disappear.',
     systemStage: 'Objects land here on import and on publishing, so the stage cannot be deleted.',
     failed: 'Could not save. Try again.',
+    moveFailed: 'Could not move the card. It may belong to another team.',
+    orderFailed: 'Could not save the new stage order.',
+    stageIsSystem:
+      'Objects land on this stage on import and on publishing, so it cannot be deleted.',
+    stageNotEmpty: 'The stage still holds objects. Say where to move them.',
     colors: {
       brand: 'Primary',
       success: 'Success',
@@ -209,6 +214,8 @@ export const en = {
     rename: 'Rename',
     deleteTeam: 'Delete team',
     confirmDeleteTeam: 'Delete — confirm',
+    teamHasProperties: 'The team still owns properties. Move them to another team first.',
+    teamHasMembers: 'The team still has people. Move them to another team first.',
     teamEmpty: 'Nobody in this team yet',
     unassigned: 'Outside teams',
     unassignedHint:

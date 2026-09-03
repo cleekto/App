@@ -33,6 +33,9 @@ export default async function SettingsPage() {
   const canCreateUsers = usersScope !== null;
   const canCreateTeams = permissionScope(ctx.role, 'team', 'create') !== null;
   const canManageTeams = canCreateTeams || permissionScope(ctx.role, 'team', 'update') !== null;
+  // Удаление команды — право администратора. У менеджера его нет, и кнопка
+  // ему не показывается: она вела бы в гарантированный отказ.
+  const canDeleteTeams = permissionScope(ctx.role, 'team', 'delete') !== null;
 
   // Запрашивается только то, что человеку положено: обращение за списком,
   // на который нет права, вернуло бы отказ и уронило бы страницу целиком.
@@ -153,6 +156,7 @@ export default async function SettingsPage() {
                   team={team}
                   currentUserId={ctx.userId}
                   canManage={canCreateUsers}
+                  canDeleteTeam={canDeleteTeams}
                   canChangeTeam={canChangeTeam}
                   roles={assignableRoles}
                   teams={teamOptions}
@@ -165,6 +169,10 @@ export default async function SettingsPage() {
                     deleteTeam: t('settings.deleteTeam'),
                     confirmDelete: t('settings.confirmDeleteTeam'),
                     empty: t('settings.teamEmpty'),
+                    reasons: {
+                      team_has_properties: t('settings.teamHasProperties'),
+                      team_has_members: t('settings.teamHasMembers'),
+                    },
                   }}
                 />
               ))}
