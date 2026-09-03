@@ -57,13 +57,25 @@ describe('матрица прав', () => {
     }
   });
 
-  it('профили публикации читают все роли, ведут только ADMIN и MANAGER (I15)', () => {
-    for (const role of Object.values(RoleCode)) {
-      expect(permissionScope(role, 'publishProfile', 'read')).toBe('company');
-    }
+  it('профили публикации ведут и читают только ADMIN и MANAGER (I15)', () => {
+    // Решение владельца 2026-09-03: список профилей — настройка компании,
+    // и агенту в ней делать нечего. Раньше читать могли все роли.
+    expect(permissionScope(RoleCode.AGENT, 'publishProfile', 'read')).toBeNull();
+    expect(permissionScope(RoleCode.MANAGER, 'publishProfile', 'read')).toBe('company');
+    expect(permissionScope(RoleCode.ADMIN, 'publishProfile', 'read')).toBe('company');
+
     expect(permissionScope(RoleCode.AGENT, 'publishProfile', 'create')).toBeNull();
     expect(permissionScope(RoleCode.MANAGER, 'publishProfile', 'create')).toBe('company');
     expect(permissionScope(RoleCode.ADMIN, 'publishProfile', 'create')).toBe('company');
+  });
+
+  it('публиковать от имени профиля агент по-прежнему может', () => {
+    // Иначе снятие права на чтение молча сломало бы главный сценарий:
+    // объявления размещают именно агенты. Поэтому «видеть список»
+    // и «применить профиль» — разные права.
+    for (const role of Object.values(RoleCode)) {
+      expect(permissionScope(role, 'publishProfile', 'apply'), role).toBe('company');
+    }
   });
 
   it('статусы воронки меняет только администратор (инвариант 4)', () => {

@@ -35,7 +35,10 @@ export async function createPublicationDraft(
   propertyId: string,
   input: CreateDraftInput,
 ): Promise<DraftResult> {
-  requirePermission(ctx, 'publishProfile', 'read');
+  // `apply`, а не `read`: публикует агент, а список профилей в настройках
+  // ему не показывают. Разделение появилось вместе с этим ограничением —
+  // до него одно право покрывало оба случая.
+  requirePermission(ctx, 'publishProfile', 'apply');
 
   const property = await prisma.property.findFirst({
     // companyId из контекста (правило 5).

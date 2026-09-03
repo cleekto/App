@@ -177,6 +177,14 @@ export const ru: DeepPartial<Dictionary> = {
     default: 'По умолчанию',
     language: 'Язык интерфейса',
 
+    edit: 'Изменить',
+    deactivate: 'Отключить',
+    confirmDeactivate: 'Отключить — подтвердить',
+    activate: 'Включить',
+    inactive: 'отключён',
+    publishesAs: 'Публикует как',
+    noProfile: 'Личного профиля публикации нет — применяется профиль компании',
+
     addTeam: 'Добавить команду',
     teamName: 'Название команды',
     members: 'человек',

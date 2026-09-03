@@ -179,6 +179,14 @@ export const ka: DeepPartial<Dictionary> = {
     default: 'ნაგულისხმევი',
     language: 'ინტერფეისის ენა',
 
+    edit: 'შეცვლა',
+    deactivate: 'გათიშვა',
+    confirmDeactivate: 'გათიშვა — დადასტურება',
+    activate: 'ჩართვა',
+    inactive: 'გათიშულია',
+    publishesAs: 'აქვეყნებს როგორც',
+    noProfile: 'პირადი გამოქვეყნების პროფილი არ არის — გამოიყენება კომპანიის პროფილი',
+
     addTeam: 'გუნდის დამატება',
     teamName: 'გუნდის სახელი',
     members: 'ადამიანი',

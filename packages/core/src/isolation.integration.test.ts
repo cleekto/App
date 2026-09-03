@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { AuthContext } from './auth/context';
 import { currentUser } from './auth/use-cases';
-import { ForbiddenError, NotFoundError } from './errors';
+import { ForbiddenError, NotFoundError, ValidationError } from './errors';
 import { listPipelineStatuses } from './pipeline/use-cases';
 import {
   createPublishProfile,
@@ -12,7 +12,7 @@ import {
 } from './publish-profiles/use-cases';
 import { seed } from './seed/seed';
 import { createTeam, listTeams } from './teams/use-cases';
-import { createUser, deactivateUser, listUsers } from './users/use-cases';
+import { createUser, deactivateUser, listUsers, updateUser } from './users/use-cases';
 
 /**
  * ГЕЙТ ФАЗЫ 3. Без этих тестов фаза не закрывается (правило 5, DoD §3.Ф3).
@@ -325,15 +325,23 @@ describe('роли — агент не выполняет действия ме�
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('профили публикации не пересекают границу компании', () => {
-  it('агент компании A видит профили только своей компании', async () => {
-    const profiles = await listPublishProfiles(actors.agentA);
+  it('агент вообще не читает список профилей', async () => {
+    // Профили — внутренняя кухня агентства: кто под каким номером выходит
+    // в объявлении. Агенту достаточно того, что его объявление уходит
+    // с правильным номером; видеть чужие ему незачем. Право `apply`
+    // при этом остаётся — иначе он не смог бы опубликовать ничего.
+    await expect(listPublishProfiles(actors.agentA)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('менеджер видит профили только своей компании', async () => {
+    const profiles = await listPublishProfiles(actors.managerA);
     expect(profiles.length).toBeGreaterThan(0);
 
     const companyIds = await prisma.publishProfile.findMany({
       where: { id: { in: profiles.map((profile) => profile.id) } },
       select: { companyId: true },
     });
-    expect(companyIds.every((row) => row.companyId === actors.agentA.companyId)).toBe(true);
+    expect(companyIds.every((row) => row.companyId === actors.managerA.companyId)).toBe(true);
   });
 
   it('телефон профиля другой компании недостижим ни одним сценарием', async () => {
@@ -343,5 +351,199 @@ describe('профили публикации не пересекают гран
     // Номер компании B из сида. Он не должен всплыть у компании A —
     // иначе сломается исключение своих номеров из дедупликации (I20).
     expect(phones).not.toContain('+995 577 20 20 20');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Изменение сотрудника: каждая защита проверяется попыткой её обойти
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('изменение сотрудника', () => {
+  it('администратор переименовывает сотрудника своей компании', async () => {
+    const updated = await updateUser(actors.adminA, actors.agentA.userId, {
+      fullName: 'Агент Переименованный',
+    });
+    expect(updated.fullName).toBe('Агент Переименованный');
+  });
+
+  it('чужого сотрудника не достать даже с верным id', async () => {
+    // companyId берётся из контекста (правило 5), поэтому существующий
+    // id из компании B выглядит отсюда как несуществующий.
+    await expect(
+      updateUser(actors.adminA, companyBUserId, { fullName: 'Захвачен' }),
+    ).rejects.toThrow(NotFoundError);
+
+    const untouched = await prisma.user.findUniqueOrThrow({ where: { id: companyBUserId } });
+    expect(untouched.fullName).not.toBe('Захвачен');
+  });
+
+  it('агент меняет своё имя, но не свою роль', async () => {
+    const renamed = await updateUser(actors.agentA, actors.agentA.userId, {
+      fullName: 'Агент Сам Себя',
+    });
+    expect(renamed.fullName).toBe('Агент Сам Себя');
+
+    await expect(
+      updateUser(actors.agentA, actors.agentA.userId, { role: RoleCode.ADMIN }),
+    ).rejects.toThrow();
+  });
+
+  it('агент не меняет соседа', async () => {
+    await expect(
+      updateUser(actors.agentA, actors.agentAOtherTeam.userId, { fullName: 'Чужое имя' }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('менеджер не назначает роль выше агента', async () => {
+    for (const role of [RoleCode.MANAGER, RoleCode.ADMIN]) {
+      await expect(updateUser(actors.managerA, actors.agentA.userId, { role })).rejects.toThrow(
+        ForbiddenError,
+      );
+    }
+  });
+
+  it('менеджер не трогает человека вне своей команды', async () => {
+    await expect(
+      updateUser(actors.managerA, actors.agentAOtherTeam.userId, { fullName: 'Не моя команда' }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('менеджер не выводит человека из своей команды', async () => {
+    // Иначе перевод в соседнюю команду — распоряжение чужой областью.
+    await expect(
+      updateUser(actors.managerA, actors.agentA.userId, { teamId: null }),
+    ).rejects.toThrow(ForbiddenError);
+  });
+
+  it('никто не меняет собственную роль', async () => {
+    await expect(
+      updateUser(actors.adminA, actors.adminA.userId, { role: RoleCode.AGENT }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('никто не отключает сам себя', async () => {
+    await expect(
+      updateUser(actors.adminA, actors.adminA.userId, { isActive: false }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('последнего администратора компании отключить нельзя', async () => {
+    const admins = await prisma.user.count({
+      where: {
+        companyId: actors.adminA.companyId,
+        isActive: true,
+        role: { code: RoleCode.ADMIN },
+      },
+    });
+    expect(admins).toBe(1);
+
+    // Отключает не сам себя, а второй администратор — иначе сработала бы
+    // защита «сам себя» и настоящая проверка осталась бы непройденной.
+    const second = await createUser(actors.adminA, {
+      email: 'second-admin@tbilisi-estate.test',
+      password: 'long-enough-password',
+      fullName: 'Второй администратор',
+      role: RoleCode.ADMIN,
+    });
+    const secondCtx = await contextFor('second-admin@tbilisi-estate.test');
+
+    // Пока администраторов двое — отключение проходит.
+    await updateUser(secondCtx, actors.adminA.userId, { isActive: false });
+
+    // И теперь последнего оставшегося отключить уже нельзя.
+    await expect(updateUser(actors.adminA, second.id, { isActive: false })).rejects.toThrow(
+      ValidationError,
+    );
+
+    // И это тоже проверка, а не уборка: включение администратора обратно
+    // никого прав не лишает, и запрещать его нельзя. Первая версия защиты
+    // считала администраторов до изменения и на этой строке падала.
+    const restored = await updateUser(secondCtx, actors.adminA.userId, { isActive: true });
+    expect(restored.isActive).toBe(true);
+  });
+
+  it('отключение через изменение гасит сессии так же, как отдельное отключение', async () => {
+    // Отключить можно двумя путями — `DELETE` и правкой доступа. Если один
+    // из них оставляет живой refresh-токен, отключённый выпишет себе новый
+    // доступ и продолжит работать.
+    const target = actors.agentAOtherTeam.userId;
+
+    const token = await prisma.refreshToken.create({
+      data: {
+        userId: target,
+        tokenHash: `test-${Date.now()}`,
+        expiresAt: new Date(Date.now() + 86_400_000),
+      },
+    });
+
+    await updateUser(actors.adminA, target, { isActive: false });
+
+    const after = await prisma.refreshToken.findUniqueOrThrow({ where: { id: token.id } });
+    expect(after.revokedAt).not.toBeNull();
+
+    await updateUser(actors.adminA, target, { isActive: true });
+  });
+
+  it('отключённый и включённый обратно сотрудник виден в списке в обоих состояниях', async () => {
+    const target = actors.agentAOtherTeam.userId;
+
+    await updateUser(actors.adminA, target, { isActive: false });
+    const off = await listUsers(actors.adminA);
+    expect(off.find((user) => user.id === target)?.isActive).toBe(false);
+
+    await updateUser(actors.adminA, target, { isActive: true });
+    const on = await listUsers(actors.adminA);
+    expect(on.find((user) => user.id === target)?.isActive).toBe(true);
+  });
+
+  it('смена роли обесценивает выданные токены', async () => {
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.agentAOtherTeam.userId },
+      select: { tokenVersion: true },
+    });
+
+    await updateUser(actors.adminA, actors.agentAOtherTeam.userId, { role: RoleCode.MANAGER });
+
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.agentAOtherTeam.userId },
+      select: { tokenVersion: true },
+    });
+    expect(after.tokenVersion).toBeGreaterThan(before.tokenVersion);
+
+    await updateUser(actors.adminA, actors.agentAOtherTeam.userId, { role: RoleCode.AGENT });
+  });
+
+  it('переименование токены не трогает — человек не должен вылетать из сессии', async () => {
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.agentA.userId },
+      select: { tokenVersion: true },
+    });
+
+    await updateUser(actors.adminA, actors.agentA.userId, { fullName: 'Просто новое имя' });
+
+    const after = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.agentA.userId },
+      select: { tokenVersion: true },
+    });
+    expect(after.tokenVersion).toBe(before.tokenVersion);
+  });
+
+  it('в карточке сотрудника виден его профиль публикации', async () => {
+    const profile = await createPublishProfile(actors.adminA, {
+      displayName: 'Личный профиль агента',
+      phone: '+995 599 10 10 10',
+    });
+    await prisma.publishProfile.update({
+      where: { id: profile.id },
+      data: { userId: actors.agentA.userId },
+    });
+
+    const users = await listUsers(actors.adminA);
+    const card = users.find((user) => user.id === actors.agentA.userId);
+
+    expect(card?.publishProfile).toEqual({
+      displayName: 'Личный профиль агента',
+      phone: '+995 599 10 10 10',
+    });
   });
 });

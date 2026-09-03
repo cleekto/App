@@ -180,6 +180,14 @@ export const en = {
     default: 'Default',
     language: 'Interface language',
 
+    edit: 'Edit',
+    deactivate: 'Disable',
+    confirmDeactivate: 'Disable — confirm',
+    activate: 'Enable',
+    inactive: 'disabled',
+    publishesAs: 'Publishes as',
+    noProfile: 'No personal publishing profile — the company default applies',
+
     addTeam: 'Add team',
     teamName: 'Team name',
     members: 'people',

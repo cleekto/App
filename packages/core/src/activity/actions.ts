@@ -10,6 +10,8 @@ export const ACTIVITY = {
   COMPANY_REGISTERED: 'COMPANY_REGISTERED',
   USER_CREATED: 'USER_CREATED',
   USER_DEACTIVATED: 'USER_DEACTIVATED',
+  /// Изменена карточка сотрудника: имя, роль, команда или доступ.
+  USER_UPDATED: 'USER_UPDATED',
   USER_LOGGED_IN: 'USER_LOGGED_IN',
   USER_LOGGED_OUT: 'USER_LOGGED_OUT',
   /// Человек сменил язык интерфейса. Пишется потому, что сессия при этом

@@ -93,7 +93,13 @@ export async function createPublishProfile(
   return toSummary(profile);
 }
 
-/** Профили компании. Агент их читает, чтобы видеть, от чьего имени размещает. */
+/**
+ * Профили компании — настройка агентства, а не рабочий инструмент агента.
+ *
+ * Агент этот список НЕ читает (решение владельца 2026-09-03): от чьего имени
+ * уходит объявление, он видит в черновике публикации и в отчёте о заполнении,
+ * а сам профиль подставляет сервер по праву `apply`.
+ */
 export async function listPublishProfiles(ctx: AuthContext): Promise<PublishProfileSummary[]> {
   requirePermission(ctx, 'publishProfile', 'read');
 
