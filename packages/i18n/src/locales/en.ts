@@ -193,6 +193,51 @@ export const en = {
    * подменять его переводом было бы враньём.
    */
 
+  /**
+   * Action names in the history.
+   *
+   * The key is a code from `ACTIVITY` — a closed set of our own. A missing
+   * translation here is therefore a real bug, and the visible `⟦key⟧` hole
+   * is the right behaviour: it shows on screen and the coverage test catches it.
+   */
+  activityAction: {
+    COMPANY_REGISTERED: 'Company registered',
+    USER_CREATED: 'Employee added',
+    USER_DEACTIVATED: 'Employee disabled',
+    USER_UPDATED: 'Employee card changed',
+    USER_LOGGED_IN: 'Signed in',
+    USER_LOGGED_OUT: 'Signed out',
+    USER_LOCALE_CHANGED: 'Interface language changed',
+    USER_PASSWORD_CHANGED: 'Password changed',
+    REFRESH_REUSE_DETECTED: 'Token reused — sessions revoked',
+    TEAM_CREATED: 'Team created',
+    TEAM_UPDATED: 'Team renamed',
+    TEAM_DELETED: 'Team deleted',
+    ASSIGNED_TO_TEAM: 'Moved to a team',
+    OWNER_AGREED: 'Owner agreed',
+    LISTING_LINKED: 'Listing linked to the property',
+    LISTING_RESEEN: 'Listing seen again',
+    IMPORT_DUPLICATE_WARNED: 'Duplicate warning on import',
+    PUBLICATION_DRAFTED: 'Listing draft assembled',
+    PUBLICATION_FILLED: 'Publishing form filled',
+    LISTING_PUBLISHED: 'Listing published',
+    SELF_PUBLICATION_LINKED: 'Our own listing came back and was linked',
+    MIGRATION_APPLIED: 'File import applied',
+    MIGRATION_ROLLED_BACK: 'File import rolled back',
+    PROPERTY_STATUS_CHANGED: 'Status changed',
+    PROPERTY_ASSIGNED: 'Owner of record assigned',
+    PROPERTY_UPDATED: 'Property changed',
+    PROPERTY_CREATED_MANUALLY: 'Property added manually',
+    TASK_CREATED: 'Task created',
+    TASK_COMPLETED: 'Task completed',
+    TASK_CANCELLED: 'Task cancelled',
+    COMMENT_ADDED: 'Comment added',
+    PIPELINE_STATUS_CREATED: 'Stage added',
+    PIPELINE_STATUS_UPDATED: 'Stage changed',
+    PIPELINE_STATUS_DELETED: 'Stage deleted',
+    PIPELINE_STATUS_REORDERED: 'Stage order changed',
+  },
+
   settings: {
     title: 'Settings',
     account: 'Account',

@@ -190,6 +190,54 @@ export const ru: DeepPartial<Dictionary> = {
     create: 'Создать',
   },
 
+  /**
+   * Названия действий в истории.
+   *
+   * Ключ — код из `ACTIVITY`, набор закрытый и наш собственный. Поэтому
+   * пропущенный перевод здесь именно ошибка, и видимая дыра `⟦ключ⟧` —
+   * правильное поведение: она заметна на экране и ловится тестом полноты.
+   *
+   * Формулировки в прошедшем времени и безлично: строка отвечает на вопрос
+   * «что произошло», а кто это сделал, стоит рядом отдельной строкой.
+   */
+  activityAction: {
+    COMPANY_REGISTERED: 'Компания зарегистрирована',
+    USER_CREATED: 'Сотрудник заведён',
+    USER_DEACTIVATED: 'Сотрудник отключён',
+    USER_UPDATED: 'Карточка сотрудника изменена',
+    USER_LOGGED_IN: 'Вход в систему',
+    USER_LOGGED_OUT: 'Выход из системы',
+    USER_LOCALE_CHANGED: 'Язык интерфейса изменён',
+    USER_PASSWORD_CHANGED: 'Пароль изменён',
+    REFRESH_REUSE_DETECTED: 'Повторное использование токена — сессии отозваны',
+    TEAM_CREATED: 'Команда создана',
+    TEAM_UPDATED: 'Команда переименована',
+    TEAM_DELETED: 'Команда удалена',
+    ASSIGNED_TO_TEAM: 'Переведён в команду',
+    OWNER_AGREED: 'Собственник согласился',
+    LISTING_LINKED: 'Объявление привязано к объекту',
+    LISTING_RESEEN: 'Объявление встретилось снова',
+    IMPORT_DUPLICATE_WARNED: 'Предупреждение о дубле при импорте',
+    PUBLICATION_DRAFTED: 'Черновик объявления собран',
+    PUBLICATION_FILLED: 'Форма размещения заполнена',
+    LISTING_PUBLISHED: 'Объявление размещено',
+    SELF_PUBLICATION_LINKED: 'Своё объявление вернулось и привязано',
+    MIGRATION_APPLIED: 'Перенос из файла применён',
+    MIGRATION_ROLLED_BACK: 'Перенос из файла отменён',
+    PROPERTY_STATUS_CHANGED: 'Статус изменён',
+    PROPERTY_ASSIGNED: 'Назначен ответственный',
+    PROPERTY_UPDATED: 'Объект изменён',
+    PROPERTY_CREATED_MANUALLY: 'Объект заведён вручную',
+    TASK_CREATED: 'Задача создана',
+    TASK_COMPLETED: 'Задача выполнена',
+    TASK_CANCELLED: 'Задача отменена',
+    COMMENT_ADDED: 'Комментарий добавлен',
+    PIPELINE_STATUS_CREATED: 'Стадия воронки заведена',
+    PIPELINE_STATUS_UPDATED: 'Стадия воронки изменена',
+    PIPELINE_STATUS_DELETED: 'Стадия воронки удалена',
+    PIPELINE_STATUS_REORDERED: 'Порядок стадий изменён',
+  },
+
   settings: {
     title: 'Параметры',
     account: 'Аккаунт',

@@ -1,4 +1,4 @@
-import { formatDateTime, type Locale } from '@kleekto/i18n';
+import { formatDateTime, translate, type Locale, type MessageKey } from '@kleekto/i18n';
 
 interface Entry {
   id: string;
@@ -10,9 +10,15 @@ interface Entry {
 /**
  * История объекта — DESIGN §19.
  *
- * Коды действий показываются как есть: осмысленные названия им даст фаза 8
- * вместе с аналитикой, где тот же словарь понадобится для графиков.
- * Придумывать перевод сейчас значило бы завести второй словарь действий.
+ * НАЗВАНИЕ ДЕЙСТВИЯ БЕРЁТСЯ ИЗ СЛОВАРЯ. Раньше здесь показывался код как
+ * есть — `PROPERTY_STATUS_CHANGED`, — и грузинский агент видел латиницу
+ * капсом посреди грузинского интерфейса. Это откладывалось до фазы 8 вместе
+ * с аналитикой; фаза закрыта, словарь заведён.
+ *
+ * Ключ приводится к `MessageKey` приведением типа: набор кодов закрытый
+ * и наш собственный, но живёт он в другом пакете, и вывести из него тип
+ * ключа нельзя. Пропущенный перевод виден дырой `⟦ключ⟧` и ловится тестом
+ * полноты словарей.
  */
 export function ActivityList({
   entries,
@@ -35,7 +41,9 @@ export function ActivityList({
 
           return (
             <li key={entry.id} className="text-xs">
-              <p className="font-medium">{entry.action}</p>
+              <p className="font-medium">
+                {translate(locale, `activityAction.${entry.action}` as MessageKey)}
+              </p>
               <p className="text-[var(--color-text-secondary)]">{meta}</p>
             </li>
           );
