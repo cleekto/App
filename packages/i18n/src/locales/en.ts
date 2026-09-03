@@ -107,6 +107,8 @@ export const en = {
     publications: 'Published on',
     notPublished: 'Not published anywhere yet',
     openSource: 'Open the listing',
+    photoAlt: 'Listing photo',
+    photoCount: 'photos',
     empty: 'No properties yet',
     emptyHint: 'A property appears when an owner agrees on the phone.',
     search: 'Search by address, district or phone',

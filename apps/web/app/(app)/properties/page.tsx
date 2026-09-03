@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Photo } from '../../_ui/photo';
 import { Badge, Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
 import { listPipelineStatuses, listProperties } from '@kleekto/core';
@@ -80,8 +81,13 @@ export default async function PropertiesPage({
               <li key={item.id}>
                 <Link
                   href={`/properties/${item.id}`}
-                  className="grid grid-cols-[1fr_auto] items-center gap-6 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
+                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
                 >
+                  {/* Недвижимость узнают по картинке, а не по строке
+                      «Квартира · Продажа». Без неё двадцать строк подряд
+                      неразличимы. */}
+                  <Photo src={item.photo} alt={t('property.photoAlt')} className="h-12 w-16" />
+
                   <div className="min-w-0">
                     <p className="truncate text-[0.9375rem] leading-5 font-medium">
                       {kindLine(locale, item)}

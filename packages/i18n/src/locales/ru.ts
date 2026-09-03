@@ -112,6 +112,8 @@ export const ru: DeepPartial<Dictionary> = {
     publications: 'Размещено на',
     notPublished: 'Пока нигде не размещён',
     openSource: 'Открыть объявление',
+    photoAlt: 'Фотография объекта',
+    photoCount: 'фото',
     empty: 'Объектов пока нет',
     emptyHint: 'Объект появляется, когда собственник согласился по телефону.',
     search: 'Поиск по адресу, району или телефону',

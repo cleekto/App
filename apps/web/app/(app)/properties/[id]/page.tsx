@@ -19,6 +19,7 @@ import {
   statusLabel,
 } from '../../../_lib/format';
 import { contextLocale, requireContext } from '../../../_lib/session';
+import { Photo } from '../../../_ui/photo';
 import { ActivityList } from './activity-list';
 import { CommentBox } from './comment-box';
 import { PropertyControls } from './controls';
@@ -76,6 +77,32 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
         <p className="text-2xl font-semibold">{priceLine(locale, property)}</p>
       </header>
+
+      {/* ФОТОГРАФИИ ОБЪЕКТА. Их не было вовсе, хотя ссылки лежали в базе
+          с первого импорта: агент открывал карточку и не видел того, чем
+          недвижимость и опознают. Первая крупнее — она и есть «эта квартира»,
+          остальные полосой рядом. */}
+      {property.photos.length === 0 ? null : (
+        <section className="flex flex-col gap-2">
+          {/* Крупный кадр и лента под ним, а не две колонки рядом: колонки
+              пришлось бы подгонять по высоте под произвольное число снимков,
+              и при трёх фотографиях справа оставалась белая дыра. Лента работает
+              с любым количеством. */}
+          <Photo
+            src={property.photos[0] ?? null}
+            alt={t('property.photoAlt')}
+            className="aspect-[16/10] w-full max-w-2xl"
+          />
+
+          {property.photos.length === 1 ? null : (
+            <div className="flex flex-wrap gap-2">
+              {property.photos.slice(1, 8).map((url) => (
+                <Photo key={url} src={url} alt={t('property.photoAlt')} className="h-16 w-24" />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
 
       <PropertyControls
         propertyId={property.id}

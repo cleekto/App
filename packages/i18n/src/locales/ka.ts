@@ -114,6 +114,8 @@ export const ka: DeepPartial<Dictionary> = {
     publications: 'განთავსებულია',
     notPublished: 'ჯერ არსად არის განთავსებული',
     openSource: 'განცხადების გახსნა',
+    photoAlt: 'ობიექტის ფოტო',
+    photoCount: 'ფოტო',
     empty: 'ობიექტები ჯერ არ არის',
     emptyHint: 'ობიექტი ჩნდება მაშინ, როცა მესაკუთრე ტელეფონით დათანხმდება.',
     search: 'ძებნა მისამართით, უბნით ან ტელეფონით',
