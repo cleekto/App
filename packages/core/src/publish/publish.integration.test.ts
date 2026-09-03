@@ -2,9 +2,9 @@ import { PublicationStatus, prisma } from '@kleekto/db';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { AuthContext } from '../auth/context';
-import { ConflictError, NotFoundError } from '../errors';
+import { ConflictError, NotFoundError, ValidationError } from '../errors';
 import { importListing, type ImportInput } from '../import/use-cases';
-import { createPublishProfile } from '../publish-profiles/use-cases';
+import { normalizePhone } from '../phone';
 import { seed } from '../seed/seed';
 import {
   confirmPublication,
@@ -121,6 +121,33 @@ describe('черновик не содержит контактов собств
     expect(serialized).not.toContain('ownerContact');
   });
 
+  it('без рабочего телефона черновик не собирается', async () => {
+    // Правило 14: придуманных значений в объявлении не бывает. Подставить
+    // вместо отсутствующего номера что угодно — номер компании, пустоту,
+    // номер соседа — значит выпустить объявление, по которому позвонят
+    // не тому, и узнать об этом от собственника, а не из кода.
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира без номера');
+
+    const before = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.vake.userId },
+      select: { phone: true, phoneNormalized: true },
+    });
+
+    await prisma.user.update({
+      where: { id: actors.vake.userId },
+      data: { phone: null, phoneNormalized: null },
+    });
+
+    await expect(
+      createPublicationDraft(actors.vake, propertyId, { targetSource: 'SS_GE' }),
+    ).rejects.toThrow(ValidationError);
+
+    await prisma.user.update({
+      where: { id: actors.vake.userId },
+      data: { phone: before.phone, phoneNormalized: before.phoneNormalized },
+    });
+  });
+
   it('номер собственника не проходит ни в одной нормализации', async () => {
     const phone = phoneFor(6001);
     const propertyId = await propertyWithDescription(
@@ -164,12 +191,15 @@ describe('черновик не содержит контактов собств
       targetSource: 'SS_GE',
     });
 
-    const profile = await prisma.publishProfile.findFirstOrThrow({
-      where: { companyId: actors.vake.companyId, isDefault: true },
+    // Объявление выходит под именем и номером того, кто его размещает
+    // (решение владельца 2026-09-03), а не под общим контактом агентства.
+    const publisher = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.vake.userId },
+      select: { fullName: true, phone: true },
     });
 
-    expect(draft.publisher.phone).toBe(profile.phoneOriginal);
-    expect(draft.publisher.displayName).toBe(profile.displayName);
+    expect(draft.publisher.phone).toBe(publisher.phone);
+    expect(draft.publisher.displayName).toBe(publisher.fullName);
   });
 });
 
@@ -368,11 +398,11 @@ describe('самоимпорт', () => {
     expect(reimport.propertyId).toBe(propertyId);
   });
 
-  it('телефон профиля публикации не порождает дублей между объектами компании', async () => {
+  it('рабочий телефон сотрудника не порождает дублей между объектами компании', async () => {
     const agencyPhone = phoneFor(6100);
-    await createPublishProfile(actors.vakeAdmin, {
-      displayName: 'Tbilisi Estate — второй',
-      phone: agencyPhone,
+    await prisma.user.update({
+      where: { id: actors.vakeAdmin.userId },
+      data: { phone: agencyPhone, phoneNormalized: normalizePhone(agencyPhone).normalized },
     });
 
     const first = await importListing(
@@ -386,7 +416,7 @@ describe('самоимпорт', () => {
 
     expect(first.result).toBe('created');
     expect(second.result).toBe('created');
-    expect(second.phoneExcluded).toBe('publish_profile');
+    expect(second.phoneExcluded).toBe('agent_phone');
     expect(second.propertyId).not.toBe(first.propertyId);
   });
 });
@@ -395,7 +425,7 @@ describe('самоимпорт', () => {
 // Изоляция арендаторов
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('публикации и профили другой компании недоступны', () => {
+describe('публикации другой компании недоступны', () => {
   it('нельзя собрать черновик для объекта другой компании', async () => {
     const propertyId = await propertyWithDescription(actors.batumi, 'Квартира в Батуми');
 
@@ -404,18 +434,22 @@ describe('публикации и профили другой компании �
     ).rejects.toThrow(NotFoundError);
   });
 
-  it('нельзя применить профиль публикации другой компании', async () => {
+  it('в черновике стоит контакт публикующего, а не чужой сотрудник', async () => {
+    // Раньше контакт брался из профиля, и профиль можно было передать
+    // параметром — то есть подставить чужой. Теперь подставить нечего:
+    // контакт берётся из сессии, а не из запроса (правило 5).
     const propertyId = await propertyWithDescription(actors.vake, 'Квартира');
-    const foreignProfile = await prisma.publishProfile.findFirstOrThrow({
-      where: { companyId: actors.batumi.companyId },
+    const { draft } = await createPublicationDraft(actors.vake, propertyId, {
+      targetSource: 'SS_GE',
     });
 
-    await expect(
-      createPublicationDraft(actors.vake, propertyId, {
-        targetSource: 'SS_GE',
-        publishProfileId: foreignProfile.id,
-      }),
-    ).rejects.toThrow(NotFoundError);
+    const foreign = await prisma.user.findFirstOrThrow({
+      where: { companyId: actors.batumi.companyId, phone: { not: null } },
+      select: { phone: true, fullName: true },
+    });
+
+    expect(draft.publisher.phone).not.toBe(foreign.phone);
+    expect(draft.publisher.displayName).not.toBe(foreign.fullName);
   });
 
   it('нельзя подтвердить публикацию другой компании', async () => {

@@ -14,6 +14,8 @@ const createSchema = z.object({
   email: z.string().email(),
   password: z.string().min(12),
   fullName: z.string().min(1),
+  /** Рабочий телефон. Разбор и нормализация — в ядре (`normalizePhone`). */
+  phone: z.string().max(40).nullable().optional(),
   role: z.enum(['ADMIN', 'MANAGER', 'AGENT']),
   teamId: z.string().uuid().nullable().optional(),
   locale: z.enum(['ka', 'en', 'ru']).optional(),

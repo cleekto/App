@@ -54,13 +54,21 @@ export interface DedupMatch {
   propertyLinkId: string | null;
 }
 
-export type PhoneExclusion = 'publish_profile' | 'agency_threshold' | null;
+/**
+ * Почему телефон не годится как признак собственника.
+ *
+ * `agent_phone` — номер нашего же сотрудника: объявление опубликовало
+ * агентство, и в нём стоит рабочий номер агента, а не собственника.
+ * Прежде это назывался «телефон профиля публикации»; профилей больше нет,
+ * номер лежит на сотруднике, а смысл исключения тот же.
+ */
+export type PhoneExclusion = 'agent_phone' | 'agency_threshold' | null;
 
 export interface SelfPublication {
   propertyId: string;
   publicationId: string;
   /** Чем опознали: подтверждённым идентификатором или запасным признаком. */
-  matchedBy: 'external_id' | 'external_url' | 'publish_profile_phone';
+  matchedBy: 'external_id' | 'external_url' | 'agent_phone';
 }
 
 export interface DedupOutcome {
@@ -227,21 +235,21 @@ async function findSelfPublication(
     return { propertyId: byUrl.propertyId, publicationId: byUrl.id, matchedBy: 'external_url' };
   }
 
-  // Пункт 3: наш собственный контактный номер в объявлении. Работает без
-  // подтверждения и без ссылки: если в объявлении наш рабочий телефон,
+  // Пункт 3: рабочий номер нашего сотрудника в объявлении. Работает без
+  // подтверждения и без ссылки: если в объявлении номер нашего агента,
   // это почти наверняка наша публикация.
   if (input.facts.phones.length > 0) {
-    const profile = await prisma.publishProfile.findFirst({
+    const ours = await prisma.user.findFirst({
       where: { companyId: ctx.companyId, phoneNormalized: { in: [...input.facts.phones] } },
       select: { id: true },
     });
 
-    if (profile !== null) {
-      // Номер профиля опознан, но какой именно объект — неизвестно:
-      // под одним номером у агентства десятки объявлений. Привязывать
-      // наугад нельзя, поэтому объект здесь не назначается — сработает
-      // только исключение телефона из признаков (`classifyPhones`),
-      // и объект создастся как новый, но без ложных совпадений.
+    if (ours !== null) {
+      // Номер опознан, но какой именно объект — неизвестно: под одним
+      // номером у агента десятки объявлений. Привязывать наугад нельзя,
+      // поэтому объект здесь не назначается — сработает только исключение
+      // телефона из признаков (`classifyPhones`), и объект создастся как
+      // новый, но без ложных совпадений.
       return null;
     }
   }
@@ -254,9 +262,10 @@ async function findSelfPublication(
 /**
  * ОБЛАСТЬ — КОМПАНИЯ, не команда (инвариант 9, ADR-0006).
  *
- * Телефон профиля публикации исключается, иначе все объекты агентства станут
- * дублями друг друга: у них один контактный номер (I20). Команда, не знающая
- * о профиле соседней команды, получила бы ложные совпадения.
+ * Рабочий телефон сотрудника исключается, иначе все объекты, размещённые
+ * одним агентом, станут дублями друг друга: в их объявлениях один и тот же
+ * номер (I20). Команда, не знающая номеров соседней команды, получила бы
+ * ложные совпадения — отсюда область компании, а не команды.
  *
  * Телефон, встречающийся у многих объектов компании, принадлежит агентству
  * или риелтору, а не собственнику (I21). Команда из трёх агентов сама по себе
@@ -268,11 +277,11 @@ async function classifyPhones(
 ): Promise<PhoneExclusion> {
   if (phones.length === 0) return null;
 
-  const ownProfile = await prisma.publishProfile.findFirst({
+  const ourAgent = await prisma.user.findFirst({
     where: { companyId: ctx.companyId, phoneNormalized: { in: [...phones] } },
     select: { id: true },
   });
-  if (ownProfile !== null) return 'publish_profile';
+  if (ourAgent !== null) return 'agent_phone';
 
   const threshold = dedupConfig().agencyPhone.propertiesThreshold;
   const usage = await prisma.ownerContactPhone.findMany({

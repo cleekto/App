@@ -16,6 +16,14 @@ export const dynamic = 'force-dynamic';
 const updateSchema = z
   .object({
     fullName: z.string().min(1).optional(),
+    /**
+     * Рабочий телефон — тот, что уходит в объявление.
+     *
+     * Формат не проверяется здесь: разбор и нормализация живут в ядре
+     * (`normalizePhone`), и вторая проверка рядом с первой рано или поздно
+     * разошлась бы с ней. Пустая строка и `null` означают «номера нет».
+     */
+    phone: z.string().max(40).nullable().optional(),
     role: z.enum(['ADMIN', 'MANAGER', 'AGENT']).optional(),
     teamId: z.string().uuid().nullable().optional(),
     locale: z.enum(['ka', 'en', 'ru']).optional(),

@@ -6,29 +6,29 @@ import { useState } from 'react';
 import { Badge, Button, Field, Input, Notice, Select } from '../../_ui/primitives';
 
 /**
- * Карточка сотрудника: кто он, от чьего имени публикует, и что с ним можно
- * сделать.
+ * Карточка сотрудника: кто он, под каким номером публикует и что с ним
+ * можно сделать.
  *
- * ТЕЛЕФОН И ИМЯ ИЗ ПРОФИЛЯ ПУБЛИКАЦИИ СТОЯТ ЗДЕСЬ, а не в отдельном разделе.
- * Это лицо агентства в публичном объявлении — руководитель должен видеть его,
- * не переходя никуда: неверный номер в объявлении стоит дороже, чем лишняя
+ * РАБОЧИЙ ТЕЛЕФОН СТОИТ ЗДЕСЬ, а не в отдельном разделе. Объявление выходит
+ * под именем и номером сотрудника, и руководитель должен видеть их, не
+ * переходя никуда: неверный номер в объявлении стоит дороже, чем лишняя
  * строка в списке.
  *
  * Строк здесь нет — всё приходит пропсами из словаря (правило 18).
  */
 
-interface UserItem {
+export interface UserItem {
   id: string;
   email: string;
   fullName: string;
   role: string;
   isActive: boolean;
+  phone: string | null;
   teamId: string | null;
   teamName: string | null;
-  publishProfile: { displayName: string; phone: string } | null;
 }
 
-interface Labels {
+export interface UserRowLabels {
   submit: string;
   cancel: string;
   saving: string;
@@ -38,12 +38,13 @@ interface Labels {
   activate: string;
   confirmDeactivate: string;
   inactive: string;
-  noProfile: string;
-  publishesAs: string;
   fullName: string;
   role: string;
   team: string;
   noTeam: string;
+  phone: string;
+  noPhone: string;
+  publishesAs: string;
 }
 
 const ROLE_TONE = {
@@ -77,7 +78,7 @@ export function UserRow({
   canChangeTeam: boolean;
   roles: Array<{ value: string; label: string }>;
   teams: Array<{ id: string; name: string }>;
-  labels: Labels;
+  labels: UserRowLabels;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -124,6 +125,9 @@ export function UserRow({
           void send('PATCH', {
             fullName: String(form.get('fullName') ?? ''),
             role: String(form.get('role') ?? ''),
+            // Пустая строка — «номера нет»: сотрудник останется, но
+            // публиковать не сможет, и это видно на карточке.
+            phone: String(form.get('phone') ?? '') || null,
             // Команда не отправляется вовсе, если менять её нельзя: отправить
             // текущее значение значит получить отказ на ровном месте.
             // Пустая строка означает «без команды»; схема ждёт uuid либо null.
@@ -133,9 +137,13 @@ export function UserRow({
       >
         {failed ? <Notice tone="error">{labels.failed}</Notice> : null}
 
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label={labels.fullName}>
             <Input name="fullName" defaultValue={user.fullName} required autoFocus />
+          </Field>
+
+          <Field label={labels.phone}>
+            <Input name="phone" defaultValue={user.phone ?? ''} inputMode="tel" />
           </Field>
 
           <Field label={labels.role}>
@@ -187,12 +195,13 @@ export function UserRow({
 
         <p className="truncate text-xs text-[var(--color-text-secondary)]">{user.email}</p>
 
-        {/* Лицо агентства в объявлении. Отсутствие профиля — не ошибка:
-            тогда применяется профиль компании по умолчанию. */}
+        {/* Под этим именем и номером выходят объявления. Пустой номер —
+            не ошибка, а состояние: публиковать такой сотрудник пока не может,
+            и лучше увидеть это здесь, чем на форме размещения. */}
         <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
-          {user.publishProfile === null
-            ? labels.noProfile
-            : `${labels.publishesAs}: ${user.publishProfile.displayName} · ${user.publishProfile.phone}`}
+          {user.phone === null
+            ? labels.noPhone
+            : `${labels.publishesAs}: ${user.fullName} · ${user.phone}`}
         </p>
       </div>
 

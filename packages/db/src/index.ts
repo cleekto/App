@@ -32,7 +32,6 @@ export type {
   Task,
   Comment,
   PipelineStatus,
-  PublishProfile,
   RefreshToken,
   Role,
   Team,

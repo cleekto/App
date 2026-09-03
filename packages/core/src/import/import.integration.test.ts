@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import type { AuthContext } from '../auth/context';
 import { ValidationError } from '../errors';
-import { createPublishProfile } from '../publish-profiles/use-cases';
+import { normalizePhone } from '../phone';
 import { seed } from '../seed/seed';
 import { importListing, type ImportInput } from './use-cases';
 
@@ -393,29 +393,30 @@ describe('области: команда блокирует, компания п
   });
 });
 
-describe('телефон профиля публикации', () => {
+describe('рабочий телефон сотрудника', () => {
   it('не порождает дублей ни в одной команде', async () => {
-    // Иначе все объекты агентства станут дублями друг друга: у них один
-    // контактный номер (I20). Область проверки — компания, не команда.
-    const agencyPhone = phoneFor(9030);
+    // Объявления, размещённые одним агентом, несут его рабочий номер. Без
+    // исключения все они стали бы дублями друг друга (I20). Область проверки —
+    // компания, а не команда: соседняя команда номеров агента не знает.
+    const agentPhone = phoneFor(9030);
 
-    await createPublishProfile(
-      { ...actors.vake, role: 'ADMIN' },
-      { displayName: 'Tbilisi Estate — тест', phone: agencyPhone },
-    );
+    await prisma.user.update({
+      where: { id: actors.vake.userId },
+      data: { phone: agentPhone, phoneNormalized: normalizePhone(agentPhone).normalized },
+    });
 
     const first = await importListing(
       actors.vake,
-      payload({ owner: { name: 'Агентство', phone: agencyPhone }, area: 50, rooms: 2 }),
+      payload({ owner: { name: 'Агентство', phone: agentPhone }, area: 50, rooms: 2 }),
     );
     const second = await importListing(
       actors.saburtalo,
-      payload({ owner: { name: 'Агентство', phone: agencyPhone }, area: 50, rooms: 2 }),
+      payload({ owner: { name: 'Агентство', phone: agentPhone }, area: 50, rooms: 2 }),
     );
 
     expect(first.result).toBe('created');
     expect(second.result).toBe('created');
-    expect(second.phoneExcluded).toBe('publish_profile');
+    expect(second.phoneExcluded).toBe('agent_phone');
     expect(second.matches).toEqual([]);
   });
 });

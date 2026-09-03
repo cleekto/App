@@ -28,7 +28,6 @@ export * from './activity/write';
 
 export * from './users/use-cases';
 export * from './teams/use-cases';
-export * from './publish-profiles/use-cases';
 export * from './pipeline/defaults';
 export * from './pipeline/use-cases';
 

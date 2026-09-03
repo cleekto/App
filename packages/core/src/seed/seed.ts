@@ -23,6 +23,12 @@ interface SeededUser {
   fullName: string;
   role: RoleCode;
   team: string | null;
+  /**
+   * Рабочий телефон. Объявление выходит под ним, и по нему же агентство
+   * опознаёт собственные объявления при обратном импорте — без номера
+   * у сотрудника оба механизма проверить нечем.
+   */
+  phone: string;
 }
 
 interface SeededCompany {
@@ -30,7 +36,6 @@ interface SeededCompany {
   locale: string;
   teams: readonly string[];
   users: readonly SeededUser[];
-  publishProfile: { displayName: string; phone: string };
 }
 
 const COMPANIES: readonly SeededCompany[] = [
@@ -41,36 +46,40 @@ const COMPANIES: readonly SeededCompany[] = [
     users: [
       {
         email: 'admin@tbilisi-estate.test',
+        phone: '+995 555 10 10 11',
         fullName: 'Nino Beridze',
         role: RoleCode.ADMIN,
         team: null,
       },
       {
         email: 'manager@tbilisi-estate.test',
+        phone: '+995 555 10 10 12',
         fullName: 'Giorgi Kapanadze',
         role: RoleCode.MANAGER,
         team: 'Vake',
       },
       {
         email: 'agent1@tbilisi-estate.test',
+        phone: '+995 555 10 10 13',
         fullName: 'Ana Tsiklauri',
         role: RoleCode.AGENT,
         team: 'Vake',
       },
       {
         email: 'agent2@tbilisi-estate.test',
+        phone: '+995 555 10 10 14',
         fullName: 'Levan Gogoladze',
         role: RoleCode.AGENT,
         team: 'Vake',
       },
       {
         email: 'agent3@tbilisi-estate.test',
+        phone: '+995 555 10 10 15',
         fullName: 'Mariam Chkheidze',
         role: RoleCode.AGENT,
         team: 'Saburtalo',
       },
     ],
-    publishProfile: { displayName: 'Tbilisi Estate', phone: '+995 555 10 10 10' },
   },
   {
     // Вторая компания существует ради негативных тестов изоляции.
@@ -82,24 +91,26 @@ const COMPANIES: readonly SeededCompany[] = [
     users: [
       {
         email: 'admin@batumi-property.test',
+        phone: '+995 577 20 20 21',
         fullName: 'Дато Кванталиани',
         role: RoleCode.ADMIN,
         team: null,
       },
       {
         email: 'manager@batumi-property.test',
+        phone: '+995 577 20 20 22',
         fullName: 'Тамара Джапаридзе',
         role: RoleCode.MANAGER,
         team: 'Центр',
       },
       {
         email: 'agent1@batumi-property.test',
+        phone: '+995 577 20 20 23',
         fullName: 'Ираклий Мчедлишвили',
         role: RoleCode.AGENT,
         team: 'Центр',
       },
     ],
-    publishProfile: { displayName: 'Batumi Property', phone: '+995 577 20 20 20' },
   },
 ];
 
@@ -134,7 +145,6 @@ export async function seed(): Promise<SeedResult> {
   await prisma.ownerContact.deleteMany();
   await prisma.activityLog.deleteMany();
   await prisma.refreshToken.deleteMany();
-  await prisma.publishProfile.deleteMany();
   await prisma.teamMember.deleteMany();
   await prisma.pipelineStatus.deleteMany();
   await prisma.user.deleteMany();
@@ -161,6 +171,7 @@ export async function seed(): Promise<SeedResult> {
 
     for (const spec_user of spec.users) {
       const teamId = spec_user.team === null ? null : (teamByName.get(spec_user.team) ?? null);
+      const phone = normalizePhone(spec_user.phone);
 
       await prisma.user.create({
         data: {
@@ -170,23 +181,14 @@ export async function seed(): Promise<SeedResult> {
           passwordHash,
           fullName: spec_user.fullName,
           locale: spec.locale,
+          phone: phone.original,
+          phoneNormalized: phone.normalized,
           ...(teamId === null
             ? {}
             : { teamMemberships: { create: { companyId: company.id, teamId } } }),
         },
       });
     }
-
-    const phone = normalizePhone(spec.publishProfile.phone);
-    await prisma.publishProfile.create({
-      data: {
-        companyId: company.id,
-        displayName: spec.publishProfile.displayName,
-        phoneOriginal: phone.original,
-        phoneNormalized: phone.normalized,
-        isDefault: true,
-      },
-    });
 
     result.push({
       id: company.id,

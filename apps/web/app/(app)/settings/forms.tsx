@@ -138,6 +138,8 @@ export function NewUserForm({
     team: string;
     noTeam: string;
     locale: string;
+    phone: string;
+    phoneHint: string;
   };
   roles: Array<{ value: string; label: string }>;
   teams: Array<{ id: string; name: string }>;
@@ -156,6 +158,10 @@ export function NewUserForm({
           password: String(form.get('password') ?? ''),
           role: String(form.get('role') ?? ''),
           locale: String(form.get('locale') ?? ''),
+          // Пустая строка — «номера пока нет». Такой сотрудник заведётся,
+          // но публиковать не сможет, и это честнее, чем требовать номер
+          // в момент, когда его ещё не спросили.
+          phone: String(form.get('phone') ?? '') || null,
           // Пустая строка означает «без команды». Отправлять её как есть
           // нельзя: схема ждёт uuid либо null.
           teamId: teamId === '' ? null : teamId,
@@ -169,6 +175,10 @@ export function NewUserForm({
 
         <Field label={fields.email}>
           <Input name="email" type="email" required autoComplete="off" />
+        </Field>
+
+        <Field label={fields.phone} hint={fields.phoneHint}>
+          <Input name="phone" inputMode="tel" autoComplete="off" />
         </Field>
 
         <Field label={fields.password} hint={fields.passwordHint}>
@@ -257,42 +267,6 @@ export function ChangePasswordForm({
           />
         </Field>
       </div>
-    </Disclosure>
-  );
-}
-
-export function NewProfileForm({
-  labels,
-  fields,
-}: {
-  labels: Labels & { trigger: string };
-  fields: { displayName: string; phone: string; makeDefault: string };
-}) {
-  return (
-    <Disclosure
-      trigger={labels.trigger}
-      labels={labels}
-      endpoint="/api/v1/publish-profiles"
-      body={(form) => ({
-        displayName: String(form.get('displayName') ?? ''),
-        phone: String(form.get('phone') ?? ''),
-        isDefault: form.get('isDefault') === 'on',
-      })}
-    >
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={fields.displayName}>
-          <Input name="displayName" required autoFocus />
-        </Field>
-
-        <Field label={fields.phone}>
-          <Input name="phone" required inputMode="tel" />
-        </Field>
-      </div>
-
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" name="isDefault" className="size-4 accent-[var(--color-brand)]" />
-        {fields.makeDefault}
-      </label>
     </Disclosure>
   );
 }

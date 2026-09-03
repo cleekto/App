@@ -5,6 +5,7 @@ import { writeActivity } from '../activity/write';
 import type { AuthContext } from '../auth/context';
 import { hashPassword } from '../auth/password';
 import { normalizeEmail, revokeAllSessions } from '../auth/use-cases';
+import { normalizePhone } from '../phone';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import { requirePermission, scopeFilter } from '../rbac/guard';
 
@@ -17,15 +18,17 @@ export interface UserSummary {
   teamId: string | null;
   teamName: string | null;
   /**
-   * Личный профиль публикации — имя и телефон, под которыми объявления
-   * этого человека выходят на площадку.
+   * Рабочий телефон — тот, что уходит в объявление.
    *
-   * Показывается прямо в карточке сотрудника: это лицо агентства
-   * в публичном объявлении, и увидеть его должно быть можно, не открывая
-   * отдельный раздел. `null` — личного профиля нет, применяется профиль
-   * компании по умолчанию.
+   * Показывается прямо в карточке сотрудника: объявление выходит под его
+   * именем и этим номером, и руководитель должен видеть его, не открывая
+   * ничего дополнительно — неверный номер в объявлении стоит дороже, чем
+   * лишняя строка в списке.
+   *
+   * `null` — сотрудник ещё не может публиковать. Это не поломка, а состояние:
+   * номер вписывает руководитель.
    */
-  publishProfile: { displayName: string; phone: string } | null;
+  phone: string | null;
 }
 
 /**
@@ -36,20 +39,12 @@ export interface UserSummary {
 const SUMMARY_INCLUDE = {
   role: true,
   teamMemberships: { include: { team: true } },
-  // Личных профилей у человека может быть несколько; в карточке нужен
-  // тот, что применяется по умолчанию, а если такого нет — любой.
-  publishProfiles: {
-    select: { displayName: true, phoneOriginal: true, isDefault: true },
-    orderBy: { isDefault: 'desc' },
-    take: 1,
-  },
 } as const;
 
 type UserWithSummaryRelations = Prisma.UserGetPayload<{ include: typeof SUMMARY_INCLUDE }>;
 
 function toSummary(user: UserWithSummaryRelations): UserSummary {
   const membership = user.teamMemberships[0];
-  const profile = user.publishProfiles[0];
 
   return {
     id: user.id,
@@ -57,12 +52,9 @@ function toSummary(user: UserWithSummaryRelations): UserSummary {
     fullName: user.fullName,
     role: user.role.code,
     isActive: user.isActive,
+    phone: user.phone,
     teamId: membership?.teamId ?? null,
     teamName: membership?.team.name ?? null,
-    publishProfile:
-      profile === undefined
-        ? null
-        : { displayName: profile.displayName, phone: profile.phoneOriginal },
   };
 }
 
@@ -71,6 +63,8 @@ export interface CreateUserInput {
   password: string;
   fullName: string;
   role: RoleCode;
+  /** Рабочий номер, под которым уйдут объявления этого человека. */
+  phone?: string | null | undefined;
   teamId?: string | null | undefined;
   locale?: string | undefined;
 }
@@ -143,6 +137,7 @@ export async function createUser(ctx: AuthContext, input: CreateUserInput): Prom
         passwordHash,
         fullName: input.fullName.trim(),
         locale: input.locale ?? ctx.locale,
+        ...phoneFields(input.phone),
         ...(teamId === null
           ? {}
           : { teamMemberships: { create: { companyId: ctx.companyId, teamId } } }),
@@ -162,6 +157,24 @@ export async function createUser(ctx: AuthContext, input: CreateUserInput): Prom
   });
 
   return toSummary(created);
+}
+
+/**
+ * Рабочий телефон в двух видах: как ввёл человек и E.164 для сравнения.
+ *
+ * Нормализованный нужен не для показа, а для того, чтобы объявление
+ * агентства опознавалось как своё, а номер не попадал в признаки
+ * дедупликации. Без него оба механизма молча перестанут работать —
+ * не с ошибкой, а ложными дублями у собственников.
+ */
+function phoneFields(
+  raw: string | null | undefined,
+): { phone: string; phoneNormalized: string } | { phone: null; phoneNormalized: null } | object {
+  if (raw === undefined) return {};
+  if (raw === null || raw.trim() === '') return { phone: null, phoneNormalized: null };
+
+  const parsed = normalizePhone(raw);
+  return { phone: parsed.original, phoneNormalized: parsed.normalized };
 }
 
 /** Список пользователей в области, доступной роли (Q1, Q5). */
@@ -229,6 +242,7 @@ export async function deactivateUser(ctx: AuthContext, userId: string): Promise<
 
 export interface UpdateUserInput {
   fullName?: string | undefined;
+  phone?: string | null | undefined;
   role?: RoleCode | undefined;
   teamId?: string | null | undefined;
   locale?: string | undefined;
@@ -280,8 +294,11 @@ export async function updateUser(
   const wantsTeam = input.teamId !== undefined;
   const wantsActive = input.isActive !== undefined && input.isActive !== target.isActive;
 
-  if (scope === 'self' && (wantsRole || wantsTeam || wantsActive)) {
-    throw new ForbiddenError('Роль, команду и доступ меняет руководитель');
+  // Телефон уходит в публичное объявление, поэтому его назначает руководитель,
+  // а не сам агент: сменив номер, агент увёл бы к себе звонки по объявлениям
+  // агентства, и заметили бы это не сразу.
+  if (scope === 'self' && (wantsRole || wantsTeam || wantsActive || input.phone !== undefined)) {
+    throw new ForbiddenError('Роль, команду, доступ и рабочий телефон меняет руководитель');
   }
 
   if (wantsRole && userId === ctx.userId) {
@@ -347,6 +364,7 @@ export async function updateUser(
       data: {
         ...(input.fullName === undefined ? {} : { fullName: input.fullName }),
         ...(input.locale === undefined ? {} : { locale: input.locale }),
+        ...phoneFields(input.phone),
         ...(roleRow === null ? {} : { roleId: roleRow.id }),
         ...(input.isActive === undefined ? {} : { isActive: input.isActive }),
         // Смена роли, команды или доступа обесценивает выданные токены:

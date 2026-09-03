@@ -51,7 +51,6 @@ model Company {
   teamMembers      TeamMember[]
   pipelineStatuses PipelineStatus[]
   activityLog      ActivityLog[]
-  publishProfiles  PublishProfile[]
   ownerContacts    OwnerContact[]
   propertyLinks    PropertyLink[]
   properties       Property[]
@@ -115,6 +114,17 @@ model User {
   passwordHash String
   fullName     String
 
+  /// Рабочий телефон сотрудника — тот, что уходит в объявление.
+  ///
+  /// Агент публикует под своим именем и своим номером (решение владельца
+  /// 2026-09-03), поэтому номер лежит здесь, а не в отдельной сущности.
+  /// Пуст — сотрудник ещё не может публиковать: выдумывать номер за него
+  /// нельзя (правило 14).
+  phone String?
+  /// E.164. Нужен не для показа, а для сравнения: по нему объявление
+  /// агентства опознаётся как своё, а номер исключается из дедупликации.
+  phoneNormalized String?
+
   /// Язык интерфейса. Живёт на пользователе, а не на компании: в тбилисском
   /// агентстве работают люди с разными родными языками (ADR-0008).
   locale String @default("en")
@@ -136,7 +146,6 @@ model User {
   teamMemberships TeamMember[]
   refreshTokens   RefreshToken[]
   activityLog     ActivityLog[]
-  publishProfiles PublishProfile[]
   assignedTasks   Task[]           @relation("TaskAssignee")
   comments        Comment[]        @relation("CommentAuthor")
 
@@ -145,6 +154,9 @@ model User {
   @@unique([companyId, email])
   @@index([companyId])
   @@index([email])
+  /// Поиск «этот номер — наш» при импорте: по нему объявление агентства
+  /// опознаётся как своё, а номер не попадает в признаки дедупликации.
+  @@index([companyId, phoneNormalized])
   @@map("users")
 }
 
@@ -268,38 +280,6 @@ model ActivityLog {
 // ─────────────────────────────────────────────────────────────────────────────
 // Публикация
 // ─────────────────────────────────────────────────────────────────────────────
-
-/// Лицо агентства в публичном объявлении (I13).
-///
-/// Заводится здесь, а не в фазе публикации, по требованию промпта §3.Ф3
-/// и потому, что телефоны профилей участвуют в двух проверках уровня компании:
-/// исключение из дедупликации по телефону (I20) и признак самоимпорта (Q31).
-model PublishProfile {
-  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  companyId   String  @db.Uuid
-  /// Заполнен — личный профиль агента; пуст — общий профиль компании.
-  userId      String? @db.Uuid
-  displayName String
-
-  /// Номер как ввёл человек.
-  phoneOriginal   String
-  /// E.164. Нужен не для показа, а для сравнения: без нормализованного вида
-  /// проверка самоимпорта не сработает.
-  phoneNormalized String
-
-  isDefault Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  publications Publication[]
-
-  @@index([companyId])
-  /// Исключение своих номеров из дедупликации уровней 2–3 (I20).
-  @@index([companyId, phoneNormalized])
-  @@map("publish_profiles")
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Объекты и объявления (фаза 4)
@@ -719,8 +699,16 @@ model Publication {
   companyId String @db.Uuid
   teamId    String @db.Uuid
 
-  propertyId       String @db.Uuid
-  publishProfileId String @db.Uuid
+  propertyId String @db.Uuid
+
+  /// Имя и телефон, под которыми объявление ушло на площадку.
+  ///
+  /// Хранятся здесь, а не берутся из сотрудника при показе: это запись
+  /// о том, что реально стоит в чужом объявлении. Сотрудник потом сменит
+  /// номер, а в объявлении на площадке останется прежний, и история
+  /// публикаций обязана показывать его, а не текущий.
+  publisherName  String?
+  publisherPhone String?
 
   source Source
   status PublicationStatus @default(draft)
@@ -746,9 +734,8 @@ model Publication {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  property       Property       @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  publishProfile PublishProfile @relation(fields: [publishProfileId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, propertyId])
   /// Защита от самоимпорта, пункт 1: сравнение source + externalId

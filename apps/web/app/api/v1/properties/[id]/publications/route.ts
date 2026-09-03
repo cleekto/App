@@ -6,13 +6,15 @@ import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 
 export const dynamic = 'force-dynamic';
 
-const createSchema = z
-  .object({
-    targetSource: z.enum(['SS_GE', 'MYHOME_GE']),
-    /** Не указан — берётся профиль по умолчанию, без диалога (P4). */
-    publishProfileId: z.string().uuid().nullable().optional(),
-  })
-  .strict();
+/**
+ * Кроме площадки, выбирать нечего.
+ *
+ * Раньше сюда передавался профиль публикации — то есть контакт, под которым
+ * выйдет объявление, приходил из запроса. Теперь он берётся из сессии:
+ * объявление выходит под именем и номером того, кто его размещает, и
+ * подставить чужой контакт запросом больше нельзя (правило 5).
+ */
+const createSchema = z.object({ targetSource: z.enum(['SS_GE', 'MYHOME_GE']) }).strict();
 
 type Params = { params: Promise<{ id: string }> };
 

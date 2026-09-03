@@ -30,7 +30,7 @@ export const ru: DeepPartial<Dictionary> = {
     hidePassword: 'Скрыть пароль',
   },
   dashboard: {
-    title: 'Сводка',
+    title: 'Аналитика',
     scopeCompany: 'Всё агентство',
     scopeTeam: 'Ваша команда',
     newToday: 'Новых за день',
@@ -180,8 +180,6 @@ export const ru: DeepPartial<Dictionary> = {
     newPassword: 'Новый пароль',
     newPasswordHint: 'Не короче 12 символов.',
     changePasswordFailed: 'Не удалось сменить пароль. Проверьте текущий пароль.',
-    profiles: 'Профили публикации',
-    profilesHint: 'Публичное лицо агентства в объявлении. Никогда не контакт собственника.',
     team: 'Команда',
     teams: 'Команды',
     teamsHint:
@@ -189,11 +187,8 @@ export const ru: DeepPartial<Dictionary> = {
     users: 'Люди',
     usersHint: 'Кто работает в агентстве и что кому позволено.',
     role: 'Роль',
-    noProfiles: 'Профилей публикации пока нет',
     noTeams: 'Команд пока нет',
-    displayName: 'Имя в объявлении',
     phone: 'Телефон в объявлении',
-    default: 'По умолчанию',
     language: 'Язык интерфейса',
 
     edit: 'Изменить',
@@ -202,7 +197,20 @@ export const ru: DeepPartial<Dictionary> = {
     activate: 'Включить',
     inactive: 'отключён',
     publishesAs: 'Публикует как',
-    noProfile: 'Личного профиля публикации нет — применяется профиль компании',
+
+    phoneHint: 'Номер, который уходит в объявление. Без него человек не сможет публиковать.',
+    noPhone: 'Рабочего телефона нет — публиковать пока не может',
+
+    manager: 'Менеджер',
+    noManager: 'В команде нет менеджера',
+    rename: 'Переименовать',
+    deleteTeam: 'Удалить команду',
+    confirmDeleteTeam: 'Удалить — подтвердить',
+    teamEmpty: 'В команде пока никого',
+    unassigned: 'Вне команд',
+    unassignedHint:
+      'Люди, не входящие ни в одну команду. Они не могут ни импортировать объявления, ни владеть объектами — область и того и другого команда.',
+    everyoneInTeams: 'Все состоят в командах',
 
     addTeam: 'Добавить команду',
     teamName: 'Название команды',
@@ -215,9 +223,6 @@ export const ru: DeepPartial<Dictionary> = {
     noTeam: 'Без команды',
     noTeamHint:
       'Администратор без команды не сможет импортировать объявления. Так и задумано: звонят и импортируют агенты.',
-
-    addProfile: 'Добавить профиль',
-    makeDefault: 'Использовать по умолчанию',
 
     roles: {
       admin: 'Администратор — вся компания',

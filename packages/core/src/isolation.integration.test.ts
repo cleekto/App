@@ -11,13 +11,8 @@ import {
   reorderPipelineStatuses,
   updatePipelineStatus,
 } from './pipeline/use-cases';
-import {
-  createPublishProfile,
-  deletePublishProfile,
-  listPublishProfiles,
-} from './publish-profiles/use-cases';
 import { seed } from './seed/seed';
-import { createTeam, listTeams } from './teams/use-cases';
+import { createTeam, deleteTeam, listTeams, updateTeam } from './teams/use-cases';
 import { createUser, deactivateUser, listUsers, updateUser } from './users/use-cases';
 
 /**
@@ -40,7 +35,6 @@ interface Actors {
 let actors: Actors;
 let companyBTeamId: string;
 let companyBUserId: string;
-let companyBProfileId: string;
 
 async function contextFor(email: string): Promise<AuthContext> {
   const user = await prisma.user.findFirstOrThrow({
@@ -74,16 +68,6 @@ beforeAll(async () => {
   });
   companyBTeamId = teamB.id;
   companyBUserId = actors.agentB.userId;
-
-  const profileB = await prisma.publishProfile.create({
-    data: {
-      companyId: actors.adminB.companyId,
-      displayName: 'Batumi Property — расходный',
-      phoneOriginal: '+995 577 21 21 21',
-      phoneNormalized: '+995577212121',
-    },
-  });
-  companyBProfileId = profileB.id;
 }, 60_000);
 
 afterAll(async () => {
@@ -148,12 +132,11 @@ describe('позитивные сценарии по ролям', () => {
     expect(user.teamId).toBe(actors.managerA.teamId);
   });
 
-  it('администратор создаёт профиль публикации', async () => {
-    const profile = await createPublishProfile(actors.adminA, {
-      displayName: 'Tbilisi Estate — Vake',
+  it('администратор вписывает сотруднику рабочий телефон', async () => {
+    const updated = await updateUser(actors.adminA, actors.agentAOtherTeam.userId, {
       phone: '+995 555 33 33 33',
     });
-    expect(profile.phone).toBe('+995 555 33 33 33');
+    expect(updated.phone).toBe('+995 555 33 33 33');
   });
 
   it('в журнал попадают действия (инвариант 7)', async () => {
@@ -188,13 +171,16 @@ describe('изоляция компаний — ни один сценарий �
     expect(teamsA.some((team) => idsB.has(team.id))).toBe(false);
   });
 
-  it('список профилей публикации не содержит профилей другой компании', async () => {
-    const profilesA = await listPublishProfiles(actors.adminA);
-    const profilesB = await listPublishProfiles(actors.adminB);
+  it('список сотрудников не отдаёт рабочие телефоны другой компании', async () => {
+    // Рабочий номер — то, чем агентство опознаёт свои объявления. Утечь
+    // в соседнюю компанию он не должен: там он сломал бы дедупликацию,
+    // исключив чужой номер из признаков собственника (I20).
+    const usersA = await listUsers(actors.adminA);
+    const usersB = await listUsers(actors.adminB);
 
-    const idsB = new Set(profilesB.map((profile) => profile.id));
-    expect(profilesA.some((profile) => idsB.has(profile.id))).toBe(false);
-    expect(profilesA.every((profile) => profile.displayName !== 'Batumi Property')).toBe(true);
+    const phonesB = new Set(usersB.map((user) => user.phone).filter((phone) => phone !== null));
+    expect(phonesB.size).toBeGreaterThan(0);
+    expect(usersA.some((user) => user.phone !== null && phonesB.has(user.phone))).toBe(false);
   });
 
   it('статусы воронки не пересекаются между компаниями', async () => {
@@ -219,24 +205,13 @@ describe('изоляция компаний — ни один сценарий �
     ).rejects.toThrow(NotFoundError);
   });
 
-  it('нельзя привязать профиль публикации к сотруднику другой компании', async () => {
+  it('нельзя вписать телефон сотруднику другой компании', async () => {
     await expect(
-      createPublishProfile(actors.adminA, {
-        displayName: 'Чужой сотрудник',
-        phone: '+995 555 99 99 99',
-        userId: companyBUserId,
-      }),
+      updateUser(actors.adminA, companyBUserId, { phone: '+995 555 99 99 99' }),
     ).rejects.toThrow(NotFoundError);
-  });
 
-  it('нельзя удалить профиль публикации другой компании', async () => {
-    await expect(deletePublishProfile(actors.adminA, companyBProfileId)).rejects.toThrow(
-      NotFoundError,
-    );
-
-    // И профиль остался на месте.
-    const survived = await prisma.publishProfile.findUnique({ where: { id: companyBProfileId } });
-    expect(survived).not.toBeNull();
+    const untouched = await prisma.user.findUniqueOrThrow({ where: { id: companyBUserId } });
+    expect(untouched.phone).not.toBe('+995 555 99 99 99');
   });
 
   it('нельзя отключить пользователя другой компании', async () => {
@@ -284,14 +259,11 @@ describe('роли — агент не выполняет действия ме�
     ).rejects.toThrow(ForbiddenError);
   });
 
-  it('агент не заводит профиль публикации', async () => {
-    // Профиль — лицо агентства в публичном объявлении. Иначе агент подставит
-    // личный номер вместо рабочего (I15).
+  it('агент не вписывает телефон ни себе, ни соседу', async () => {
+    // Номер уходит в публичное объявление: подменив его, агент увёл бы к себе
+    // звонки по объявлениям агентства (I15).
     await expect(
-      createPublishProfile(actors.agentA, {
-        displayName: 'Личный номер агента',
-        phone: '+995 555 44 44 44',
-      }),
+      updateUser(actors.agentA, actors.agentAOtherTeam.userId, { phone: '+995 555 44 44 44' }),
     ).rejects.toThrow(ForbiddenError);
   });
 
@@ -315,6 +287,35 @@ describe('роли — агент не выполняет действия ме�
     }
   });
 
+  it('агент не переименовывает и не удаляет команды', async () => {
+    const teams = await listTeams(actors.agentA);
+    const own = teams[0];
+    if (own === undefined) throw new Error('у агента нет команды');
+
+    await expect(updateTeam(actors.agentA, own.id, { name: 'Моя команда' })).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(deleteTeam(actors.agentA, own.id)).rejects.toThrow(ForbiddenError);
+  });
+
+  it('менеджер переименовывает свою команду, но не соседнюю', async () => {
+    const teams = await listTeams(actors.adminA);
+    const own = teams.find((team) => team.id === actors.managerA.teamId);
+    const other = teams.find((team) => team.id !== actors.managerA.teamId);
+    if (own === undefined || other === undefined) throw new Error('нужно две команды');
+
+    const renamed = await updateTeam(actors.managerA, own.id, { name: 'Ваке — центр' });
+    expect(renamed.name).toBe('Ваке — центр');
+
+    // Соседняя команда — чужая область, и переименование её было бы
+    // распоряжением не своим (та же граница, что и у людей).
+    await expect(updateTeam(actors.managerA, other.id, { name: 'Захвачено' })).rejects.toThrow(
+      ForbiddenError,
+    );
+
+    await updateTeam(actors.adminA, own.id, { name: own.name });
+  });
+
   it('менеджер не отключает пользователей', async () => {
     await expect(deactivateUser(actors.managerA, actors.agentA.userId)).rejects.toThrow(
       ForbiddenError,
@@ -330,33 +331,20 @@ describe('роли — агент не выполняет действия ме�
 // Отдельно: профили публикации между компаниями (DoD §3.Ф3)
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('профили публикации не пересекают границу компании', () => {
-  it('агент вообще не читает список профилей', async () => {
-    // Профили — внутренняя кухня агентства: кто под каким номером выходит
-    // в объявлении. Агенту достаточно того, что его объявление уходит
-    // с правильным номером; видеть чужие ему незачем. Право `apply`
-    // при этом остаётся — иначе он не смог бы опубликовать ничего.
-    await expect(listPublishProfiles(actors.agentA)).rejects.toThrow(ForbiddenError);
+describe('рабочие телефоны не пересекают границу компании', () => {
+  it('агент не читает список сотрудников соседней компании', async () => {
+    const usersA = await listUsers(actors.agentA);
+    const idsB = new Set((await listUsers(actors.adminB)).map((user) => user.id));
+
+    expect(usersA.some((user) => idsB.has(user.id))).toBe(false);
   });
 
-  it('менеджер видит профили только своей компании', async () => {
-    const profiles = await listPublishProfiles(actors.managerA);
-    expect(profiles.length).toBeGreaterThan(0);
+  it('телефон сотрудника другой компании недостижим ни одним сценарием', async () => {
+    const phones = (await listUsers(actors.adminA)).map((user) => user.phone);
 
-    const companyIds = await prisma.publishProfile.findMany({
-      where: { id: { in: profiles.map((profile) => profile.id) } },
-      select: { companyId: true },
-    });
-    expect(companyIds.every((row) => row.companyId === actors.managerA.companyId)).toBe(true);
-  });
-
-  it('телефон профиля другой компании недостижим ни одним сценарием', async () => {
-    const profiles = await listPublishProfiles(actors.adminA);
-    const phones = profiles.map((profile) => profile.phone);
-
-    // Номер компании B из сида. Он не должен всплыть у компании A —
+    // Номер сотрудника компании B из сида. Он не должен всплыть у компании A —
     // иначе сломается исключение своих номеров из дедупликации (I20).
-    expect(phones).not.toContain('+995 577 20 20 20');
+    expect(phones).not.toContain('+995 577 20 20 21');
   });
 });
 
@@ -534,23 +522,30 @@ describe('изменение сотрудника', () => {
     expect(after.tokenVersion).toBe(before.tokenVersion);
   });
 
-  it('в карточке сотрудника виден его профиль публикации', async () => {
-    const profile = await createPublishProfile(actors.adminA, {
-      displayName: 'Личный профиль агента',
+  it('в карточке сотрудника виден его рабочий телефон', async () => {
+    const updated = await updateUser(actors.adminA, actors.agentA.userId, {
       phone: '+995 599 10 10 10',
     });
-    await prisma.publishProfile.update({
-      where: { id: profile.id },
-      data: { userId: actors.agentA.userId },
-    });
+    expect(updated.phone).toBe('+995 599 10 10 10');
 
-    const users = await listUsers(actors.adminA);
-    const card = users.find((user) => user.id === actors.agentA.userId);
+    const card = (await listUsers(actors.adminA)).find((user) => user.id === actors.agentA.userId);
+    expect(card?.phone).toBe('+995 599 10 10 10');
 
-    expect(card?.publishProfile).toEqual({
-      displayName: 'Личный профиль агента',
-      phone: '+995 599 10 10 10',
+    // Нормализованный вид — то, по чему объявление опознаётся как своё.
+    // Без него исключение номера из дедупликации молча перестало бы работать.
+    const stored = await prisma.user.findUniqueOrThrow({
+      where: { id: actors.agentA.userId },
+      select: { phoneNormalized: true },
     });
+    expect(stored.phoneNormalized).toBe('+995599101010');
+  });
+
+  it('агент не меняет свой рабочий телефон сам', async () => {
+    // Номер уходит в публичное объявление: сменив его, агент увёл бы к себе
+    // звонки по объявлениям агентства, и заметили бы это не сразу.
+    await expect(
+      updateUser(actors.agentA, actors.agentA.userId, { phone: '+995 599 99 99 99' }),
+    ).rejects.toThrow(ForbiddenError);
   });
 });
 

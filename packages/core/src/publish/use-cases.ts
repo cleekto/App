@@ -4,14 +4,12 @@ import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';
 import type { AuthContext } from '../auth/context';
 import { ConflictError, NotFoundError, ValidationError } from '../errors';
-import { requirePermission } from '../rbac/guard';
+import { assertScope, requirePermission } from '../rbac/guard';
 import { MANUAL_ONLY_FIELDS, type ListingPublishDraft } from './draft';
 import { sanitizePublicText } from './sanitize';
 
 export interface CreateDraftInput {
   targetSource: Source;
-  /** Не указан — берётся профиль по умолчанию, без диалога (P4). */
-  publishProfileId?: string | null | undefined;
 }
 
 export interface DraftResult {
@@ -35,10 +33,7 @@ export async function createPublicationDraft(
   propertyId: string,
   input: CreateDraftInput,
 ): Promise<DraftResult> {
-  // `apply`, а не `read`: публикует агент, а список профилей в настройках
-  // ему не показывают. Разделение появилось вместе с этим ограничением —
-  // до него одно право покрывало оба случая.
-  requirePermission(ctx, 'publishProfile', 'apply');
+  const scope = requirePermission(ctx, 'publication', 'create');
 
   const property = await prisma.property.findFirst({
     // companyId из контекста (правило 5).
@@ -50,18 +45,29 @@ export async function createPublicationDraft(
     throw new NotFoundError();
   }
 
-  const profile =
-    input.publishProfileId === null || input.publishProfileId === undefined
-      ? await prisma.publishProfile.findFirst({
-          where: { companyId: ctx.companyId, isDefault: true },
-        })
-      : await prisma.publishProfile.findFirst({
-          where: { id: input.publishProfileId, companyId: ctx.companyId },
-        });
+  // Область права — не украшение: без этой проверки «команда» в матрице
+  // ничего не значила бы, и агент собирал бы черновик на объект соседей.
+  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
 
-  if (profile === null) {
-    throw new NotFoundError(
-      'Нет профиля публикации. Заведите его в настройках: это лицо агентства в объявлении',
+  /**
+   * Объявление выходит под именем и номером того, кто его публикует
+   * (решение владельца 2026-09-03). Отдельного «профиля публикации» больше
+   * нет: лишняя сущность разъезжалась с действительностью — в объявлении
+   * стоял один номер, а звонил собственнику другой человек.
+   *
+   * Номера нет — публикации нет. Подставить вместо него что угодно (номер
+   * компании, пустоту, номер соседа) значит выпустить объявление, по которому
+   * позвонят не тому: правило 14 запрещает придуманные значения именно здесь.
+   */
+  const publisher = await prisma.user.findFirst({
+    where: { id: ctx.userId, companyId: ctx.companyId },
+    select: { fullName: true, phone: true },
+  });
+
+  if (publisher === null || publisher.phone === null || publisher.phone === '') {
+    throw new ValidationError(
+      'В вашей учётной записи не указан рабочий телефон. Объявление выходит под ним — попросите руководителя заполнить его в настройках',
+      { fields: ['phone'] },
     );
   }
 
@@ -78,7 +84,11 @@ export async function createPublicationDraft(
         companyId: ctx.companyId,
         teamId: property.teamId,
         propertyId: property.id,
-        publishProfileId: profile.id,
+        // Контакт запоминается в самой публикации: сотрудник потом сменит
+        // номер, а в чужом объявлении останется прежний, и история публикаций
+        // обязана показывать тот, что там стоит.
+        publisherName: publisher.fullName,
+        publisherPhone: publisher.phone,
         source: input.targetSource,
         status: PublicationStatus.draft,
         createdByUserId: ctx.userId,
@@ -90,7 +100,8 @@ export async function createPublicationDraft(
       entityType: ENTITY.PUBLICATION,
       entityId: created.id,
       action: ACTIVITY.PUBLICATION_DRAFTED,
-      after: { source: input.targetSource, profile: profile.displayName },
+      // Ни имени, ни номера: в журнале только факт (правило 10).
+      after: { source: input.targetSource },
     });
 
     return created;
@@ -111,8 +122,8 @@ export async function createPublicationDraft(
     address: property.addressRaw,
     publicDescription: sanitized.text === '' ? null : sanitized.text,
     publisher: {
-      displayName: profile.displayName,
-      phone: profile.phoneOriginal,
+      displayName: publisher.fullName,
+      phone: publisher.phone,
     },
   };
 
@@ -293,7 +304,6 @@ export async function listPublications(
 
   const publications = await prisma.publication.findMany({
     where: { companyId: ctx.companyId, propertyId },
-    include: { publishProfile: { select: { displayName: true } } },
     orderBy: { createdAt: 'desc' },
   });
 
@@ -302,7 +312,7 @@ export async function listPublications(
     source: publication.source,
     status: publication.status,
     externalUrl: publication.externalUrl,
-    publisherDisplayName: publication.publishProfile.displayName,
+    publisherDisplayName: publication.publisherName ?? '',
     unfilledFields: Array.isArray(publication.unfilledFields)
       ? (publication.unfilledFields as Array<{ field?: string }>).map(
           (item) => item.field ?? 'unknown',
@@ -361,7 +371,6 @@ export async function publishCheck(
       source,
       status: { in: [PublicationStatus.filled, PublicationStatus.published] },
     },
-    include: { publishProfile: { select: { displayName: true } } },
   });
 
   const listings = await prisma.sourceListing.findMany({
@@ -383,7 +392,7 @@ export async function publishCheck(
       source: publication.source,
       status: publication.status,
       externalUrl: publication.externalUrl,
-      publisherDisplayName: publication.publishProfile.displayName,
+      publisherDisplayName: publication.publisherName ?? '',
       unfilledFields: [],
       filledAt: publication.filledAt,
       publishedAt: publication.publishedAt,

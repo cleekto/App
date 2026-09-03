@@ -34,7 +34,7 @@ export const ka: DeepPartial<Dictionary> = {
     hidePassword: 'პაროლის დამალვა',
   },
   dashboard: {
-    title: 'შეჯამება',
+    title: 'ანალიტიკა',
     scopeCompany: 'მთელი სააგენტო',
     scopeTeam: 'თქვენი გუნდი',
     newToday: 'ახალი დღეს',
@@ -182,8 +182,6 @@ export const ka: DeepPartial<Dictionary> = {
     newPassword: 'ახალი პაროლი',
     newPasswordHint: 'მინიმუმ 12 სიმბოლო.',
     changePasswordFailed: 'პაროლის შეცვლა ვერ მოხერხდა. შეამოწმეთ მიმდინარე პაროლი.',
-    profiles: 'გამოქვეყნების პროფილები',
-    profilesHint: 'სააგენტოს სახე განცხადებაში. არასოდეს მესაკუთრის კონტაქტი.',
     team: 'გუნდი',
     teams: 'გუნდები',
     teamsHint:
@@ -191,11 +189,8 @@ export const ka: DeepPartial<Dictionary> = {
     users: 'ადამიანები',
     usersHint: 'ვინ მუშაობს სააგენტოში და რისი უფლება აქვს.',
     role: 'როლი',
-    noProfiles: 'გამოქვეყნების პროფილები ჯერ არ არის',
     noTeams: 'გუნდები ჯერ არ არის',
-    displayName: 'სახელი განცხადებაში',
     phone: 'ტელეფონი განცხადებაში',
-    default: 'ნაგულისხმევი',
     language: 'ინტერფეისის ენა',
 
     edit: 'შეცვლა',
@@ -204,7 +199,20 @@ export const ka: DeepPartial<Dictionary> = {
     activate: 'ჩართვა',
     inactive: 'გათიშულია',
     publishesAs: 'აქვეყნებს როგორც',
-    noProfile: 'პირადი გამოქვეყნების პროფილი არ არის — გამოიყენება კომპანიის პროფილი',
+
+    phoneHint: 'ნომერი, რომელიც განცხადებაში მიდის. მის გარეშე გამოქვეყნება შეუძლებელია.',
+    noPhone: 'სამუშაო ტელეფონი არ არის — გამოქვეყნება ჯერ არ შეუძლია',
+
+    manager: 'მენეჯერი',
+    noManager: 'გუნდში მენეჯერი არ არის',
+    rename: 'გადარქმევა',
+    deleteTeam: 'გუნდის წაშლა',
+    confirmDeleteTeam: 'წაშლა — დადასტურება',
+    teamEmpty: 'გუნდში ჯერ არავინაა',
+    unassigned: 'გუნდის გარეშე',
+    unassignedHint:
+      'ადამიანები, რომლებიც არცერთ გუნდში არ არიან. მათ არ შეუძლიათ განცხადებების იმპორტი და ობიექტების ფლობა — ორივეს არეალი გუნდია.',
+    everyoneInTeams: 'ყველა გუნდშია',
 
     addTeam: 'გუნდის დამატება',
     teamName: 'გუნდის სახელი',
@@ -217,9 +225,6 @@ export const ka: DeepPartial<Dictionary> = {
     noTeam: 'გუნდის გარეშე',
     noTeamHint:
       'ადმინისტრატორი გუნდის გარეშე ვერ მოახდენს განცხადებების იმპორტს. ასეა ჩაფიქრებული: რეკავენ და იმპორტს აკეთებენ აგენტები.',
-
-    addProfile: 'პროფილის დამატება',
-    makeDefault: 'გამოიყენე ნაგულისხმევად',
 
     roles: {
       admin: 'ადმინისტრატორი — მთელი კომპანია',

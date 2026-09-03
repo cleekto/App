@@ -57,25 +57,21 @@ describe('матрица прав', () => {
     }
   });
 
-  it('профили публикации ведут и читают только ADMIN и MANAGER (I15)', () => {
-    // Решение владельца 2026-09-03: список профилей — настройка компании,
-    // и агенту в ней делать нечего. Раньше читать могли все роли.
-    expect(permissionScope(RoleCode.AGENT, 'publishProfile', 'read')).toBeNull();
-    expect(permissionScope(RoleCode.MANAGER, 'publishProfile', 'read')).toBe('company');
-    expect(permissionScope(RoleCode.ADMIN, 'publishProfile', 'read')).toBe('company');
-
-    expect(permissionScope(RoleCode.AGENT, 'publishProfile', 'create')).toBeNull();
-    expect(permissionScope(RoleCode.MANAGER, 'publishProfile', 'create')).toBe('company');
-    expect(permissionScope(RoleCode.ADMIN, 'publishProfile', 'create')).toBe('company');
-  });
-
-  it('публиковать от имени профиля агент по-прежнему может', () => {
-    // Иначе снятие права на чтение молча сломало бы главный сценарий:
-    // объявления размещают именно агенты. Поэтому «видеть список»
-    // и «применить профиль» — разные права.
+  it('публикует любая роль — это главный сценарий продукта', () => {
+    // Решение владельца 2026-09-03: отдельной сущности «профиль публикации»
+    // больше нет, объявление выходит под именем и номером того, кто его
+    // размещает. Размещают агенты, поэтому право на публикацию есть у всех
+    // трёх ролей: без него встал бы главный цикл.
     for (const role of Object.values(RoleCode)) {
-      expect(permissionScope(role, 'publishProfile', 'apply'), role).toBe('company');
+      expect(permissionScope(role, 'publication', 'create'), role).not.toBeNull();
+      expect(permissionScope(role, 'publication', 'read'), role).not.toBeNull();
     }
+
+    // Но не шире своей команды: объявление соседней команды агент
+    // не размещает, и менеджер тоже.
+    expect(permissionScope(RoleCode.AGENT, 'publication', 'create')).toBe('team');
+    expect(permissionScope(RoleCode.MANAGER, 'publication', 'create')).toBe('team');
+    expect(permissionScope(RoleCode.ADMIN, 'publication', 'create')).toBe('company');
   });
 
   it('воронку настраивают руководители, агент её только читает', () => {

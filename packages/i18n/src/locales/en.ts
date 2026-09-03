@@ -25,7 +25,7 @@ export const en = {
     hidePassword: 'Hide password',
   },
   dashboard: {
-    title: 'Dashboard',
+    title: 'Analytics',
     scopeCompany: 'Whole agency',
     scopeTeam: 'Your team',
     newToday: 'New today',
@@ -183,8 +183,6 @@ export const en = {
     newPassword: 'New password',
     newPasswordHint: 'At least 12 characters.',
     changePasswordFailed: 'Could not change the password. Check the current password.',
-    profiles: 'Publishing profiles',
-    profilesHint: 'The public face of the agency in a listing. Never the owner contact.',
     team: 'Team',
     teams: 'Teams',
     teamsHint:
@@ -192,11 +190,8 @@ export const en = {
     users: 'People',
     usersHint: 'Who works in the agency and what they are allowed to do.',
     role: 'Role',
-    noProfiles: 'No publishing profiles yet',
     noTeams: 'No teams yet',
-    displayName: 'Name in the listing',
     phone: 'Phone in the listing',
-    default: 'Default',
     language: 'Interface language',
 
     edit: 'Edit',
@@ -205,7 +200,20 @@ export const en = {
     activate: 'Enable',
     inactive: 'disabled',
     publishesAs: 'Publishes as',
-    noProfile: 'No personal publishing profile — the company default applies',
+
+    phoneHint: 'The number that goes into the listing. Without it the person cannot publish.',
+    noPhone: 'No work phone — this person cannot publish yet',
+
+    manager: 'Manager',
+    noManager: 'No manager in this team',
+    rename: 'Rename',
+    deleteTeam: 'Delete team',
+    confirmDeleteTeam: 'Delete — confirm',
+    teamEmpty: 'Nobody in this team yet',
+    unassigned: 'Outside teams',
+    unassignedHint:
+      'People who belong to no team. They cannot import listings or own properties — a team is the scope for both.',
+    everyoneInTeams: 'Everyone is in a team',
 
     addTeam: 'Add team',
     teamName: 'Team name',
@@ -218,9 +226,6 @@ export const en = {
     noTeam: 'No team',
     noTeamHint:
       'An admin without a team cannot import listings. That is intended: agents call and import.',
-
-    addProfile: 'Add profile',
-    makeDefault: 'Use by default',
 
     roles: {
       admin: 'Administrator — the whole company',
