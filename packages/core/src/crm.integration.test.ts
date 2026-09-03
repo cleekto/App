@@ -53,6 +53,23 @@ async function contextFor(email: string): Promise<AuthContext> {
   };
 }
 
+/**
+ * Уникальная метка ИЗ ОДНИХ БУКВ.
+ *
+ * Раньше метка бралась из `Math.random().toString(36)`, куда цифры попадают
+ * через раз, — и тест поиска падал ровно тогда, когда цифра попадалась.
+ * Выглядело это как случайный сбой, а было настоящим дефектом: запрос
+ * с цифрой внутри уходил в ветку поиска по телефону. Дефект исправлен,
+ * а метка сделана однозначной, чтобы каждый тест проверял ровно одно.
+ */
+function letters(): string {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  return Array.from(
+    { length: 8 },
+    () => alphabet[Math.floor(Math.random() * alphabet.length)],
+  ).join('');
+}
+
 function payload(over: Partial<ImportInput> = {}): ImportInput {
   counter += 1;
   const seq = counter;
@@ -119,7 +136,7 @@ describe('список объектов', () => {
     // Метка заведомо уникальна: «Кекелидзе1» нашлось бы и внутри
     // «Кекелидзе15», и тест ловил бы собственную неаккуратность,
     // а не поведение поиска.
-    const marker = `Кекелидзе${Math.random().toString(36).slice(2, 10)}`;
+    const marker = `Кекелидзе${letters()}`;
     const id = await makeProperty(actors.vake, { address: `Ваке, ${marker} 4` });
 
     const { items } = await listProperties(actors.vake, { query: marker });
@@ -143,12 +160,29 @@ describe('список объектов', () => {
    */
   it('поиск по слову без цифр не возвращает объекты, которые ему не отвечают', async () => {
     await makeProperty(actors.vake, { address: 'Ваке, улица Абашидзе 1' });
-    const marker = `Мтацминда${Math.random().toString(36).slice(2, 10)}`;
+    const marker = `Мтацминда${letters()}`;
     await makeProperty(actors.vake, { address: `Ваке, ${marker} 7` });
 
     const { items } = await listProperties(actors.vake, { query: marker });
 
     expect(items.length).toBeGreaterThan(0);
+    for (const item of items) {
+      expect(item.addressRaw, item.id).toContain(marker);
+    }
+  });
+
+  /**
+   * Регрессия. Ветка телефона включалась при любой цифре в запросе, поэтому
+   * «Абашидзе 15» сводилось к цифрам «15» и возвращало каждый объект, в чьём
+   * номере встречается «15», — то есть почти всю базу.
+   */
+  it('адрес с номером дома ищет адрес, а не телефон', async () => {
+    const marker = `Чавчавадзе${letters()}`;
+    const id = await makeProperty(actors.vake, { address: `Ваке, ${marker} 15` });
+
+    const { items } = await listProperties(actors.vake, { query: `${marker} 15` });
+
+    expect(items.map((item) => item.id)).toContain(id);
     for (const item of items) {
       expect(item.addressRaw, item.id).toContain(marker);
     }

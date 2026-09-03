@@ -114,17 +114,23 @@ export async function listProperties(
       { ownerContact: { fullName: { contains: query, mode: 'insensitive' } } },
     ];
 
-    // Ветка телефона добавляется, ТОЛЬКО если в запросе есть цифры.
+    // Ветка телефона добавляется, ТОЛЬКО если запрос и есть телефон —
+    // то есть состоит из цифр и разделителей номера, и цифр в нём достаточно,
+    // чтобы отбирать, а не совпадать со всем подряд.
     //
-    // Иначе `digits(query)` пуст, а `contains: ''` совпадает со всем: поиск
-    // по слову возвращал бы каждый объект, у которого есть контакт
-    // собственника. Дефект найден тестом, который сравнивал результат поиска
-    // с ожидаемым, — и падал тем чаще, чем больше объектов было в базе.
-    const phoneDigits = digits(query);
-    if (phoneDigits !== '') {
-      where.OR.push({
-        ownerContact: { phones: { some: { phoneNormalized: { contains: phoneDigits } } } },
-      });
+    // Проверять «есть ли в запросе хоть одна цифра» мало. «Абашидзе 15» —
+    // самый обычный поиск по адресу, но при таком условии он сводился
+    // к цифрам «15» и возвращал каждый объект, в чьём номере встречается «15»,
+    // то есть почти всё. А запрос вовсе без цифр давал `contains: ''`,
+    // совпадающий со всем. Оба случая выглядели исправно на пустой базе
+    // и портились по мере её наполнения.
+    if (PHONE_QUERY.test(query)) {
+      const phoneDigits = digits(query);
+      if (phoneDigits.length >= MIN_PHONE_DIGITS) {
+        where.OR.push({
+          ownerContact: { phones: { some: { phoneNormalized: { contains: phoneDigits } } } },
+        });
+      }
     }
   }
 
@@ -450,6 +456,20 @@ export async function updateProperty(
 function decimal(value: Prisma.Decimal | null): number | null {
   return value === null ? null : Number(value);
 }
+
+/**
+ * Запрос-телефон: цифры и то, чем номер разделяют при наборе, — плюс,
+ * пробелы, дефисы, скобки. Ни одной буквы. Агент, ищущий по номеру, букв
+ * не печатает, а ищущий по адресу — печатает всегда.
+ */
+const PHONE_QUERY = /^[\d\s+()-]+$/u;
+
+/**
+ * Меньше четырёх цифр — не поиск, а совпадение со всем: «5» есть почти
+ * в каждом грузинском мобильном номере. Четыре последние цифры — то, чем
+ * номер и называют по памяти.
+ */
+const MIN_PHONE_DIGITS = 4;
 
 function digits(value: string): string {
   return value.replace(/\D/gu, '');
