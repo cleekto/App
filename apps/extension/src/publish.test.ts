@@ -138,18 +138,30 @@ function deps(overrides: Partial<PublishDeps> = {}): PublishDeps & {
 
 describe('доступность заполнения', () => {
   /**
-   * Так продукт устроен прямо сейчас, и это честное состояние: адаптеров
-   * заполнения нет, потому что нет фикстур формы. Пункт «Заполнить» агенту
-   * не показывается — это лучше кнопки, которая нажимается и ничего не делает.
+   * Площадка, форму которой мы заполнять не умеем, — нормальный исход,
+   * а не поломка. Пункт «Заполнить» агенту не показывается: это лучше
+   * кнопки, которая нажимается и ничего не делает.
+   *
+   * Сейчас так с myhome.ge: во всей её форме один атрибут `name`, и тот
+   * у `<meta viewport>`, а идентификаторы полей меняются между сборками
+   * (`docs/analysis/publish-forms.md`).
    */
-  it('без адаптеров заполнения пункт недоступен', () => {
-    expect(PUBLISH_ADAPTERS).toHaveLength(0);
-    expect(publishAdapterFor('https://home.ss.ge/ka/create')).toBeNull();
+  it('без адаптера для площадки пункт недоступен', () => {
+    expect(publishAdapterFor('https://www.myhome.ge/ka/statement/create')).toBeNull();
 
-    expect(publishAvailability(formPage(), 'https://home.ss.ge/ka/create')).toEqual({
+    expect(publishAvailability(formPage(), 'https://www.myhome.ge/ka/statement/create')).toEqual({
       kind: 'unavailable',
       reason: 'no_adapter',
     });
+  });
+
+  /**
+   * Обратная сторона: там, где адаптер есть, пункт обязан появляться.
+   * Иначе работа по разбору формы не доходит до агента.
+   */
+  it('на форме ss.ge адаптер находится', () => {
+    expect(PUBLISH_ADAPTERS.length).toBeGreaterThan(0);
+    expect(publishAdapterFor('https://home.ss.ge/ka/udzravi-qoneba/create')).not.toBeNull();
   });
 
   /**
