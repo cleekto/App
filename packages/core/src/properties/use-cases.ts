@@ -202,6 +202,23 @@ export interface PropertyDetail extends PropertyListItem {
   descriptionSource: string | null;
   publicDescription: string | null;
   photos: string[];
+
+  /**
+   * Характеристики из объявления. В список они не идут намеренно: там нужна
+   * строка для узнавания, а не паспорт объекта. Пустое поле означает,
+   * что площадка о нём не сказала, — показывать его не нужно вовсе.
+   */
+  bedrooms: number | null;
+  bathrooms: string | null;
+  balconies: number | null;
+  balconyArea: number | null;
+  houseArea: number | null;
+  yardArea: number | null;
+  condition: string | null;
+  buildingStatus: string | null;
+  projectType: string | null;
+  cadastralCode: string | null;
+  sellerKind: 'owner' | 'agency' | null;
   owner: { fullName: string | null; phones: string[] } | null;
   listings: Array<{
     id: string;
@@ -279,6 +296,18 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
     photos: row.photos,
     descriptionSource: row.descriptionSource,
     publicDescription: row.publicDescription,
+
+    bedrooms: row.bedrooms,
+    bathrooms: row.bathrooms,
+    balconies: row.balconies,
+    balconyArea: decimal(row.balconyArea),
+    houseArea: decimal(row.houseArea),
+    yardArea: decimal(row.yardArea),
+    condition: row.condition,
+    buildingStatus: row.buildingStatus,
+    projectType: row.projectType,
+    cadastralCode: row.cadastralCode,
+    sellerKind: row.sellerKind,
     owner:
       row.ownerContact === null
         ? null

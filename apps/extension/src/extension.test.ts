@@ -291,13 +291,39 @@ describe('тело запроса', () => {
 
   /**
    * Схема сервера объявлена `.strict()`: лишнее поле не игнорируется,
-   * а роняет запрос целиком с ответом 400. `bedrooms` адаптер ss.ge
-   * извлекает, но ни в `Property`, ни в схеме импорта его нет — отправка
-   * сломала бы импорт для каждой квартиры.
+   * а роняет запрос целиком с ответом 400 — вместе со всем импортом,
+   * а не с одним полем.
+   *
+   * Раньше здесь стоял список запрещённых имён, и он устаревал каждый раз,
+   * когда поле добавляли на сервер. Теперь сверка идёт с самой схемой:
+   * тест читает исходник маршрута. Тому же классу ошибки — поле есть
+   * в ядре, но забыто в схеме — этот тест не даёт повториться.
    */
-  it('не содержит bedrooms, которого нет в схеме сервера', () => {
-    const body = toRequestBody(extraction, '555000111', { outcome: 'consent' });
-    expect(Object.keys(body)).not.toContain('bedrooms');
+  it('шлёт только то, что принимает схема сервера', () => {
+    const route = readFileSync(
+      join(import.meta.dirname, '../../../apps/web/app/api/v1/import/listing/route.ts'),
+      'utf8',
+    );
+
+    // Тело схемы — от `z.object({` до `.strict()`. Читать глазами по всему
+    // файлу нельзя: слово `photos` встречается и в комментариях.
+    const start = route.indexOf('.object({');
+    const schema = route.slice(start, route.indexOf('.strict()', start));
+    expect(schema.length).toBeGreaterThan(100);
+
+    const declared = new Set([...schema.matchAll(/^ {4}(\w+):/gmu)].map((match) => match[1]));
+    expect(declared.size).toBeGreaterThan(20);
+
+    const body = toRequestBody(extraction, '555000111', {
+      outcome: 'callback',
+      callbackAt: '2026-09-10T10:00:00.000Z',
+      note: 'x',
+      acknowledgedDuplicateOf: ['00000000-0000-0000-0000-000000000000'],
+    });
+
+    for (const key of Object.keys(body)) {
+      expect(declared, key).toContain(key);
+    }
   });
 
   it('необязательные поля не появляются пустыми', () => {

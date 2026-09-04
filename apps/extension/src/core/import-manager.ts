@@ -42,6 +42,7 @@ export interface ImportRequestBody {
 
   area?: number | null;
   rooms?: number | null;
+  bedrooms?: number | null;
   floor?: number | null;
   totalFloors?: number | null;
 
@@ -49,6 +50,17 @@ export interface ImportRequestBody {
   address?: string | null;
   description?: string | null;
   photos?: string[];
+
+  bathrooms?: string | null;
+  balconies?: number | null;
+  balconyArea?: number | null;
+  houseArea?: number | null;
+  yardArea?: number | null;
+  condition?: string | null;
+  buildingStatus?: string | null;
+  projectType?: string | null;
+  cadastralCode?: string | null;
+  sellerKind?: 'owner' | 'agency' | null;
 
   owner: { name?: string | null; phone: string };
 
@@ -184,12 +196,25 @@ export function toRequestBody(
     currency: payload.currency,
     area: payload.area,
     rooms: payload.rooms,
+    bedrooms: payload.bedrooms,
     floor: payload.floor,
     totalFloors: payload.totalFloors,
     district: payload.district,
     address: payload.address,
     description: payload.description,
     photos: payload.photos,
+
+    bathrooms: payload.bathrooms,
+    balconies: payload.balconies,
+    balconyArea: payload.balconyArea,
+    houseArea: payload.houseArea,
+    yardArea: payload.yardArea,
+    condition: payload.condition,
+    buildingStatus: payload.buildingStatus,
+    projectType: payload.projectType,
+    cadastralCode: payload.cadastralCode,
+    sellerKind: payload.sellerKind,
+
     owner: { name: payload.owner.name, phone },
     parserVersion: extraction.parserVersion,
     missingFields: extraction.missingFields,

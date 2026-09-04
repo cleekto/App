@@ -29,6 +29,7 @@ const importSchema = z
 
     area: z.number().positive().nullable().optional(),
     rooms: z.number().int().nonnegative().nullable().optional(),
+    bedrooms: z.number().int().nonnegative().nullable().optional(),
     floor: z.number().int().nullable().optional(),
     totalFloors: z.number().int().positive().nullable().optional(),
 
@@ -36,6 +37,19 @@ const importSchema = z
     address: z.string().nullable().optional(),
     description: z.string().nullable().optional(),
     photos: z.array(z.string().url()).optional(),
+
+    // Характеристики объявления. Схема строгая, поэтому забыть их здесь —
+    // значит отвергнуть весь импорт целиком, а не потерять одно поле.
+    bathrooms: z.string().nullable().optional(),
+    balconies: z.number().int().nonnegative().nullable().optional(),
+    balconyArea: z.number().positive().nullable().optional(),
+    houseArea: z.number().positive().nullable().optional(),
+    yardArea: z.number().positive().nullable().optional(),
+    condition: z.string().nullable().optional(),
+    buildingStatus: z.string().nullable().optional(),
+    projectType: z.string().nullable().optional(),
+    cadastralCode: z.string().nullable().optional(),
+    sellerKind: z.enum(['owner', 'agency']).nullable().optional(),
 
     owner: z.object({
       name: z.string().nullable().optional(),

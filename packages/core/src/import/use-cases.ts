@@ -42,6 +42,7 @@ export interface ImportPayload {
 
   area?: number | null | undefined;
   rooms?: number | null | undefined;
+  bedrooms?: number | null | undefined;
   floor?: number | null | undefined;
   totalFloors?: number | null | undefined;
 
@@ -50,10 +51,48 @@ export interface ImportPayload {
   description?: string | null | undefined;
   photos?: string[] | undefined;
 
+  /**
+   * Характеристики объявления. Все необязательные, и это не небрежность:
+   * площадки отдают разный набор, а придумывать недостающее запрещено
+   * (правило 14). Пустое поле означает «площадка не сказала», а не «нет».
+   */
+  bathrooms?: string | null | undefined;
+  balconies?: number | null | undefined;
+  balconyArea?: number | null | undefined;
+  houseArea?: number | null | undefined;
+  yardArea?: number | null | undefined;
+  condition?: string | null | undefined;
+  buildingStatus?: string | null | undefined;
+  projectType?: string | null | undefined;
+  cadastralCode?: string | null | undefined;
+  sellerKind?: 'owner' | 'agency' | null | undefined;
+
   owner: { name?: string | null | undefined; phone: string };
 
   parserVersion: string;
   missingFields?: string[] | undefined;
+}
+
+/**
+ * Характеристики объявления одним куском.
+ *
+ * Отдельной функцией, потому что тот же набор нужен и при создании объекта,
+ * и при обратном импорте своего же объявления: расписанный дважды, он рано
+ * или поздно разъедется.
+ */
+function characteristics(input: ImportPayload) {
+  return {
+    bathrooms: input.bathrooms ?? null,
+    balconies: input.balconies ?? null,
+    balconyArea: input.balconyArea ?? null,
+    houseArea: input.houseArea ?? null,
+    yardArea: input.yardArea ?? null,
+    condition: input.condition ?? null,
+    buildingStatus: input.buildingStatus ?? null,
+    projectType: input.projectType ?? null,
+    cadastralCode: input.cadastralCode ?? null,
+    sellerKind: input.sellerKind ?? null,
+  };
 }
 
 export interface ImportInput extends ImportPayload {
@@ -628,6 +667,7 @@ async function createProperty(
         transactionType: input.transactionType ?? 'SALE',
         propertyType: input.propertyType ?? 'APARTMENT',
         rooms: input.rooms ?? null,
+        bedrooms: input.bedrooms ?? null,
         areaTotal: input.area ?? null,
         floor: input.floor ?? null,
         totalFloors: input.totalFloors ?? null,
@@ -638,6 +678,7 @@ async function createProperty(
         currency: input.currency ?? null,
         descriptionSource: input.description ?? null,
         photos: input.photos ?? [],
+        ...characteristics(input),
       },
       select: { id: true },
     });

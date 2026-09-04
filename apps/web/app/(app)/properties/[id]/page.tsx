@@ -21,6 +21,7 @@ import {
 import { contextLocale, requireContext } from '../../../_lib/session';
 import { Photo } from '../../../_ui/photo';
 import { ActivityList } from './activity-list';
+import { Characteristics } from './characteristics';
 import { CommentBox } from './comment-box';
 import { PropertyControls } from './controls';
 import { PublicDescription } from './public-description';
@@ -123,6 +124,10 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
       <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
         <div className="flex flex-col gap-6">
+          {/* Характеристики выше описания: их читают перед звонком,
+              а описание — чужой текст, который агент перепишет. */}
+          <Characteristics locale={locale} facts={property} />
+
           <PublicDescription
             propertyId={property.id}
             value={property.publicDescription}
