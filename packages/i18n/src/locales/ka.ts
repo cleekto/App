@@ -386,6 +386,7 @@ export const ka: DeepPartial<Dictionary> = {
 
     error: {
       network: 'kleekTo-სთან კავშირი არ არის. მონაცემები შენახულია — სცადეთ ხელახლა.',
+      networkAddress: 'მისამართი',
       session: 'სესიის ვადა ამოიწურა. შედით თავიდან.',
       unknown: 'რაღაც ვერ მოხერხდა. სცადეთ ხელახლა.',
     },

@@ -1,5 +1,6 @@
 import { formatMoney, formatNumber, translator, type Locale, type MessageKey } from '@kleekto/i18n';
 
+import { API_URL } from '../core/config';
 import type { CallOutcome, ListingPreview } from '../core/import-manager';
 
 /**
@@ -427,6 +428,21 @@ export class Ui {
           : 'extension.error.unknown';
 
     panel.append(this.closeButton(), this.head(this.t(key), 'quiet'));
+
+    /*
+     * АДРЕС ПРИ ОБРЫВЕ СВЯЗИ, и это не украшение.
+     *
+     * Расширение собирается под конкретный адрес: он подставляется на сборке,
+     * потому что у страницы расширения нет процесса, из которого читать `.env`.
+     * Собранное без переменных смотрит на `localhost:3000` и выглядит рабочим
+     * до первого запроса — а сообщение «нет связи» одинаково и для «сервер
+     * лежит», и для «собрано не туда». Показанный адрес различает эти случаи
+     * мгновенно, без чтения манифеста.
+     */
+    if (kind === 'network' && API_URL !== '') {
+      panel.append(this.line(`${this.t('extension.error.networkAddress')}: ${API_URL}`));
+    }
+
     if (kind !== 'session') {
       panel.append(this.button(this.t('common.retry'), 'primary', { type: 'retry' }));
     }

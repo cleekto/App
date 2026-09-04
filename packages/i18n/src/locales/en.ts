@@ -409,6 +409,7 @@ export const en = {
 
     error: {
       network: 'No connection to kleekTo. Your data is kept — try again.',
+      networkAddress: 'Address',
       session: 'Your session has expired. Sign in again.',
       unknown: 'Something went wrong. Try again.',
     },

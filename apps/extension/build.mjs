@@ -21,10 +21,35 @@ await cp(resolve(root, 'public'), outdir, { recursive: true });
  * локальная разработка. Секретов здесь нет и быть не может: всё, что попало
  * в бандл расширения, публично по определению.
  */
+const LOCAL = 'http://localhost:3000';
+const apiUrl = process.env.KLEEKTO_API_URL ?? LOCAL;
+const appUrl = process.env.KLEEKTO_APP_URL ?? LOCAL;
+
 const define = {
-  __KLEEKTO_API_URL__: JSON.stringify(process.env.KLEEKTO_API_URL ?? 'http://localhost:3000'),
-  __KLEEKTO_APP_URL__: JSON.stringify(process.env.KLEEKTO_APP_URL ?? 'http://localhost:3000'),
+  __KLEEKTO_API_URL__: JSON.stringify(apiUrl),
+  __KLEEKTO_APP_URL__: JSON.stringify(appUrl),
 };
+
+/*
+ * СБОРКА ПОД LOCALHOST ГОВОРИТ ОБ ЭТОМ ВСЛУХ.
+ *
+ * Значение по умолчанию удобно для разработки и коварно для всех остальных:
+ * расширение собирается, ставится, открывается — и молчит до первого запроса,
+ * а потом сообщает «нет связи», ничего не объясняя. Один такой случай уже
+ * стоил разбирательства, поэтому сборка предупреждает сама.
+ */
+if (apiUrl === LOCAL) {
+  console.warn(
+    [
+      '',
+      '  ВНИМАНИЕ: расширение собрано под ' + LOCAL + '.',
+      '  Для агента оно работать не будет — нужен адрес сервера:',
+      '',
+      '    KLEEKTO_API_URL=https://... KLEEKTO_APP_URL=https://... pnpm --filter @kleekto/extension build',
+      '',
+    ].join('\n'),
+  );
+}
 
 /**
  * `host_permissions` приводится в соответствие с адресом API.
@@ -38,7 +63,7 @@ const define = {
   const manifestPath = resolve(outdir, 'manifest.json');
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 
-  const api = new URL(process.env.KLEEKTO_API_URL ?? 'http://localhost:3000');
+  const api = new URL(apiUrl);
   manifest.host_permissions = [`${api.origin}/*`];
 
   await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');

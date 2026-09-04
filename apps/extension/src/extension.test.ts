@@ -748,6 +748,38 @@ describe('интерфейс расширения', () => {
     expect(warning).toContain(translate('ru', 'extension.duplicate.addAnyway'));
   });
 
+  /**
+   * АДРЕС ПРИ ОБРЫВЕ СВЯЗИ.
+   *
+   * Расширение собирается под конкретный адрес: он подставляется на сборке.
+   * Собранное без переменных смотрит на `localhost:3000`, выглядит рабочим
+   * и сообщает «нет связи» — то же самое, что и при лежащем сервере.
+   * Один такой случай уже стоил разбирательства, поэтому адрес показывается.
+   */
+  it('обрыв связи называет адрес, куда стучались', () => {
+    const text = withDom(() => {
+      const ui = new Ui('ru', () => undefined);
+      ui.error('network');
+      return ui.content.textContent ?? '';
+    });
+
+    expect(text).toContain(translate('ru', 'extension.error.network'));
+    expect(text).toContain('https://kleekto.test');
+    // Повторить имеет смысл: связь могла пропасть на секунду.
+    expect(text).toContain(translate('ru', 'common.retry'));
+  });
+
+  it('адрес показывается только при обрыве связи', () => {
+    // На истёкшей сессии адрес ни при чём — это шум.
+    const text = withDom(() => {
+      const ui = new Ui('ru', () => undefined);
+      ui.error('session');
+      return ui.content.textContent ?? '';
+    });
+
+    expect(text).not.toContain('https://kleekto.test');
+  });
+
   it('истёкшая сессия не предлагает бессмысленный повтор', () => {
     const text = withDom(() => {
       const ui = new Ui('ru', () => undefined);

@@ -44,8 +44,20 @@
 ### А1. Собрать под адрес вашего сервера
 
 ```bash
+pnpm --filter @kleekto/extension build
+```
+
+Адрес берётся из корневого `.env` (`KLEEKTO_API_URL`, `KLEEKTO_APP_URL`).
+Задать его можно и разово, прямо в команде:
+
+```bash
 KLEEKTO_API_URL=https://app-web-tau-five.vercel.app KLEEKTO_APP_URL=https://app-web-tau-five.vercel.app pnpm --filter @kleekto/extension build
 ```
+
+**Если адрес нигде не задан, соберётся версия под `localhost:3000`** — она
+поставится, откроется и будет выглядеть рабочей, а на первом же запросе
+скажет «нет связи с kleekTo». Сборка предупреждает об этом вслух, а само
+расширение показывает в сообщении адрес, на который стучалось.
 
 Это боевой адрес kleekTo. У приложения их два —
 `app-web-tau-five.vercel.app` и `app-web-cleekto.vercel.app`, — но это
