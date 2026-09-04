@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Avatar } from '../../_ui/accent';
 import { Badge, Button, Field, Input, Notice, Select } from '../../_ui/primitives';
 
 /**
@@ -184,7 +185,13 @@ export function UserRow({
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]">
+      {/* Кружок с инициалами: тот же цвет, что у этого человека в списке
+          объектов и в задачах. Список сотрудников перестаёт быть колонкой
+          одинаковых строк. Отключённый — приглушённый, чтобы состояние
+          читалось не только зачёркнутым именем. */}
+      <Avatar name={user.fullName} />
+
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 truncate text-sm font-medium">
           <span className={user.isActive ? '' : 'text-[var(--color-text-tertiary)] line-through'}>

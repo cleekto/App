@@ -3,6 +3,7 @@ import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
 import { statusLabel } from '../../_lib/format';
+import { stageColors } from '../../_ui/accent';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Card } from '../../_ui/primitives';
 import { FunnelRow, Metric, MetricGroup, Rule } from './parts';
@@ -95,7 +96,7 @@ export default async function DashboardPage() {
                 })}
                 count={n(status.count)}
                 share={status.count / peak}
-                color={FUNNEL_COLOR}
+                color={stageColors(status.colorToken).fg}
               />
             ))}
           </ul>
@@ -208,4 +209,8 @@ export default async function DashboardPage() {
  * что-либо значить: в продукте он уже занят — успех, внимание, тревога.
  * Полосе достаточно длины, она сравнивает, а не сигнализирует.
  */
-const FUNNEL_COLOR = 'var(--color-brand)';
+/*
+ * Цвет полосы больше не общий: он берётся у самой стадии (`colorToken`),
+ * тот же, что на доске. Одноцветная воронка требовала читать подписи, чтобы
+ * понять, где какая стадия; теперь она узнаётся так же, как колонка доски.
+ */

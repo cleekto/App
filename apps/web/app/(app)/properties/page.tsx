@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { Photo } from '../../_ui/photo';
 import { NewProperty } from './new-property';
-import { Badge, Card, EmptyState, PageHeader } from '../../_ui/primitives';
+import { Avatar, StagePill } from '../../_ui/accent';
+import { Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
 import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
@@ -45,6 +46,15 @@ export default async function PropertiesPage({
   const canCreate = permissionScope(ctx.role, 'property', 'create') !== null && ctx.teamId !== null;
 
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
+
+  /*
+   * Цвет стадии по её идентификатору.
+   *
+   * Берётся тот же `colorToken`, что и на доске: администратор выбрал его
+   * один раз, и стадия обязана выглядеть одинаково везде. Вывести цвет
+   * заново — значит показать одну стадию разного цвета в двух местах.
+   */
+  const stageColor = new Map(statuses.map((status) => [status.id, status.colorToken]));
   const foundLine = `${String(total)} ${t('property.found')}`;
 
   return (
@@ -159,18 +169,26 @@ export default async function PropertiesPage({
                       <p className="text-[0.9375rem] leading-5 font-semibold">
                         {priceLine(locale, item)}
                       </p>
-                      <p className="mt-0.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
-                        {item.assignedUserName ?? t('property.unassigned')}
+                      {/* Ответственный — с кружком: в списке из двадцати
+                          строк видно, чьи объекты, не читая имён. */}
+                      <p className="mt-0.5 flex items-center justify-end gap-1.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
+                        {item.assignedUserName === null ? null : (
+                          <Avatar name={item.assignedUserName} size="sm" />
+                        )}
+                        <span className="truncate">
+                          {item.assignedUserName ?? t('property.unassigned')}
+                        </span>
                       </p>
                     </div>
 
                     <span className="w-36 shrink-0">
-                      <Badge tone="neutral">
-                        {statusLabel(locale, {
+                      <StagePill
+                        label={statusLabel(locale, {
                           name: item.pipelineStatusName,
                           names: item.pipelineStatusNames,
                         })}
-                      </Badge>
+                        colorToken={stageColor.get(item.pipelineStatusId) ?? null}
+                      />
                     </span>
                   </div>
                 </Link>

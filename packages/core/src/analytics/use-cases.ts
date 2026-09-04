@@ -32,6 +32,8 @@ export interface Dashboard {
        * когда язык компании ещё не был известен (инвариант 4).
        */
       statusCode: string;
+      /** Цвет стадии — тот же, что на доске (`colorToken`). */
+      colorToken: string | null;
       /** Запасное имя: показывается там, где у языка своего нет. */
       statusName: string;
       /** Имя на каждом языке. Пусто — берётся запасное. */
@@ -131,7 +133,17 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
 
   const statusNames = await prisma.pipelineStatus.findMany({
     where: { companyId: ctx.companyId },
-    select: { id: true, code: true, name: true, nameKa: true, nameEn: true, nameRu: true },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      nameKa: true,
+      nameEn: true,
+      nameRu: true,
+      // Цвет стадии, выбранный администратором. Воронка обязана выглядеть
+      // так же, как доска: одна стадия — один цвет во всём продукте.
+      colorToken: true,
+    },
     orderBy: { sortOrder: 'asc' },
   });
 
@@ -152,6 +164,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
         statusCode: status.code,
         statusName: status.name,
         statusNames: { ka: status.nameKa, en: status.nameEn, ru: status.nameRu },
+        colorToken: status.colorToken,
         count: counts.get(status.id) ?? 0,
       })),
     },
