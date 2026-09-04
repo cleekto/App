@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { HTTP_STATUS_BY_ERROR, errorEnvelope } from '@kleekto/contracts';
-import { UnauthenticatedError, isDomainError, verifyAccessToken } from '@kleekto/core';
+import { UnauthenticatedError, contextFromAccessToken, isDomainError } from '@kleekto/core';
 import type { AuthContext } from '@kleekto/core';
 
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
@@ -35,15 +35,14 @@ export async function requireAuth(request: Request): Promise<AuthContext> {
     throw new UnauthenticatedError();
   }
 
-  const verified = await verifyAccessToken(token);
-
-  return {
-    userId: verified.userId,
-    companyId: verified.companyId,
-    teamId: verified.teamId,
-    role: verified.role,
-    locale: verified.locale,
-  };
+  /*
+   * Контекст сверяется с базой, а не берётся из токена целиком.
+   *
+   * Подпись доказывает, что токен наш. Она не доказывает, что человек
+   * до сих пор тот, кем был при выдаче: роль, команда и признак «работает»
+   * меняются админом, а токен живёт ещё до пятнадцати минут.
+   */
+  return contextFromAccessToken(token);
 }
 
 function extractToken(request: Request): string | null {

@@ -5,7 +5,7 @@ import { ACTIVITY } from '../activity/actions';
 import { UnauthenticatedError } from '../errors';
 import { seed } from '../seed/seed';
 import { hashRefreshToken } from './tokens';
-import { REFRESH_REUSE_GRACE_MS, login, refreshSession } from './use-cases';
+import { REFRESH_REUSE_GRACE_MS, contextFromAccessToken, login, refreshSession } from './use-cases';
 
 /**
  * Ротация refresh-токена с защитой от кражи — и с допуском на то, что
@@ -116,5 +116,65 @@ describe('обновление сессии', () => {
     await expect(refreshSession('не-существует-совсем')).rejects.toBeInstanceOf(
       UnauthenticatedError,
     );
+  });
+});
+
+/**
+ * РОЛЬ И КОМАНДА БЕРУТСЯ ИЗ БАЗЫ, А НЕ ИЗ ТОКЕНА.
+ *
+ * Подпись доказывает, что токен наш, но не что человек до сих пор тот, кем
+ * был при выдаче. `tokenVersion` для этого и заведён — и до аудита 2026-09-05
+ * его никто не сверял: он ехал в токене и там же оставался. Понижённый
+ * администратор четверть часа оставался администратором.
+ */
+describe('контекст сверяется с базой', () => {
+  it('понижение роли действует немедленно, а не через четверть часа', async () => {
+    const session = await login({ email: 'admin@tbilisi-estate.test', password });
+
+    const before = await contextFromAccessToken(session.accessToken);
+    expect(before.role).toBe('ADMIN');
+
+    const agentRole = await prisma.role.findFirstOrThrow({ where: { code: 'AGENT' } });
+    const admin = await prisma.user.findFirstOrThrow({
+      where: { email: 'admin@tbilisi-estate.test' },
+    });
+
+    // Так же, как это делает `updateUser`: смена роли поднимает версию.
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: { roleId: agentRole.id, tokenVersion: { increment: 1 } },
+    });
+
+    // Токен на руках прежний и подпись у него верная — но прав он больше
+    // не даёт: версия разошлась с базой.
+    await expect(contextFromAccessToken(session.accessToken)).rejects.toThrow(UnauthenticatedError);
+
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: { roleId: admin.roleId, tokenVersion: { increment: 1 } },
+    });
+  });
+
+  it('отключённый сотрудник теряет доступ, не дожидаясь истечения токена', async () => {
+    const session = await login({ email: 'agent2@tbilisi-estate.test', password });
+    await expect(contextFromAccessToken(session.accessToken)).resolves.toBeTruthy();
+
+    const agent = await prisma.user.findFirstOrThrow({
+      where: { email: 'agent2@tbilisi-estate.test' },
+    });
+    await prisma.user.update({ where: { id: agent.id }, data: { isActive: false } });
+
+    await expect(contextFromAccessToken(session.accessToken)).rejects.toThrow(UnauthenticatedError);
+
+    await prisma.user.update({ where: { id: agent.id }, data: { isActive: true } });
+  });
+
+  it('нетронутая сессия работает как раньше', async () => {
+    // Проверка не должна выгонять тех, у кого ничего не менялось.
+    const session = await loggedInAgent();
+    const ctx = await contextFromAccessToken(session.accessToken);
+
+    expect(ctx.role).toBe('AGENT');
+    expect(ctx.companyId).toBeTruthy();
   });
 });

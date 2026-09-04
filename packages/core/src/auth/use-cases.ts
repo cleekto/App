@@ -7,7 +7,7 @@ import { DEFAULT_PIPELINE_STATUSES } from '../pipeline/defaults';
 import type { AuthContext } from './context';
 import { hashPassword, verifyPassword } from './password';
 import { ensureRoles } from './roles';
-import { hashRefreshToken, issueAccessToken, issueRefreshToken } from './tokens';
+import { hashRefreshToken, issueAccessToken, issueRefreshToken, verifyAccessToken } from './tokens';
 
 export interface SessionTokens {
   accessToken: string;
@@ -288,6 +288,62 @@ export async function revokeAllSessions(userId: string): Promise<void> {
  * Профиль для интерфейса. Фронтенд по нему прячет кнопки; сервер по нему
  * ничего не решает — у него есть контекст (правило 6).
  */
+/**
+ * Контекст из access-токена, СВЕРЕННЫЙ С БАЗОЙ.
+ *
+ * ЗАЧЕМ СВЕРЯТЬ, ЕСЛИ ТОКЕН ПОДПИСАН. Подпись доказывает, что токен наш
+ * и не подделан. Она не доказывает, что человек до сих пор тот, кем был
+ * в момент выдачи. Роль, команда и признак «работает» меняются админом,
+ * а выданный токен живёт ещё до пятнадцати минут и всё это время носит
+ * старые значения.
+ *
+ * `tokenVersion` для этого и заведён: он поднимается при смене роли, команды
+ * и при отключении сотрудника. Но до аудита 2026-09-05 его НИКТО не сверял —
+ * он ехал в токене и там же оставался. Понижённый до агента администратор
+ * четверть часа оставался администратором, выведенный из команды сохранял
+ * доступ к её объектам, а комментарий в `users/use-cases.ts` уверял, что
+ * «поднятого tokenVersion достаточно, он гасит access-токен». Не гасил.
+ *
+ * ЗНАЧЕНИЯ БЕРУТСЯ ИЗ БАЗЫ, А НЕ ИЗ ТОКЕНА. Так надёжнее, чем просто
+ * сравнить версии: даже если где-то забудут поднять `tokenVersion`, роль
+ * и команда всё равно окажутся текущими. Токен остаётся доказательством
+ * личности, а правами распоряжается база.
+ *
+ * ЦЕНА — один чтение по первичному ключу на запрос. Это ровно то, чего
+ * JWT позволяет избежать, и здесь мы платим осознанно: неверная роль
+ * дороже одного индексного чтения.
+ */
+export async function contextFromAccessToken(token: string): Promise<AuthContext> {
+  const verified = await verifyAccessToken(token);
+
+  const user = await prisma.user.findUnique({
+    where: { id: verified.userId },
+    select: {
+      id: true,
+      companyId: true,
+      locale: true,
+      isActive: true,
+      tokenVersion: true,
+      role: { select: { code: true } },
+      teamMemberships: { select: { teamId: true } },
+    },
+  });
+
+  // Единое сообщение на все случаи: подробности подсказали бы атакующему,
+  // что именно не сошлось — существует ли пользователь, отключён ли он.
+  if (user === null || !user.isActive || user.tokenVersion !== verified.tokenVersion) {
+    throw new UnauthenticatedError('Сессия недействительна');
+  }
+
+  return {
+    userId: user.id,
+    companyId: user.companyId,
+    teamId: user.teamMemberships[0]?.teamId ?? null,
+    role: user.role.code,
+    locale: user.locale,
+  };
+}
+
 export async function currentUser(ctx: AuthContext): Promise<CurrentUser> {
   const user = await prisma.user.findFirst({
     // companyId из контекста, а не из запроса (правило 5).

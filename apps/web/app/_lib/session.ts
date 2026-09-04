@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-import { currentUser, verifyAccessToken } from '@kleekto/core';
+import { contextFromAccessToken, currentUser } from '@kleekto/core';
 import type { AuthContext, CurrentUser } from '@kleekto/core';
 import { isLocale, type Locale } from '@kleekto/i18n';
 
@@ -25,14 +25,10 @@ export async function optionalContext(): Promise<AuthContext | null> {
   if (token === undefined || token === '') return null;
 
   try {
-    const verified = await verifyAccessToken(token);
-    return {
-      userId: verified.userId,
-      companyId: verified.companyId,
-      teamId: verified.teamId,
-      role: verified.role,
-      locale: verified.locale,
-    };
+    // Та же сверка с базой, что и в маршрутах: страницы читают домен
+    // напрямую и обязаны видеть текущую роль, а не выданную четверть часа
+    // назад.
+    return await contextFromAccessToken(token);
   } catch {
     // Истёкший или подделанный токен — это «не вошёл», а не ошибка страницы.
     return null;
