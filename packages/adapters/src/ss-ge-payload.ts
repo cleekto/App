@@ -1,6 +1,7 @@
 import type { ListingImportPayload } from '@kleekto/contracts';
 
 import { at, flag, int, isRecord, nextData, num, text } from './payload';
+import { externalIdFromUrl } from './shared';
 import { detectPropertyType, detectTransactionType } from './vocabulary';
 
 /**
@@ -23,12 +24,39 @@ export type PayloadFacts = Partial<Omit<ListingImportPayload, 'source' | 'owner'
   ownerName?: string | null;
 };
 
-export function ssGePayloadFacts(document: Document): PayloadFacts | null {
+/**
+ * Данные страницы описывают ИМЕННО ЭТО объявление, а не соседнее.
+ *
+ * ss.ge — одностраничное приложение, и при переходе по ссылке внутри сайта
+ * `__NEXT_DATA__` в разметке НЕ ОБНОВЛЯЕТСЯ: адрес уже другой, а объект
+ * остался от прошлой страницы. Проверено на живом сайте 2026-09-04: после
+ * клика из ленты `page` по-прежнему `/real-estate/l/[...slug]`, а объявления
+ * в данных нет вовсе.
+ *
+ * Без этой проверки возможен худший исход из возможных: объявление B
+ * импортируется с данными объявления A — с чужим адресом, чужой ценой
+ * и чужими фотографиями, и выглядеть это будет совершенно нормально.
+ */
+function describesThisListing(app: Record<string, unknown>, url: string | null): boolean {
+  if (url === null) return true;
+
+  const inUrl = externalIdFromUrl(url);
+  if (inUrl === null) return true;
+
+  const inPayload = text(app['applicationId']);
+  return inPayload === null || inPayload === inUrl;
+}
+
+export function ssGePayloadFacts(
+  document: Document,
+  url: string | null = null,
+): PayloadFacts | null {
   const root = nextData(document);
   if (root === null) return null;
 
   const app = at(root, ['props', 'pageProps', 'applicationData']);
   if (!isRecord(app)) return null;
+  if (!describesThisListing(app, url)) return null;
 
   const address = isRecord(app['address']) ? app['address'] : {};
 
@@ -79,9 +107,16 @@ export function ssGePayloadFacts(document: Document): PayloadFacts | null {
 export function ssGePayloadPrice(
   document: Document,
   currency: string | null,
+  url: string | null = null,
 ): { price: number | null; currency: string | null } {
   const root = nextData(document);
-  const price = at(root, ['props', 'pageProps', 'applicationData', 'price']);
+  const app = at(root, ['props', 'pageProps', 'applicationData']);
+
+  // Та же проверка, что и у остального: цена соседнего объявления опаснее
+  // отсутствующей цены.
+  if (!isRecord(app) || !describesThisListing(app, url)) return { price: null, currency };
+
+  const price = at(app, ['price']);
   if (!isRecord(price)) return { price: null, currency };
 
   if (currency === 'GEL') return { price: num(price['priceGeo']), currency };

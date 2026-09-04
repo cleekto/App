@@ -79,13 +79,13 @@ export class SsGeAdapter implements ListingSourceAdapter {
      * с другим маршрутом и объекта объявления не содержат вовсе, — поэтому
      * старый разбор остаётся вторым эшелоном, а не удаляется.
      */
-    const facts = ssGePayloadFacts(document);
+    const facts = ssGePayloadFacts(document, canonical);
 
     const fromTitle = detectCurrency(title);
     const priced =
       facts === null
         ? { price: priceFrom(title), currency: fromTitle }
-        : ssGePayloadPrice(document, fromTitle);
+        : ssGePayloadPrice(document, fromTitle, canonical);
 
     const price = track('price', priced.price ?? priceFrom(title));
     const currency = track('currency', priced.currency ?? fromTitle);
@@ -227,9 +227,36 @@ function ownerPhones(document: Document): string[] {
  * файле остаётся ровно один снимок — `og:image`. Это ограничение фикстур,
  * а не кода; разбор галереи проверяется на живой странице в фазе 6.
  */
+/**
+ * Фотографии из разметки — запасной путь, когда данных страницы нет.
+ *
+ * ДВЕ ПОПРАВКИ, ОБЕ ПО СЛЕДАМ ЖИВОГО САЙТА (2026-09-04).
+ *
+ * 1. МИНИАТЮРЫ ПОДНИМАЮТСЯ ДО ПОЛНОГО РАЗМЕРА. В галерее в полном размере
+ *    загружено только открытое фото, остальные — превью `_Thumb`. Отсюда
+ *    была жалоба «крупно только активное, остальные мелкие». Соответствие
+ *    имён не выдумано: в данных площадки у каждого снимка лежат оба адреса,
+ *    и `fileNameThumb` отличается от `fileName` ровно вставкой `_Thumb`.
+ *    Проверено на 28 снимках из фикстур, расхождений нет — на это стоит тест.
+ *
+ * 2. `og:image` БЕРЁТСЯ ТОЛЬКО СО СКЛАДА КАРТИНОК. При переходе по ссылке
+ *    внутри сайта мета-теги остаются от прошлой страницы, и там лежит
+ *    `home.ss.ge/images/og-image.jpg` — логотип ss.ge. Без проверки он
+ *    попадал бы в объект как фотография недвижимости.
+ */
 function photoUrls(document: Document, base: string): string[] {
-  const primary = metaContent(document, 'og:image');
-  const gallery = ownImages(document, base, /static\.ss\.ge/u);
+  const cdn = /static\.ss\.ge/u;
 
-  return [...new Set([primary, ...gallery].filter((src): src is string => src !== null))];
+  const primary = metaContent(document, 'og:image');
+  const cover = primary !== null && cdn.test(primary) ? primary : null;
+  const gallery = ownImages(document, base, cdn);
+
+  const all = [cover, ...gallery].filter((src): src is string => src !== null).map(fullSizeImage);
+
+  return [...new Set(all)];
+}
+
+/** Полноразмерный адрес снимка ss.ge по адресу его миниатюры. */
+export function fullSizeImage(url: string): string {
+  return url.replace(/_Thumb(\.[a-z]+)(\?.*)?$/iu, '$1$2');
 }

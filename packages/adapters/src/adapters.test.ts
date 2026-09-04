@@ -6,7 +6,7 @@ import { join } from 'node:path';
 
 import { FIXTURE_ROOT, fixturesAvailable, loadFixtures } from './fixtures';
 import { MyhomeAdapter } from './myhome-ge';
-import { SsGeAdapter } from './ss-ge';
+import { SsGeAdapter, fullSizeImage } from './ss-ge';
 import { adapterFor } from './index';
 import { isGeorgianMobile, parseFloorPair } from './shared';
 import { detectPropertyType, detectTransactionType, roomsFromTitle } from './vocabulary';
@@ -570,6 +570,83 @@ describe('myhome.ge: разбор из данных страницы', () => {
       for (const phone of payload.owner.phones) {
         expect(phone).not.toContain('*');
       }
+    }
+  });
+});
+
+describe('ss.ge: переход по ссылке внутри сайта', () => {
+  /**
+   * ss.ge — одностраничное приложение, и при переходе по ссылке внутри сайта
+   * `__NEXT_DATA__` в разметке НЕ ОБНОВЛЯЕТСЯ: адрес уже другой, а объект
+   * остался от прошлой страницы. Проверено на живом сайте 2026-09-04.
+   *
+   * Худший исход без проверки — объявление B с данными объявления A:
+   * чужой адрес, чужая цена, чужие фотографии, и всё выглядит нормально.
+   */
+  it('данные от прошлой страницы не берутся вовсе', () => {
+    const raw = readFileSync(join(FIXTURE_ROOT, 'ss-ge', 'payload', 'apartment-sale.json'), 'utf8');
+    const page = { props: { pageProps: { applicationData: JSON.parse(raw) as unknown } } };
+
+    // Адрес — другого объявления, данные — прежнего.
+    const { document } = parseHTML(
+      `<html><head><meta property="og:url" content="https://home.ss.ge/ka/udzravi-qoneba/x-99999999">` +
+        `<meta property="og:title" content="იყიდება, 100 $ - 99999999 | ss.ge"></head>` +
+        `<body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(page)}</script></body></html>`,
+    );
+
+    const { payload } = ss.extract(document as unknown as Document, 'https://home.ss.ge/x');
+
+    // Ни одного поля из чужих данных.
+    expect(payload.district).toBeNull();
+    expect(payload.cadastralCode).toBeNull();
+    expect(payload.photos).toEqual([]);
+  });
+
+  it('логотип сайта не попадает в объект как фотография', () => {
+    // При переходе по ссылке мета-теги остаются от прошлой страницы,
+    // и в `og:image` лежит логотип ss.ge, а не обложка объявления.
+    const { document } = parseHTML(
+      '<html><head><meta property="og:url" content="https://home.ss.ge/ka/udzravi-qoneba/x-12345678">' +
+        '<meta property="og:image" content="https://home.ss.ge/images/og-image.jpg"></head><body></body></html>',
+    );
+
+    const { payload } = ss.extract(document as unknown as Document, 'https://home.ss.ge/x');
+    expect(payload.photos).toEqual([]);
+  });
+
+  it('МИНИАТЮРЫ ПОДНИМАЮТСЯ ДО ПОЛНОГО РАЗМЕРА', () => {
+    // Соответствие имён не выдумано: у каждого снимка площадка отдаёт оба
+    // адреса, и отличаются они ровно вставкой `_Thumb`.
+    const { document } = parseHTML(
+      '<html><head><meta property="og:url" content="https://home.ss.ge/ka/udzravi-qoneba/x-12345678"></head>' +
+        '<body>' +
+        '<img src="https://static.ss.ge/20260828/13_aaa_Thumb.jpg">' +
+        '<img src="https://static.ss.ge/20260828/13_bbb_Thumb.jpg">' +
+        '<img src="https://static.ss.ge/20260828/13_ccc.jpg">' +
+        '</body></html>',
+    );
+
+    const { payload } = ss.extract(document as unknown as Document, 'https://home.ss.ge/x');
+
+    expect(payload.photos).toEqual([
+      'https://static.ss.ge/20260828/13_aaa.jpg',
+      'https://static.ss.ge/20260828/13_bbb.jpg',
+      'https://static.ss.ge/20260828/13_ccc.jpg',
+    ]);
+    expect(payload.photos.filter((url) => /_Thumb/iu.test(url))).toEqual([]);
+  });
+
+  it('правило «миниатюра → полный размер» проверено на самих данных площадки', () => {
+    // Оно выведено из фикстур, а не придумано: если площадка сменит схему
+    // имён, этот тест скажет об этом раньше агента.
+    const raw = readFileSync(join(FIXTURE_ROOT, 'ss-ge', 'payload', 'apartment-sale.json'), 'utf8');
+    const images = (
+      JSON.parse(raw) as { appImages: Array<{ fileName: string; fileNameThumb: string }> }
+    ).appImages;
+
+    expect(images.length).toBeGreaterThan(10);
+    for (const image of images) {
+      expect(fullSizeImage(image.fileNameThumb)).toBe(image.fileName);
     }
   });
 });
