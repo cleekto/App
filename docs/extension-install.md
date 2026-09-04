@@ -44,8 +44,14 @@
 ### А1. Собрать под адрес вашего сервера
 
 ```bash
-KLEEKTO_API_URL=https://ваш-домен KLEEKTO_APP_URL=https://ваш-домен pnpm --filter @kleekto/extension build
+KLEEKTO_API_URL=https://app-web-tau-five.vercel.app KLEEKTO_APP_URL=https://app-web-tau-five.vercel.app pnpm --filter @kleekto/extension build
 ```
+
+Это боевой адрес kleekTo. У приложения их два —
+`app-web-tau-five.vercel.app` и `app-web-cleekto.vercel.app`, — но это
+**один и тот же проект и одна и та же сборка**: Vercel выдаёт проекту
+несколько имён. Проверено сверкой файлов: они совпадают побайтово.
+Собирать можно под любой, работать будет одинаково.
 
 Адрес подставляется **на сборке**, а не берётся из настроек: у страницы
 расширения нет процесса, из которого читать `.env`. Без переменных
