@@ -12,6 +12,7 @@ import {
   telLinks,
 } from './shared';
 import { detectPropertyType, detectTransactionType } from './vocabulary';
+import { ssGePayloadFacts, ssGePayloadPrice } from './ss-ge-payload';
 import type { ListingSourceAdapter } from './types';
 
 /**
@@ -69,48 +70,93 @@ export class SsGeAdapter implements ListingSourceAdapter {
     const canonical = metaContent(document, 'og:url') ?? url;
     const title = stripSuffix(metaContent(document, 'og:title'));
 
-    const price = track('price', priceFrom(title));
-    const currency = track('currency', detectCurrency(title));
+    /*
+     * ДАННЫЕ СТРАНИЦЫ ВПЕРЁД, РАЗМЕТКА — ЗАПАСНОЙ ПУТЬ.
+     *
+     * В `__NEXT_DATA__` объявление лежит целиком и точно; разбор разметки
+     * даёт меньше и гоняется с отрисовкой. Но форма данных у площадки
+     * меняется без предупреждения — фикстуры недельной давности сохранены
+     * с другим маршрутом и объекта объявления не содержат вовсе, — поэтому
+     * старый разбор остаётся вторым эшелоном, а не удаляется.
+     */
+    const facts = ssGePayloadFacts(document);
 
-    const area = track('area', firstDecimal(iconValue(document, 'icon-crop_free')));
-    const rooms = track('rooms', firstInteger(iconValue(document, 'icon-meeting_room')));
-    const bedrooms = track('bedrooms', firstInteger(iconValue(document, 'icon-bed')));
+    const fromTitle = detectCurrency(title);
+    const priced =
+      facts === null
+        ? { price: priceFrom(title), currency: fromTitle }
+        : ssGePayloadPrice(document, fromTitle);
 
-    const floors = parseFloorPair(iconValue(document, 'icon-stairs'));
-    if (floors.floor === null) missing.push('floor');
-    if (floors.totalFloors === null) missing.push('totalFloors');
+    const price = track('price', priced.price ?? priceFrom(title));
+    const currency = track('currency', priced.currency ?? fromTitle);
 
-    const photos = photoUrls(document, canonical);
+    const area = track('area', facts?.area ?? firstDecimal(iconValue(document, 'icon-crop_free')));
+    const rooms = track(
+      'rooms',
+      facts?.rooms ?? firstInteger(iconValue(document, 'icon-meeting_room')),
+    );
+    const bedrooms = track(
+      'bedrooms',
+      facts?.bedrooms ?? firstInteger(iconValue(document, 'icon-bed')),
+    );
+
+    const domFloors = parseFloorPair(iconValue(document, 'icon-stairs'));
+    const floor = track('floor', facts?.floor ?? domFloors.floor);
+    const totalFloors = track('totalFloors', facts?.totalFloors ?? domFloors.totalFloors);
+
+    // Фотографии из данных — все и в полном размере. Разбор разметки давал
+    // обложку плюс миниатюры: в галерее в полном размере загружено только
+    // открытое фото.
+    const payloadPhotos = facts?.photos ?? [];
+    const photos = payloadPhotos.length > 0 ? payloadPhotos : photoUrls(document, canonical);
     if (photos.length === 0) missing.push('photos');
 
+    // ПРАВИЛО 11: телефон только из раскрытой разметки. В данных страницы он
+    // лежит целиком, но берётся он тогда, когда номер раскрыл агент.
     const phones = ownerPhones(document);
     if (phones.length === 0) missing.push('ownerPhone');
 
-    // Адрес и район на разобранных страницах в отдельных полях не найдены.
-    // Выдумывать их разбором заголовка нельзя: в грузинском название района
-    // стоит в падеже («ბაგებში» — «в Багеби»), и обратное преобразование
-    // было бы догадкой. Оба поля объявлены отсутствующими честно.
-    missing.push('address', 'district');
+    // Адрес и район в разметке отдельными полями не найдены, а выдумывать их
+    // разбором заголовка нельзя: в грузинском название района стоит в падеже
+    // («ბაგებში» — «в Багеби»). В данных они есть прямо; если данных нет,
+    // поля честно объявляются отсутствующими.
+    const address = track('address', facts?.address ?? null);
+    const district = track('district', facts?.district ?? null);
 
     const payload: ListingImportPayload = {
       source: this.sourceId,
       sourceUrl: canonical,
-      externalId: track('externalId', externalIdFromUrl(canonical)),
-      title: track('title', title),
-      propertyType: track('propertyType', detectPropertyType(title)),
-      transactionType: track('transactionType', detectTransactionType(title)),
+      externalId: track('externalId', facts?.externalId ?? externalIdFromUrl(canonical)),
+      title: track('title', facts?.title ?? title),
+      propertyType: track('propertyType', facts?.propertyType ?? detectPropertyType(title)),
+      transactionType: track(
+        'transactionType',
+        facts?.transactionType ?? detectTransactionType(title),
+      ),
       price,
       currency,
       area,
       rooms,
       bedrooms,
-      floor: floors.floor,
-      totalFloors: floors.totalFloors,
-      district: null,
-      address: null,
-      description: track('description', metaContent(document, 'description')),
+      floor,
+      totalFloors,
+      district,
+      address,
+      description: track('description', facts?.description ?? metaContent(document, 'description')),
       photos,
-      owner: { name: null, phones },
+
+      bathrooms: track('bathrooms', facts?.bathrooms ?? null),
+      balconies: track('balconies', facts?.balconies ?? null),
+      balconyArea: track('balconyArea', facts?.balconyArea ?? null),
+      houseArea: track('houseArea', facts?.houseArea ?? null),
+      yardArea: track('yardArea', facts?.yardArea ?? null),
+      condition: track('condition', facts?.condition ?? null),
+      buildingStatus: track('buildingStatus', facts?.buildingStatus ?? null),
+      projectType: track('projectType', facts?.projectType ?? null),
+      cadastralCode: track('cadastralCode', facts?.cadastralCode ?? null),
+      sellerKind: track('sellerKind', facts?.sellerKind ?? null),
+
+      owner: { name: facts?.ownerName ?? null, phones },
     };
 
     return { payload, missingFields: [...new Set(missing)], parserVersion: this.parserVersion };

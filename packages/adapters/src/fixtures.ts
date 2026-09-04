@@ -12,7 +12,12 @@ import { parseHTML } from 'linkedom';
  * а не делают вид, что проверили.
  */
 
-const FIXTURE_ROOT = join(import.meta.dirname, '../../../docs/fixtures');
+/**
+ * Корень фикстур. Экспортируется ради снимков полезной нагрузки: сохранённые
+ * страницы ss.ge объекта объявления больше не содержат — площадка сменила
+ * маршрут, — и разбор данных проверяется на отдельных JSON-снимках.
+ */
+export const FIXTURE_ROOT = join(import.meta.dirname, '../../../docs/fixtures');
 
 export interface Fixture {
   name: string;

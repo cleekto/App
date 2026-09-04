@@ -11,6 +11,7 @@ import {
   telLinks,
 } from './shared';
 import { detectPropertyType, detectTransactionType, roomsFromTitle } from './vocabulary';
+import { myhomePayloadFacts, myhomePayloadPrice } from './myhome-ge-payload';
 import type { ListingSourceAdapter } from './types';
 
 /**
@@ -58,43 +59,73 @@ export class MyhomeAdapter implements ListingSourceAdapter {
     const title = stripSuffix(metaContent(document, 'og:title'));
     const description = metaContent(document, 'description');
 
-    const floors = parseFloorPair(floorValue(document));
-    if (floors.floor === null) missing.push('floor');
-    if (floors.totalFloors === null) missing.push('totalFloors');
+    /*
+     * ДАННЫЕ СТРАНИЦЫ ВПЕРЁД, РАЗМЕТКА — ЗАПАСНОЙ ПУТЬ. Та же причина, что
+     * и у ss.ge: в разметке меньше полей, она рисуется позже расширения
+     * и ломается от перевёрстки. Старый разбор остаётся вторым эшелоном.
+     */
+    const facts = myhomePayloadFacts(document);
 
-    const photos = photoUrls(document, canonical);
+    const fromTitle = detectCurrency(title);
+    const priced =
+      facts === null
+        ? { price: priceFrom(title), currency: fromTitle }
+        : myhomePayloadPrice(document, fromTitle);
+
+    const domFloors = parseFloorPair(floorValue(document));
+    const floor = track('floor', facts?.floor ?? domFloors.floor);
+    const totalFloors = track('totalFloors', facts?.totalFloors ?? domFloors.totalFloors);
+
+    // Фотографии из данных — все и в полном размере (`large`). Разметка
+    // отдавала то, что загружено, а в полном размере загружено только
+    // открытое фото.
+    const payloadPhotos = facts?.photos ?? [];
+    const photos = payloadPhotos.length > 0 ? payloadPhotos : photoUrls(document, canonical);
     if (photos.length === 0) missing.push('photos');
 
+    // ПРАВИЛО 11: телефон только из раскрытой разметки. В данных он приходит
+    // замаскированным, но полагаться на чужую маску нельзя — снимут, и правило
+    // нарушится молча.
     const phones = ownerPhones(document);
     if (phones.length === 0) missing.push('ownerPhone');
 
     // Район в заголовке стоит в местном падеже («დიდ დიღომში» — «в Диди
-    // Дигоми»), и обратное преобразование было бы догадкой. Оставляем пустым.
-    missing.push('district');
+    // Дигоми»), и обратное преобразование было бы догадкой. В данных он есть
+    // прямо; без данных поле честно объявляется отсутствующим.
+    const district = track('district', facts?.district ?? null);
 
     const payload: ListingImportPayload = {
       source: this.sourceId,
       sourceUrl: canonical,
-      externalId: track('externalId', externalIdFromUrl(canonical)),
-      title: track('title', title),
+      externalId: track('externalId', facts?.externalId ?? externalIdFromUrl(canonical)),
+      title: track('title', facts?.title ?? title),
       propertyType: track('propertyType', detectPropertyType(title)),
       transactionType: track('transactionType', detectTransactionType(title)),
-      price: track('price', priceFrom(title)),
-      currency: track('currency', detectCurrency(title)),
-      area: track('area', areaFrom(title)),
-      rooms: track('rooms', roomsFromTitle(title)),
-      // Отдельного поля «спальни» на разобранных страницах нет.
-      bedrooms: null,
-      floor: floors.floor,
-      totalFloors: floors.totalFloors,
-      district: null,
-      address: track('address', addressFrom(description)),
-      description: track('description', description),
+      price: track('price', priced.price ?? priceFrom(title)),
+      currency: track('currency', priced.currency ?? fromTitle),
+      area: track('area', facts?.area ?? areaFrom(title)),
+      rooms: track('rooms', facts?.rooms ?? roomsFromTitle(title)),
+      bedrooms: track('bedrooms', facts?.bedrooms ?? null),
+      floor,
+      totalFloors,
+      district,
+      address: track('address', facts?.address ?? addressFrom(description)),
+      description: track('description', facts?.description ?? description),
       photos,
-      owner: { name: null, phones },
-    };
 
-    if (payload.bedrooms === null) missing.push('bedrooms');
+      bathrooms: track('bathrooms', facts?.bathrooms ?? null),
+      balconies: track('balconies', facts?.balconies ?? null),
+      balconyArea: track('balconyArea', facts?.balconyArea ?? null),
+      houseArea: track('houseArea', facts?.houseArea ?? null),
+      yardArea: track('yardArea', facts?.yardArea ?? null),
+      condition: track('condition', facts?.condition ?? null),
+      buildingStatus: track('buildingStatus', facts?.buildingStatus ?? null),
+      projectType: track('projectType', facts?.projectType ?? null),
+      cadastralCode: track('cadastralCode', facts?.cadastralCode ?? null),
+      sellerKind: track('sellerKind', facts?.sellerKind ?? null),
+
+      owner: { name: facts?.ownerName ?? null, phones },
+    };
 
     return { payload, missingFields: [...new Set(missing)], parserVersion: this.parserVersion };
   }

@@ -1,7 +1,10 @@
 import { parseHTML } from 'linkedom';
 import { describe, expect, it } from 'vitest';
 
-import { fixturesAvailable, loadFixtures } from './fixtures';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { FIXTURE_ROOT, fixturesAvailable, loadFixtures } from './fixtures';
 import { MyhomeAdapter } from './myhome-ge';
 import { SsGeAdapter } from './ss-ge';
 import { adapterFor } from './index';
@@ -402,5 +405,171 @@ describe('фотографии не берутся из чужих карточ�
       // Ссылка на само это объявление своей картинке не мешает.
       'https://static.ss.ge/own/3.jpg',
     ]);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Данные страницы вместо разбора разметки
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Снимок объявления ss.ge, снятый с живой страницы и очищенный от PII.
+ *
+ * Сохранённые страницы ss.ge от 2026-08-31 для этого не годятся: за неделю
+ * площадка сменила маршрут, и объекта объявления в них нет вовсе. Снимок —
+ * единственный способ проверить новый разбор на настоящих данных, а не
+ * на выдуманных (правило 2).
+ *
+ * Телефон, имя контакта и опознаватели продавца заменены при снятии
+ * (правило 10).
+ */
+function ssGeDocumentFromPayload(name: string): Document {
+  const raw = readFileSync(join(FIXTURE_ROOT, 'ss-ge', 'payload', `${name}.json`), 'utf8');
+  const page = { props: { pageProps: { applicationData: JSON.parse(raw) as unknown } } };
+
+  const { document } = parseHTML(
+    `<html><head><meta property="og:url" content="https://home.ss.ge/ka/udzravi-qoneba/x-36555806">` +
+      `<meta property="og:title" content="იყიდება 3 ოთახიანი ბინა ვაკეში, 198000 $ - 36555806 | ss.ge"></head>` +
+      `<body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(page)}</script></body></html>`,
+  );
+
+  return document as unknown as Document;
+}
+
+describe('ss.ge: разбор из данных страницы', () => {
+  it('берёт то, чего разбор разметки не давал вовсе', () => {
+    const { payload } = ss.extract(
+      ssGeDocumentFromPayload('apartment-sale'),
+      'https://home.ss.ge/x',
+    );
+
+    // Раньше адрес и район объявлялись отсутствующими честно: в разметке
+    // их не было, а разбирать падежи грузинского заголовка — гадание.
+    expect(payload.district).toBe('ვაკე');
+    expect(payload.address).toBe('ნ. ჟვანიას ქ. 5');
+
+    expect(payload.rooms).toBe(3);
+    expect(payload.bedrooms).toBe(2);
+    expect(payload.area).toBe(81);
+    expect(payload.floor).toBe(6);
+    expect(payload.totalFloors).toBe(8);
+  });
+
+  it('берёт характеристики, выбранные владельцем', () => {
+    const { payload } = ss.extract(
+      ssGeDocumentFromPayload('apartment-sale'),
+      'https://home.ss.ge/x',
+    );
+
+    expect(payload.bathrooms).toBe('1');
+    expect(payload.balconies).toBe(1);
+    expect(payload.condition).toBe('ახალი რემონტით');
+    expect(payload.buildingStatus).toBe('ახალი აშენებული');
+    expect(payload.projectType).toBe('არასტანდარტული');
+    expect(payload.sellerKind).toBe('owner');
+    expect(payload.owner.name).not.toBeNull();
+  });
+
+  it('ФОТОГРАФИИ: все и в полном размере', () => {
+    const { payload } = ss.extract(
+      ssGeDocumentFromPayload('apartment-sale'),
+      'https://home.ss.ge/x',
+    );
+
+    // Разбор разметки давал обложку плюс миниатюры: в галерее в полном
+    // размере загружено только открытое фото. Отсюда была жалоба «крупно
+    // только активное».
+    expect(payload.photos.length).toBeGreaterThan(10);
+    expect(payload.photos.filter((url) => url.includes('_Thumb'))).toEqual([]);
+  });
+
+  /**
+   * ПРАВИЛО 11, САМОЕ ВАЖНОЕ В ЭТОМ НАБОРЕ.
+   *
+   * ss.ge отдаёт полный номер собственника прямо в данных страницы, без
+   * всякого «показать телефон». Соблазн взять его оттуда велик, а цена —
+   * молчаливое нарушение правила, которое никто не заметит.
+   *
+   * Тест держит границу: телефон в данных есть, в разметке не раскрыт —
+   * значит, номера нет.
+   */
+  it('телефон НЕ берётся из данных, даже когда он там есть', () => {
+    const document = ssGeDocumentFromPayload('apartment-sale');
+
+    const raw = readFileSync(join(FIXTURE_ROOT, 'ss-ge', 'payload', 'apartment-sale.json'), 'utf8');
+    const phoneInPayload = (
+      JSON.parse(raw) as { applicationPhones: Array<{ phoneNumber: string }> }
+    ).applicationPhones[0]?.phoneNumber;
+
+    expect(phoneInPayload).toBeTruthy();
+
+    expect(ss.isPhoneRevealed(document)).toBe(false);
+
+    const { payload, missingFields } = ss.extract(document, 'https://home.ss.ge/x');
+    expect(payload.owner.phones).toEqual([]);
+    expect(missingFields).toContain('ownerPhone');
+  });
+});
+
+describe('myhome.ge: разбор из данных страницы', () => {
+  it.runIf(hasMyhome)('фотографии все и в полном размере', () => {
+    const extracted = loadFixtures('myhome-ge').map(
+      ({ document }) => myhome.extract(document, 'https://www.myhome.ge/x/').payload,
+    );
+
+    for (const payload of extracted) {
+      // `thumb` и `blur` — это превью; в объект они попадать не должны.
+      expect(payload.photos.filter((url) => /_thumb|_blur/u.test(url))).toEqual([]);
+      expect(payload.photos.length).toBeGreaterThan(0);
+    }
+
+    // На одном снимке остаётся только участок земли — там он и есть один.
+    // У жилья снимков много, и раньше из них в полном размере приходил
+    // ровно один: остальные были миниатюрами.
+    const many = extracted.filter((payload) => payload.photos.length > 5);
+    expect(many.length).toBeGreaterThan(3);
+  });
+
+  it.runIf(hasMyhome)('район заполнен везде, спальни — там, где они есть', () => {
+    const extracted = loadFixtures('myhome-ge').map(
+      ({ document }) => myhome.extract(document, 'https://www.myhome.ge/x/').payload,
+    );
+
+    // Район прежний разбор оставлял пустым по-честному: в разметке его нет,
+    // а падежи заголовка — гадание. В данных он есть у всех.
+    for (const payload of extracted) {
+      expect(payload.district).not.toBeNull();
+    }
+
+    // Спален у участка земли не бывает, и выдумывать их нельзя. Достаточно,
+    // что они появились там, где есть.
+    expect(extracted.filter((payload) => payload.bedrooms !== null).length).toBeGreaterThan(3);
+  });
+
+  it.runIf(hasMyhome)('числовые коды расшифрованы словарём самой площадки', () => {
+    const filled = loadFixtures('myhome-ge')
+      .map(({ document }) => myhome.extract(document, 'https://www.myhome.ge/x/').payload)
+      .filter((payload) => payload.projectType !== null);
+
+    expect(filled.length).toBeGreaterThan(0);
+
+    // Показывается название, а не код: «8» агенту ничего не говорит,
+    // а придумывать расшифровку запрещено (правило 2).
+    for (const payload of filled) {
+      expect(payload.projectType).not.toMatch(/^\d+$/u);
+    }
+  });
+
+  it.runIf(hasMyhome)('телефон и здесь только из раскрытой разметки', () => {
+    for (const { document } of loadFixtures('myhome-ge')) {
+      const { payload } = myhome.extract(document, 'https://www.myhome.ge/x/');
+
+      // В данных myhome номер приходит замаскированным. Полагаться на чужую
+      // маску нельзя: снимут — и правило нарушится молча. Поэтому источник
+      // один и тот же, что и у ss.ge.
+      for (const phone of payload.owner.phones) {
+        expect(phone).not.toContain('*');
+      }
+    }
   });
 });
