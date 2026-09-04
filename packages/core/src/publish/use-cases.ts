@@ -163,14 +163,31 @@ export async function reportPublicationFilled(
   publicationId: string,
   report: FillReport,
 ): Promise<{ id: string; status: PublicationStatus; propertyStatus: string }> {
+  const scope = requirePermission(ctx, 'publication', 'create');
+
   const publication = await prisma.publication.findFirst({
     where: { id: publicationId, companyId: ctx.companyId },
-    select: { id: true, propertyId: true, status: true },
+    select: {
+      id: true,
+      propertyId: true,
+      status: true,
+      property: { select: { companyId: true, teamId: true } },
+    },
   });
 
   if (publication === null) {
     throw new NotFoundError();
   }
+
+  // ОБЛАСТЬ КОМАНДЫ, А НЕ ТОЛЬКО КОМПАНИИ. Поиск по `companyId` защищает
+  // от чужого агентства, но не от соседней команды своего: у менеджера
+  // и агента право `publication.create` ограничено их командой. Найдено
+  // аудитом 2026-09-05 — до него отчитаться о заполнении по объекту соседней
+  // команды мог любой, кто знает идентификатор.
+  assertScope(ctx, scope, {
+    companyId: publication.property.companyId,
+    teamId: publication.property.teamId,
+  });
 
   if (publication.status === PublicationStatus.published) {
     throw new ConflictError('Публикация уже подтверждена');
@@ -243,14 +260,29 @@ export async function confirmPublication(
   publicationId: string,
   input: { externalId?: string | null | undefined; externalUrl: string },
 ): Promise<{ id: string; status: PublicationStatus }> {
+  const scope = requirePermission(ctx, 'publication', 'create');
+
   const publication = await prisma.publication.findFirst({
     where: { id: publicationId, companyId: ctx.companyId },
-    select: { id: true, propertyId: true, status: true, externalId: true },
+    select: {
+      id: true,
+      propertyId: true,
+      status: true,
+      externalId: true,
+      property: { select: { companyId: true, teamId: true } },
+    },
   });
 
   if (publication === null) {
     throw new NotFoundError();
   }
+
+  // Подтверждение — необратимый шаг: объект переходит в «Размещено», и запись
+  // становится защитой от самоимпорта. Чужой команде здесь делать нечего.
+  assertScope(ctx, scope, {
+    companyId: publication.property.companyId,
+    teamId: publication.property.teamId,
+  });
 
   // Повторное подтверждение — конфликт, а не молчаливое обновление:
   // два разных externalId у одной записи означают, что что-то пошло не так,
@@ -310,11 +342,15 @@ export async function listPublications(
   ctx: AuthContext,
   propertyId: string,
 ): Promise<PublicationSummary[]> {
+  const scope = requirePermission(ctx, 'publication', 'read');
+
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true },
+    select: { id: true, companyId: true, teamId: true },
   });
   if (property === null) throw new NotFoundError();
+
+  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
 
   const publications = await prisma.publication.findMany({
     where: { companyId: ctx.companyId, propertyId },
@@ -360,11 +396,24 @@ export async function publishCheck(
   existingListings: Array<{ source: Source; canonicalUrl: string }>;
   actions: string[];
 }> {
+  const scope = requirePermission(ctx, 'publication', 'read');
+
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true, propertyLinkId: true },
+    select: { id: true, propertyLinkId: true, companyId: true, teamId: true },
   });
   if (property === null) throw new NotFoundError();
+
+  /*
+   * Право спрашивается на СВОЙ объект, а результат остаётся общефирменным.
+   *
+   * Это не противоречие. Спросить «размещён ли этот объект» может тот, кто
+   * с объектом работает, — область команды. А вот ответ обязан учитывать
+   * публикации всего агентства, включая соседние команды: инвариант «объект
+   * уже размещён — область компания». Иначе две команды разместили бы один
+   * объект дважды, не увидев друг друга.
+   */
+  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
 
   // Связка нужна именно здесь: тот же объект может вести другая команда,
   // и её публикация — тоже публикация нашего агентства.

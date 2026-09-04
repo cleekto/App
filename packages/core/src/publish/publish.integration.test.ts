@@ -504,6 +504,79 @@ describe('публикации другой компании недоступн�
 // Предупреждение перед публикацией
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * ГРАНИЦА КОМАНДЫ ВНУТРИ КОМПАНИИ.
+ *
+ * Изоляция между компаниями проверялась с самого начала. Между командами
+ * одной компании — нет, и в этом была дыра: право `publication.create`
+ * у менеджера и агента ограничено СВОЕЙ командой (`rbac/permissions.ts`),
+ * а use-case'ы искали публикацию по `{ id, companyId }` и области не
+ * проверяли вовсе. Знающий чужой идентификатор агент мог подтвердить
+ * и отчитаться о заполнении по объекту соседней команды.
+ *
+ * Правило 6: права — на сервере. Найдено аудитом 2026-09-05.
+ */
+describe('граница команды внутри компании', () => {
+  it('нельзя собрать черновик по объекту соседней команды', async () => {
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+
+    // Это работало и раньше: черновик — единственное место, где право
+    // проверялось. Тест закрепляет поведение.
+    await expect(
+      createPublicationDraft(actors.saburtalo, propertyId, { targetSource: 'SS_GE' }),
+    ).rejects.toThrow();
+  });
+
+  it('нельзя отчитаться о заполнении по публикации соседней команды', async () => {
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+    const draft = await createPublicationDraft(actors.vake, propertyId, {
+      targetSource: 'SS_GE',
+    });
+
+    await expect(
+      reportPublicationFilled(actors.saburtalo, draft.publicationId, {
+        formVersion: 'ss.ge-form@1.0.0',
+        filled: ['area'],
+        unfilled: [],
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('нельзя подтвердить публикацию соседней команды', async () => {
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+    const draft = await createPublicationDraft(actors.vake, propertyId, {
+      targetSource: 'SS_GE',
+    });
+
+    await expect(
+      confirmPublication(actors.saburtalo, draft.publicationId, {
+        externalUrl: 'https://home.ss.ge/ka/udzravi-qoneba/x-1',
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('список публикаций соседней команды не отдаётся', async () => {
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+    await expect(listPublications(actors.saburtalo, propertyId)).rejects.toThrow();
+  });
+
+  it('проверка «уже размещён» по чужому объекту не отвечает', async () => {
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+    await expect(publishCheck(actors.saburtalo, propertyId, 'SS_GE')).rejects.toThrow();
+  });
+
+  it('администратор компании границу команды пересекает — так и задумано', async () => {
+    // У ADMIN область — компания: он ведёт всё агентство целиком.
+    const propertyId = await propertyWithDescription(actors.vake, 'Квартира команды Ваке');
+    const draft = await createPublicationDraft(actors.vakeAdmin, propertyId, {
+      targetSource: 'SS_GE',
+    });
+
+    expect(draft.publicationId).toBeTruthy();
+    await expect(listPublications(actors.vakeAdmin, propertyId)).resolves.toBeInstanceOf(Array);
+  });
+});
+
 describe('проверка «объект уже размещён»', () => {
   it('предупреждает об объявлении, из которого объект импортирован', async () => {
     const result = await importListing(actors.vake, payload({ source: 'SS_GE' }));
