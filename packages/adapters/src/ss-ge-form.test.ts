@@ -2,7 +2,7 @@ import type { ListingPublishDraft } from '@kleekto/contracts';
 import { parseHTML } from 'linkedom';
 import { describe, expect, it } from 'vitest';
 
-import { SsGeFormAdapter, publishAdapterFor } from './index';
+import { PREFILL_BLIND, SsGeFormAdapter, publishAdapterFor } from './index';
 
 /**
  * Форма размещения ss.ge.
@@ -17,19 +17,23 @@ import { SsGeFormAdapter, publishAdapterFor } from './index';
  * Классы вида `sc-9e0391b6-0` намеренно оставлены в разметке: они меняются
  * при каждой сборке площадки, и ни один тест не должен от них зависеть.
  */
-function createFormDocument(options: { page?: string; extraTextarea?: boolean } = {}): Document {
+function createFormDocument(
+  options: { page?: string; extraTextarea?: boolean; stale?: Record<string, string> } = {},
+): Document {
   const page = options.page ?? '/real-estate/create';
+  const stale = options.stale ?? {};
+  const value = (name: string): string => (stale[name] === undefined ? '' : stale[name]);
   const nextData = { page, props: { pageProps: {} } };
 
   const { document } = parseHTML(
     `<html><head><meta property="og:url" content="https://home.ss.ge/ka/udzravi-qoneba/create"></head>
      <body>
        <div class="sc-e8a87f7a-3 gdEkZl">
-         <input type="hidden" name="choose-city" value="">
+         <input type="hidden" name="choose-city" value="${value('choose-city')}">
          <input type="hidden" name="choose-street" value="">
-         <input name="house-number" placeholder="სახლის ნომერი">
+         <input name="house-number" placeholder="სახლის ნომერი" value="${value('house-number')}">
          <input name="cadastral-code-1" placeholder="საკადასტრო კოდი">
-         <input name="totalArea" placeholder="საერთო ფართი">
+         <input name="totalArea" placeholder="საერთო ფართი" value="${value('totalArea')}">
          <input name="kitchenArea" placeholder="სამზარეულოს ფართი">
          <input name="floor" placeholder="სართული">
          <input name="floors" placeholder="სართულიანობა">
@@ -201,6 +205,60 @@ describe('ss.ge: заполнение формы размещения', () => {
     ).toEqual({
       externalId: '36555806',
       externalUrl: 'https://home.ss.ge/ka/udzravi-qoneba/x-36555806',
+    });
+  });
+
+  /**
+   * ЧУЖИЕ ДАННЫЕ В ФОРМЕ.
+   *
+   * ss.ge сохраняет черновик формы у себя: значения переживают перезагрузку
+   * страницы (проверено на живой форме 2026-09-04). Агент заполнил объект A,
+   * не опубликовал, взялся за B — и адрес объекта A остался в форме.
+   * Опубликованный чужой адрес заметить, кроме агента, некому.
+   */
+  describe('остатки прошлого объекта', () => {
+    it('на чистой форме предупреждать не о чем', () => {
+      const { result } = adapter.fill(createFormDocument(), draftWith());
+      expect(result.prefilled).toEqual([]);
+    });
+
+    it('поле, которое мы заполняем поверх, помечено как перезаписанное', () => {
+      const document = createFormDocument({ stale: { totalArea: '55' } });
+      const { result } = adapter.fill(document, draftWith());
+
+      expect(result.prefilled).toContainEqual({ field: 'area', outcome: 'overwritten' });
+      // Там теперь наши данные — опасности нет.
+      expect(document.querySelector<HTMLInputElement>('[name="totalArea"]')?.value).toBe('81');
+    });
+
+    it('ОПАСНЫЙ СЛУЧАЙ: чужое значение осталось в поле, которого мы не касаемся', () => {
+      const document = createFormDocument({
+        stale: { 'choose-city': 'ბათუმი', 'house-number': '17' },
+      });
+      const { result } = adapter.fill(document, draftWith());
+
+      expect(result.prefilled).toContainEqual({ field: 'district', outcome: 'kept' });
+      expect(result.prefilled).toContainEqual({ field: 'address.houseNumber', outcome: 'kept' });
+
+      // Значение не тронуто: писать в `react-select` нельзя, и подменять
+      // чужой номер дома своим — тоже. Дело агента.
+      expect(document.querySelector<HTMLInputElement>('[name="choose-city"]')?.value).toBe(
+        'ბათუმი',
+      );
+    });
+
+    it('значения чужого объекта наружу не уходят — только имена полей', () => {
+      const document = createFormDocument({ stale: { 'choose-city': 'ბათუმი' } });
+      const { result } = adapter.fill(document, draftWith());
+
+      expect(JSON.stringify(result.prefilled)).not.toContain('ბათუმი');
+    });
+
+    it('поля, которые проверить нечем, названы явно', () => {
+      // «Предупреждений нет» и «проверить нечем» — разные вещи. Комнаты
+      // и тип выбираются плитками на генерируемых классах.
+      expect(PREFILL_BLIND).toContain('rooms');
+      expect(PREFILL_BLIND).toContain('propertyType');
     });
   });
 

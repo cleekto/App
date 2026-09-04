@@ -106,7 +106,13 @@ function fakeAdapter(overrides: Partial<ListingPublishAdapter> = {}): ListingPub
       put('district', 'district', draft.district);
 
       return {
-        result: { snapshotId: 'snap-1', formVersion: 'тест@0.0.0', filled, unfilled },
+        result: {
+          snapshotId: 'snap-1',
+          formVersion: 'тест@0.0.0',
+          filled,
+          unfilled,
+          prefilled: [],
+        },
         snapshot: { id: 'snap-1', takenAt: 0, fields },
       };
     },
@@ -421,6 +427,40 @@ describe('интерфейс заполнения', () => {
     expect(text).toContain(t('extension.fill.leftForYou'));
     expect(text).toContain(t('extension.fill.clearForm'));
     expect(text).not.toContain('⟦');
+  });
+
+  /**
+   * ЧУЖИЕ ДАННЫЕ В ФОРМЕ — предупреждение агенту.
+   *
+   * ss.ge сохраняет черновик формы у себя, и данные прошлого объекта
+   * переживают перезагрузку. Опубликованный чужой адрес заметить, кроме
+   * агента, некому — поэтому предупреждение обязано быть видно.
+   */
+  it.each(LOCALES)('предупреждение об остатках прошлого объекта на языке %s', (locale) => {
+    const text = withDom(() => {
+      const ui = new Ui(locale, () => undefined);
+      ui.fillResult(PUBLISHER, ['price'], ['photos'], ['district'], ['rooms']);
+      return ui.content.textContent ?? '';
+    });
+
+    const t = translator(locale);
+    expect(text).toContain(t('extension.fill.stalePrevious'));
+    expect(text).toContain('district');
+    // Честно и о том, чего мы проверить не можем.
+    expect(text).toContain(t('extension.fill.staleUnchecked'));
+    expect(text).toContain('rooms');
+    expect(text).not.toContain('⟦');
+  });
+
+  it('на чистой форме предупреждения нет', () => {
+    // Предупреждение, которое показывают всегда, перестают читать.
+    const text = withDom(() => {
+      const ui = new Ui('ru', () => undefined);
+      ui.fillResult(PUBLISHER, ['price'], ['photos']);
+      return ui.content.textContent ?? '';
+    });
+
+    expect(text).not.toContain(translator('ru')('extension.fill.stalePrevious'));
   });
 
   it('профиль публикации виден в отчёте', () => {

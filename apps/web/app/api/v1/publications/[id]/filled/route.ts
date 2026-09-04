@@ -16,6 +16,21 @@ const schema = z
         reason: z.enum(['no_value', 'no_mapping', 'field_not_found', 'manual_only']),
       }),
     ),
+    /**
+     * Поля, в которых уже что-то было до заполнения. Только имена, без
+     * значений: в них данные другого объекта.
+     *
+     * Схема строгая — забыть здесь поле значит уронить весь отчёт целиком,
+     * а не потерять одну строку.
+     */
+    prefilled: z
+      .array(
+        z.object({
+          field: z.string(),
+          outcome: z.enum(['overwritten', 'kept']),
+        }),
+      )
+      .optional(),
     /** Снимок формы до заполнения — для «Очистить». Хранит расширение. */
     snapshotId: z.string().optional(),
   })

@@ -397,6 +397,8 @@ export const en = {
       publishingAs: 'Publishing as',
       filled: 'fields filled',
       leftForYou: 'Left for you',
+      stalePrevious: 'The form still holds data from a previous property',
+      staleUnchecked: 'Also check',
       clearForm: 'Clear form',
       cleared: 'Form cleared',
       /** §6А.6: правку агента молча не стираем — сначала называем её. */

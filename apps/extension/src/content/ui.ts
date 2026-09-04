@@ -218,6 +218,8 @@ export class Ui {
     publisher: { displayName: string; phone: string },
     filled: string[],
     leftForYou: string[],
+    keptFromPrevious: readonly string[] = [],
+    blindSpots: readonly string[] = [],
   ): void {
     const panel = this.clear();
     panel.append(
@@ -227,6 +229,37 @@ export class Ui {
         `${this.t('extension.fill.publishingAs')}: ${publisher.displayName} · ${publisher.phone}`,
       ),
     );
+
+    /*
+     * ЧУЖИЕ ДАННЫЕ В ФОРМЕ — ПЕРВЫМ ДЕЛОМ, до списка оставшегося.
+     *
+     * Площадка сохраняет черновик у себя: агент заполнил объект A,
+     * не опубликовал, взялся за B — и адрес объекта A остался в форме.
+     * Опубликованный чужой адрес агент не заметит, поэтому предупреждение
+     * стоит выше всего остального и оформлено как предупреждение,
+     * а не как строка отчёта.
+     */
+    if (keptFromPrevious.length > 0) {
+      const warn = document.createElement('div');
+      warn.className = 'stale';
+
+      const title = document.createElement('div');
+      title.className = 'facts';
+      title.textContent = this.t('extension.fill.stalePrevious');
+      warn.append(title);
+
+      for (const field of keptFromPrevious) warn.append(this.line(`· ${field}`));
+
+      // Честно о своей слепоте: «предупреждений нет» и «проверить нечем» —
+      // разные вещи, и молчать про вторую значит обещать больше, чем можем.
+      if (blindSpots.length > 0) {
+        warn.append(
+          this.line(`${this.t('extension.fill.staleUnchecked')}: ${blindSpots.join(', ')}`),
+        );
+      }
+
+      panel.append(warn);
+    }
 
     if (leftForYou.length > 0) {
       const box = document.createElement('div');
@@ -480,6 +513,15 @@ const STYLES = `
   .summary { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e8eaed; }
   .facts { font-weight: 600; }
   .missing { margin-top: 8px; font-size: 13px; color: #92722a; }
+  .stale {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: #fdf5e3;
+    border: 1px solid #e6d3a3;
+    color: #7a5d16;
+  }
+  .stale .line { color: #7a5d16; }
   .btn {
     display: block;
     width: 100%;

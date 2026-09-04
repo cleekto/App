@@ -15,7 +15,7 @@ export * from './form-fill';
 export * from './publish-types';
 export { SsGeAdapter } from './ss-ge';
 export { MyhomeAdapter } from './myhome-ge';
-export { SsGeFormAdapter } from './ss-ge-form';
+export { PREFILL_BLIND, SsGeFormAdapter } from './ss-ge-form';
 
 import { MyhomeAdapter } from './myhome-ge';
 import type { ListingPublishAdapter } from './publish-types';

@@ -29,7 +29,31 @@ export function fixturesAvailable(site: 'ss-ge' | 'myhome-ge'): boolean {
   return listFiles(site).length > 0;
 }
 
+/**
+ * Разобранные страницы, по одному разу на прогон.
+ *
+ * Сохранённые страницы площадок велики, а разбор их — самая дорогая часть
+ * тестов адаптеров: набор проверок, читающий фикстуры по четыре раза, начал
+ * упираться в отведённое тесту время.
+ *
+ * УСЛОВИЕ, НА КОТОРОМ КЕШ БЕЗОПАСЕН: `Document` возвращается общий, поэтому
+ * читать его можно, а менять — нет. Тест, который удалит со страницы узел
+ * (скажем, ссылки `tel:`, чтобы изобразить нераскрытый телефон), испортит
+ * её для всех последующих, и сломается не он, а сосед — что искать тяжело.
+ * Такому тесту нужна своя копия: `parseHTML` от того же файла.
+ */
+const parsed = new Map<string, Fixture[]>();
+
 export function loadFixtures(site: 'ss-ge' | 'myhome-ge'): Fixture[] {
+  const cached = parsed.get(site);
+  if (cached !== undefined) return cached;
+
+  const fixtures = parseFixtures(site);
+  parsed.set(site, fixtures);
+  return fixtures;
+}
+
+function parseFixtures(site: 'ss-ge' | 'myhome-ge'): Fixture[] {
   return listFiles(site).map((file) => {
     const html = readFileSync(file, 'utf8');
     const { document } = parseHTML(html);

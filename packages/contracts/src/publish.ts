@@ -81,6 +81,31 @@ export const unfilledFieldSchema = z.object({
 export type UnfilledField = z.infer<typeof unfilledFieldSchema>;
 
 /**
+ * Поле, в котором уже что-то было ДО заполнения.
+ *
+ * ЗАЧЕМ ЭТО НУЖНО. Форма размещения ss.ge сохраняет черновик у себя по мере
+ * ввода: значения переживают перезагрузку страницы. Агент заполнил объект A,
+ * не опубликовал, взялся за B — и поля, которых адаптер не касается, остались
+ * с данными объекта A. Молча опубликованный чужой адрес — ровно та ошибка,
+ * которую агент не заметит.
+ *
+ * Значения здесь НЕ передаются, только имена полей: в них лежат данные
+ * другого объекта, и отправлять их незачем.
+ */
+export const prefilledFieldSchema = z.object({
+  field: z.string(),
+  /**
+   * `overwritten` — мы записали поверх, и там теперь наши данные.
+   * `kept` — поле заполняет человек, и старое значение осталось на месте.
+   *
+   * Опасен именно `kept`: заметить его, кроме агента, некому.
+   */
+  outcome: z.enum(['overwritten', 'kept']),
+});
+
+export type PrefilledField = z.infer<typeof prefilledFieldSchema>;
+
+/**
  * Результат заполнения.
  *
  * `snapshotId` указывает на снимок состояния формы ДО заполнения. Снимок живёт
@@ -92,6 +117,8 @@ export const fillResultSchema = z.object({
   formVersion: z.string(),
   filled: z.array(z.string()),
   unfilled: z.array(unfilledFieldSchema),
+  /** Что уже лежало в форме до нас. Пусто — форма была чистой. */
+  prefilled: z.array(prefilledFieldSchema),
 });
 
 export type FillResult = z.infer<typeof fillResultSchema>;

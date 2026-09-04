@@ -141,6 +141,11 @@ export interface FillReport {
   formVersion: string;
   filled: string[];
   unfilled: Array<{ field: string; reason: string }>;
+  /**
+   * Поля, в которых уже что-то лежало до заполнения. Только имена: значения
+   * принадлежат другому объекту, и на сервер им незачем.
+   */
+  prefilled?: Array<{ field: string; outcome: 'overwritten' | 'kept' }> | undefined;
 }
 
 /**
@@ -202,6 +207,15 @@ export async function reportPublicationFilled(
       after: {
         filled: report.filled.length,
         unfilled: report.unfilled.map((item) => item.field),
+        /*
+         * Поля, где осталось значение прошлого объекта. В журнал они попадают
+         * потому, что это единственный след предупреждения: если объявление
+         * уйдёт с чужим адресом, по журналу будет видно, что агента
+         * предупредили, а не что система промолчала.
+         */
+        keptFromPrevious: (report.prefilled ?? [])
+          .filter((item) => item.outcome === 'kept')
+          .map((item) => item.field),
       },
     });
 

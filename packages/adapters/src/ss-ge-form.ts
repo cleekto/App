@@ -1,6 +1,7 @@
 import type {
   FillResult,
   ListingPublishDraft,
+  PrefilledField,
   PublishedRef,
   UnfilledField,
 } from '@kleekto/contracts';
@@ -82,6 +83,36 @@ const MANUAL_ONLY: readonly string[] = [
   'photos',
 ];
 
+/**
+ * Что на форме можно ПРОЧИТАТЬ, чтобы понять, пусто ли поле.
+ *
+ * Чтение — не запись: скрытые поля `react-select` писать нельзя, а вот
+ * посмотреть, не лежит ли там город от прошлого объекта, можно и нужно.
+ *
+ * Плиток здесь нет: комнаты и статус выбираются кликом по элементам
+ * с генерируемыми классами, и отличить выбранную от невыбранной надёжно
+ * не выйдет. Врать, что форма чиста, мы не станем — про них честно сказано
+ * в `PREFILL_BLIND`.
+ */
+const READABLE: ReadonlyArray<{ field: string; name: string }> = [
+  { field: 'district', name: 'choose-city' },
+  { field: 'address', name: 'choose-street' },
+  { field: 'address.houseNumber', name: 'house-number' },
+  { field: 'cadastralCode', name: 'cadastral-code-1' },
+  { field: 'area', name: FIELD_AREA },
+  { field: 'kitchenArea', name: 'kitchenArea' },
+  { field: 'floor', name: FIELD_FLOOR },
+  { field: 'totalFloors', name: FIELD_TOTAL_FLOORS },
+];
+
+/**
+ * Поля, про которые мы НЕ можем сказать, пусты ли они.
+ *
+ * Названы явно, а не умолчаны: «предупреждений нет» и «проверить нечем» —
+ * разные вещи, и агент имеет право знать, где именно наша слепота.
+ */
+export const PREFILL_BLIND: readonly string[] = ['rooms', 'propertyType', 'transactionType'];
+
 export class SsGeFormAdapter implements ListingPublishAdapter {
   readonly sourceId = 'SS_GE' as const;
 
@@ -127,6 +158,10 @@ export class SsGeFormAdapter implements ListingPublishAdapter {
     const filled: string[] = [];
     const unfilled: UnfilledField[] = [];
     const captured: CapturedField[] = [];
+
+    // СНАЧАЛА смотрим, что уже лежит в форме, и только потом пишем.
+    // После записи отличить своё значение от чужого будет нечем.
+    const wasFilled = occupiedFields(document);
 
     /**
      * Заполняет одно поле и записывает, что с ним стало.
@@ -195,11 +230,23 @@ export class SsGeFormAdapter implements ListingPublishAdapter {
       fields: captured,
     };
 
+    /*
+     * Чужое значение делится на два случая, и опасен только второй.
+     * `overwritten` — мы записали поверх, там теперь наши данные.
+     * `kept` — поле заполняет человек, и данные прошлого объекта остались
+     * на месте. Заметить это, кроме агента, некому.
+     */
+    const prefilled: PrefilledField[] = [...wasFilled].map((field) => ({
+      field,
+      outcome: filled.includes(field) ? ('overwritten' as const) : ('kept' as const),
+    }));
+
     const result: FillResult = {
       snapshotId: snapshot.id,
       formVersion: this.formVersion,
       filled,
       unfilled,
+      prefilled,
     };
 
     return { result, snapshot };
@@ -280,4 +327,40 @@ function fillSingleton(
   capture.applied = element.value;
   captured.push(capture);
   filled.push(field);
+}
+
+/**
+ * Поля формы, в которых уже что-то есть.
+ *
+ * Форма ss.ge сохраняет черновик у себя: значения переживают перезагрузку
+ * страницы (проверено 2026-09-04). Поэтому непустое поле — это не «агент
+ * начал вручную», а чаще всего остаток прошлого объекта.
+ *
+ * Значения не возвращаются, только имена полей: в них данные другого
+ * объекта, и передавать их дальше незачем.
+ */
+function occupiedFields(document: Document): Set<string> {
+  const occupied = new Set<string>();
+
+  for (const entry of READABLE) {
+    // Именно `querySelector`, а не `namedControl`: тот отсеивает скрытые
+    // поля, потому что в них нельзя ПИСАТЬ. Читать их можно.
+    const element = document.querySelector<HTMLInputElement>(`input[name="${entry.name}"]`);
+    if (element !== null && element.value.trim() !== '') occupied.add(entry.field);
+  }
+
+  const textareas = document.querySelectorAll('textarea');
+  if (textareas.length === 1 && (textareas[0]?.value ?? '').trim() !== '') {
+    occupied.add('publicDescription');
+  }
+
+  const numbers = document.querySelectorAll<HTMLInputElement>('input[type="number"]');
+  if (numbers.length === 1 && (numbers[0]?.value ?? '').trim() !== '') {
+    occupied.add('price');
+  }
+
+  const file = document.querySelector<HTMLInputElement>('input[type="file"]');
+  if (file !== null && (file.files?.length ?? 0) > 0) occupied.add('photos');
+
+  return occupied;
 }

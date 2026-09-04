@@ -375,6 +375,8 @@ export const ka: DeepPartial<Dictionary> = {
       publishingAs: 'სახელით',
       filled: 'ველი შევსებულია',
       leftForYou: 'დაგრჩათ',
+      stalePrevious: 'ფორმაში დარჩა წინა ობიექტის მონაცემები',
+      staleUnchecked: 'ასევე შეამოწმეთ',
       clearForm: 'ფორმის გასუფთავება',
       cleared: 'ფორმა გასუფთავდა',
       editedWarning: 'ეს ველები შევსების შემდეგ თქვენ შეცვალეთ. ისინი უცვლელი დარჩა',
