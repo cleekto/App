@@ -252,8 +252,20 @@ export function Board({
 
               setDragging(null);
             }}
-            className="flex w-72 shrink-0 flex-col gap-2 rounded-[var(--radius-card)] bg-[var(--color-surface-muted)] p-3"
+            /*
+             * Колонка обрела цвет стадии полосой сверху: раньше пять колонок
+             * различались только подписью, и глаз пересчитывал их каждый раз.
+             * Полоса — тот же `colorToken`, что у метки в списке объектов.
+             */
+            className="relative flex w-72 shrink-0 flex-col gap-2 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-surface-muted)] p-3 pt-4 shadow-[var(--shadow-card)] supports-[backdrop-filter]:bg-[oklch(1_0_0_/_0.45)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)]"
           >
+            {/* Полоса цвета стадии по верхнему краю колонки. */}
+            <span
+              aria-hidden
+              className="absolute inset-x-0 top-0 h-1"
+              style={{ backgroundColor: columnColor(column.colorToken) }}
+            />
+
             <div
               draggable={canManage}
               onDragStart={() => canManage && setDragging({ kind: 'column', id: column.id })}
@@ -317,7 +329,7 @@ export function Board({
                   draggable
                   onDragStart={() => setDragging({ kind: 'card', id: card.id })}
                   onDragEnd={() => setDragging(null)}
-                  className="cursor-grab rounded-lg bg-[var(--color-surface)] px-3 py-2 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-raised)]"
+                  className="cursor-grab rounded-[var(--radius-card)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
                 >
                   <p className="text-sm font-medium">{card.price}</p>
                   <p className="text-xs text-[var(--color-text-secondary)]">{card.kind}</p>

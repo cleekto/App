@@ -2,16 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "web",
+      "name": "kleekto-web",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["dev"],
       "port": 3000
-    },
-    {
-      "name": "web-alt",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev", "--port", "3010"],
-      "port": 3010
     }
   ]
 }

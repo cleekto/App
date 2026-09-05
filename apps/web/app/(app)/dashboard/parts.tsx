@@ -157,10 +157,18 @@ export function StatTile({
   accent: { fg: string; bg: string };
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-3 rounded-[var(--radius-card)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-card)] transition-transform duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5">
+    <div className="group relative flex min-w-0 flex-col gap-4 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] transition-all duration-[var(--duration-base)] supports-[backdrop-filter]:bg-[var(--color-glass-strong)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]">
+      {/* Пятно цвета в углу: плитка окрашена, но текст по-прежнему лежит
+          на светлом — цвет даёт настроение, а не мешает читать. */}
       <span
         aria-hidden
-        className="inline-flex size-10 items-center justify-center rounded-xl"
+        className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-45 blur-2xl transition-opacity duration-[var(--duration-slow)] group-hover:opacity-70"
+        style={{ backgroundColor: accent.bg }}
+      />
+
+      <span
+        aria-hidden
+        className="relative inline-flex size-11 items-center justify-center rounded-[var(--radius-card)] shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.5)]"
         style={{ color: accent.fg, backgroundColor: accent.bg }}
       >
         <svg
@@ -176,11 +184,11 @@ export function StatTile({
         </svg>
       </span>
 
-      <div className="min-w-0">
+      <div className="relative min-w-0">
         <p className="truncate text-[0.8125rem] leading-5 text-[var(--color-text-secondary)]">
           {label}
         </p>
-        <p className="mt-0.5 text-[2rem] leading-9 font-semibold tracking-tight tabular-nums">
+        <p className="mt-1 text-[2.5rem] leading-11 font-semibold tracking-tight tabular-nums">
           {value}
         </p>
       </div>

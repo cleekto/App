@@ -126,7 +126,13 @@ export function Card({ className = '', ...rest }: ComponentPropsWithoutRef<'div'
        * велит избегать DESIGN §3. Тень-контур держит границу там, где она
        * нужна, и исчезает там, где карточка лежит на своём же фоне.
        */
-      className={`rounded-[var(--radius-card)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] ${className}`}
+      /*
+       * Поверхность полупрозрачная и с размытием: сквозь неё просвечивает
+       * подсветка фона, и карточка перестаёт быть белой наклейкой на белом.
+       * `bg-[var(--color-surface)]` идёт первым как запасной цвет — там, где
+       * `backdrop-filter` не поддерживается, карточка просто непрозрачна.
+       */
+      className={`rounded-[var(--radius-card)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] supports-[backdrop-filter]:bg-[var(--color-glass)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)] ${className}`}
     />
   );
 }

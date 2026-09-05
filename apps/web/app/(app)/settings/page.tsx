@@ -105,7 +105,7 @@ export default async function SettingsPage() {
   };
 
   return (
-    <div className="flex max-w-4xl flex-col gap-10">
+    <div className="flex max-w-6xl flex-col gap-10">
       <PageHeader title={t('settings.title')} />
 
       {/* ── Аккаунт ──────────────────────────────────────────────────────── */}

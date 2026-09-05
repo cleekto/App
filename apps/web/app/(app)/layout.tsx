@@ -124,7 +124,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         и переключатель языка с кнопкой выхода становится не достать —
         именно это и случилось при первой проверке.
       */}
-      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
+      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] bg-[image:var(--gradient-sidebar)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <div className="flex items-center justify-between px-5 py-5">
             <Link href="/properties" className="flex items-center gap-2 text-base tracking-tight">
@@ -214,7 +214,15 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <Wordmark className="text-sm" />
         </header>
 
-        <main className="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">{children}</main>
+        {/*
+          Полоса содержимого ограничена, но широко: на мониторе 1920 контент
+          занимал половину экрана, а вторая половина оставалась белой пустотой.
+          Совсем без предела строки текста растянулись бы на всю ширину
+          и стали бы нечитаемыми, поэтому предел есть — просто вдвое дальше.
+        */}
+        <main className="mx-auto min-w-0 w-full max-w-[1600px] flex-1 px-4 py-6 md:px-8 md:py-8">
+          {children}
+        </main>
       </div>
     </div>
   );

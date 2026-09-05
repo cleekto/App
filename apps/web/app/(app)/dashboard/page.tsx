@@ -75,7 +75,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="flex max-w-5xl flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <header>
         <h1 className="text-[1.75rem] leading-9 font-semibold tracking-tight">
           {t('dashboard.title')}
@@ -124,69 +124,77 @@ export default async function DashboardPage() {
         />
       </StatTiles>
 
-      {/* ── Воронка ──────────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <Rule title={t('dashboard.byStatus')} />
-        <Card className="px-4 py-4">
-          {/* Вся воронка одной полосой: пропорции видны раньше, чем цифры. */}
-          <DistributionBar
-            parts={data.properties.byStatus.map((status) => ({
-              id: status.statusId,
-              label: statusLabel(locale, {
-                name: status.statusName,
-                names: status.statusNames,
-              }),
-              value: status.count,
-              color: stageColors(status.colorToken).fg,
-            }))}
-          />
-        </Card>
-        <Card>
-          <ul className="divide-y divide-[var(--color-border)]">
-            {data.properties.byStatus.map((status) => (
-              <FunnelRow
-                key={status.statusId}
-                name={statusLabel(locale, {
+      {/*
+        ДВЕ КОЛОНКИ НА ШИРОКОМ ЭКРАНЕ.
+        Колонкой друг под другом эти разделы занимали половину монитора,
+        а вторая половина оставалась белой. Воронка шире: в ней строки
+        с названиями стадий. На узком экране обе становятся одной колонкой.
+      */}
+      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+        {/* ── Воронка ──────────────────────────────────────────────────────── */}
+        <section className="flex flex-col gap-3">
+          <Rule title={t('dashboard.byStatus')} />
+          <Card className="px-4 py-4">
+            {/* Вся воронка одной полосой: пропорции видны раньше, чем цифры. */}
+            <DistributionBar
+              parts={data.properties.byStatus.map((status) => ({
+                id: status.statusId,
+                label: statusLabel(locale, {
                   name: status.statusName,
                   names: status.statusNames,
-                })}
-                count={n(status.count)}
-                share={status.count / peak}
-                color={stageColors(status.colorToken).fg}
-              />
-            ))}
-          </ul>
-        </Card>
-      </section>
-
-      {/* ── Люди ─────────────────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
-        <Rule title={t('dashboard.people')} />
-        {data.people.length === 0 ? (
-          <p className="text-[0.8125rem] text-[var(--color-text-secondary)]">
-            {t('dashboard.noData')}
-          </p>
-        ) : (
+                }),
+                value: status.count,
+                color: stageColors(status.colorToken).fg,
+              }))}
+            />
+          </Card>
           <Card>
-            {/* Рейтинг, а не таблица: полоса длиннее у того, кто сделал
-                больше, и сравнение становится мгновенным. Мера — согласия
-                за неделю, главная продуктовая метрика. */}
             <ul className="divide-y divide-[var(--color-border)]">
-              {data.people.map((person) => (
-                <PersonRow
-                  key={person.userId}
-                  avatar={<Avatar name={person.fullName} />}
-                  name={person.fullName}
-                  value={n(person.consentsThisWeek)}
-                  share={person.consentsThisWeek / bestConsents}
-                  color={accentOf(person.fullName).fg}
-                  secondary={`${t('dashboard.propertiesOwned')} ${n(person.propertiesOwned)}`}
+              {data.properties.byStatus.map((status) => (
+                <FunnelRow
+                  key={status.statusId}
+                  name={statusLabel(locale, {
+                    name: status.statusName,
+                    names: status.statusNames,
+                  })}
+                  count={n(status.count)}
+                  share={status.count / peak}
+                  color={stageColors(status.colorToken).fg}
                 />
               ))}
             </ul>
           </Card>
-        )}
-      </section>
+        </section>
+
+        {/* ── Люди ─────────────────────────────────────────────────────────── */}
+        <section className="flex flex-col gap-3">
+          <Rule title={t('dashboard.people')} />
+          {data.people.length === 0 ? (
+            <p className="text-[0.8125rem] text-[var(--color-text-secondary)]">
+              {t('dashboard.noData')}
+            </p>
+          ) : (
+            <Card>
+              {/* Рейтинг, а не таблица: полоса длиннее у того, кто сделал
+                  больше, и сравнение становится мгновенным. Мера — согласия
+                  за неделю, главная продуктовая метрика. */}
+              <ul className="divide-y divide-[var(--color-border)]">
+                {data.people.map((person) => (
+                  <PersonRow
+                    key={person.userId}
+                    avatar={<Avatar name={person.fullName} />}
+                    name={person.fullName}
+                    value={n(person.consentsThisWeek)}
+                    share={person.consentsThisWeek / bestConsents}
+                    color={accentOf(person.fullName).fg}
+                    secondary={`${t('dashboard.propertiesOwned')} ${n(person.propertiesOwned)}`}
+                  />
+                ))}
+              </ul>
+            </Card>
+          )}
+        </section>
+      </div>
 
       {/* ── Качество ─────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
