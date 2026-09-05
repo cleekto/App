@@ -51,6 +51,15 @@ export const ACTIVITY = {
   LISTING_PUBLISHED: 'LISTING_PUBLISHED',
   /// Своё же объявление вернулось обратно и привязано к исходному объекту.
   SELF_PUBLICATION_LINKED: 'SELF_PUBLICATION_LINKED',
+  // Чат компании и личная переписка
+  /// Заведена комната общего чата.
+  CHAT_ROOM_CREATED: 'CHAT_ROOM_CREATED',
+  /// Комната переименована, сменила тему или ушла в архив.
+  CHAT_ROOM_UPDATED: 'CHAT_ROOM_UPDATED',
+  /// Сообщение удалено. Текста в записи нет — только факт и кем удалено:
+  /// журнал не должен хранить то, что человек попросил убрать (правило 10).
+  CHAT_MESSAGE_DELETED: 'CHAT_MESSAGE_DELETED',
+
   // Миграция базы агентства
   MIGRATION_APPLIED: 'MIGRATION_APPLIED',
   MIGRATION_ROLLED_BACK: 'MIGRATION_ROLLED_BACK',
@@ -91,6 +100,8 @@ export const ENTITY = {
   TASK: 'Task',
   COMMENT: 'Comment',
   PIPELINE_STATUS: 'PipelineStatus',
+  CHAT_ROOM: 'ChatRoom',
+  CHAT_MESSAGE: 'ChatMessage',
 } as const;
 
 export type ActivityEntity = (typeof ENTITY)[keyof typeof ENTITY];

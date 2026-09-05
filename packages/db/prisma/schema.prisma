@@ -54,6 +54,9 @@ model Company {
   ownerContacts    OwnerContact[]
   propertyLinks    PropertyLink[]
   properties       Property[]
+  chatRooms           ChatRoom[]
+  directConversations DirectConversation[]
+  chatMessages        ChatMessage[]
   publications     Publication[]
   migrationBatches MigrationBatch[]
   mappingSchemas   ColumnMappingSchema[]
@@ -975,4 +978,99 @@ model RateLimit {
 
   @@index([windowStart])
   @@map("rate_limits")
+}
+
+/// Комната общего чата компании.
+///
+/// ВИДНА ВСЕЙ КОМПАНИИ, всем командам — решение владельца 2026-09-05.
+/// Закрытых комнат нет: список участников, приглашения и правила выхода
+/// стоили бы втрое дороже, а задача была «общий чат компании». Создают
+/// комнаты администратор и менеджер, писать может каждый сотрудник.
+model ChatRoom {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  name String
+  /// Тема комнаты — о чём она. Необязательна: у «Общего» темы нет.
+  topic String?
+
+  /// Архивная комната не показывается в списке, но история остаётся.
+  /// Удаления комнат нет: вместе с ней исчезла бы переписка команды.
+  isArchived Boolean @default(false)
+
+  createdByUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([companyId, isArchived, updatedAt(sort: Desc)])
+  @@map("chat_rooms")
+}
+
+/// Личная переписка двух сотрудников ОДНОЙ компании.
+///
+/// Изоляция арендаторов жёсткая (инвариант), и переписка её не нарушает:
+/// оба участника всегда из одной компании, что проверяет и сценарий,
+/// и уникальный ключ ниже.
+///
+/// Пара нормализована: `userAId` всегда меньше `userBId` по строке. Без
+/// этого одна и та же пара людей заводила бы две переписки — по одной
+/// на каждого, кто написал первым.
+model DirectConversation {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  userAId String @db.Uuid
+  userBId String @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@unique([companyId, userAId, userBId])
+  @@index([companyId, updatedAt(sort: Desc)])
+  @@map("direct_conversations")
+}
+
+/// Сообщение — и в комнате, и в личной переписке.
+///
+/// ОДНА ТАБЛИЦА НА ОБА СЛУЧАЯ, потому что правила правки и удаления у них
+/// одни и те же: автор правит и удаляет своё, администратор удаляет любое.
+/// Разведи их по двум таблицам — и эти правила пришлось бы писать дважды,
+/// а расходятся такие пары всегда.
+///
+/// Ровно одно из полей `roomId` и `conversationId` заполнено. Это условие
+/// держит проверка в самой базе (см. миграцию), а не только сценарий:
+/// сообщение сразу и в комнате, и в переписке — состояние, которого
+/// не должно существовать.
+model ChatMessage {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+
+  roomId         String? @db.Uuid
+  conversationId String? @db.Uuid
+
+  authorUserId String @db.Uuid
+  body         String
+
+  /// Правка видна: текст меняется, отметка остаётся.
+  editedAt DateTime?
+  /// Мягкое удаление. Текст скрывается, факт остаётся — иначе из обсуждения
+  /// пропадали бы куски, и восстановить ход разговора было бы нельзя.
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  room         ChatRoom?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  conversation DirectConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([roomId, createdAt(sort: Desc)])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([companyId, authorUserId])
+  @@map("chat_messages")
 }

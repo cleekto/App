@@ -40,6 +40,7 @@ export * from './import/use-cases';
 export * from './publish/draft';
 export * from './publish/sanitize';
 export * from './publish/use-cases';
+export * from './chat/use-cases';
 
 export * from './migration/mapping';
 export * from './migration/parse';

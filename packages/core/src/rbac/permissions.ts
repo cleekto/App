@@ -30,7 +30,9 @@ export type Resource =
   | 'property'
   | 'task'
   | 'comment'
-  | 'activityLog';
+  | 'activityLog'
+  | 'chatRoom'
+  | 'chatMessage';
 
 type RoleScopes = Partial<Record<RoleCode, Scope>>;
 
@@ -134,6 +136,43 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
     read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
     update: { AGENT: 'own' },
     delete: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+  },
+
+  /**
+   * Комната общего чата.
+   *
+   * Создают администратор и менеджер — решение владельца. Область создания
+   * КОМПАНИЯ, а не команда: комната по определению общефирменная, и менеджер,
+   * заводящий её «для своей команды», получил бы комнату, которую видят все,
+   * — то есть не то, что просил.
+   *
+   * Удаления нет вовсе: вместе с комнатой исчезла бы переписка. Вместо него
+   * архивирование, а это `update`.
+   */
+  chatRoom: {
+    create: { ADMIN: 'company', MANAGER: 'company' },
+    read: { ADMIN: 'company', MANAGER: 'company', AGENT: 'company' },
+    update: { ADMIN: 'company', MANAGER: 'company' },
+  },
+
+  /**
+   * Сообщение — в комнате или в личной переписке.
+   *
+   * ОБЛАСТЬ СОЗДАНИЯ — `own`, И ЭТО НЕ ХИТРОСТЬ, А ТОЧНОЕ ОПИСАНИЕ. Агент
+   * не пишет «в области компании»; он пишет СВОЁ сообщение, у которого есть
+   * автор — он сам. Область компании у него на `read`, потому что читает
+   * он всё, что написали другие, — и инвариант «агент нигде не получает
+   * область компании на изменение» этим не нарушен.
+   *
+   * Удаление: автор убирает своё, администратор — любое (решение владельца).
+   * Менеджеру чужие сообщения не отдаются: модерация переписки коллег —
+   * не его роль, а спорные случаи решает администратор.
+   */
+  chatMessage: {
+    create: { ADMIN: 'own', MANAGER: 'own', AGENT: 'own' },
+    read: { ADMIN: 'company', MANAGER: 'company', AGENT: 'company' },
+    update: { ADMIN: 'own', MANAGER: 'own', AGENT: 'own' },
+    delete: { ADMIN: 'company', MANAGER: 'own', AGENT: 'own' },
   },
 
   activityLog: {

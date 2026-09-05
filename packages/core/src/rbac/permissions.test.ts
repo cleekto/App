@@ -23,12 +23,33 @@ describe('матрица прав', () => {
   // Сверка с docs/architecture/rbac.md. Если документ и матрица разойдутся,
   // расхождение должно быть видно здесь, а не обнаружиться в проде.
   it('администратор работает в области компании везде, где вообще может', () => {
+    /*
+     * ИСКЛЮЧЕНИЕ ОДНО, И ОНО НЕ ДЫРА, А ОГРАНИЧЕНИЕ.
+     *
+     * У сообщения чата создание и правка идут в области `own` у всех ролей,
+     * администратора включая. Это не «администратора урезали»: `own` здесь
+     * не про территорию, а про авторство. Писать и править можно только
+     * СВОИ слова — приписать реплику коллеге не должен и администратор,
+     * иначе переписка перестаёт быть свидетельством.
+     *
+     * `own` строго уже `company`, поэтому послабления в правах это
+     * не создаёт: расширить доступ таким исключением нельзя, только сузить.
+     * Удаление чужого сообщения у администратора при этом есть — там
+     * область именно `company`.
+     */
+    const authorshipOnly = new Set(['chatMessage.create', 'chatMessage.update']);
+
     for (const resource of RESOURCES) {
       for (const action of ACTIONS) {
         const scope = permissionScope(RoleCode.ADMIN, resource, action);
-        if (scope !== null) {
-          expect(scope, `${resource}.${action}`).toBe('company');
+        if (scope === null) continue;
+
+        if (authorshipOnly.has(`${resource}.${action}`)) {
+          expect(scope, `${resource}.${action}`).toBe('own');
+          continue;
         }
+
+        expect(scope, `${resource}.${action}`).toBe('company');
       }
     }
   });
