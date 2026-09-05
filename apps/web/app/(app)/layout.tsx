@@ -89,14 +89,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
-      {/* Живая подсветка под всем содержимым. Лежит фоном, событий
-          не перехватывает, при выключенной анимации не двигается. */}
-      <div aria-hidden className="aurora">
-        <span />
-        <span />
-        <span />
-      </div>
-
       {/*
         Чекбокс не отрисовывает ничего сам — управляет панелью и подложкой
         через `peer-checked:` у обоих (DESIGN §11а, мобильная версия).
