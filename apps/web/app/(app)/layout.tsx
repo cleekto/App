@@ -6,7 +6,7 @@ import { translate } from '@kleekto/i18n';
 import { contextLocale, me, requireContext } from '../_lib/session';
 import { Avatar } from '../_ui/accent';
 import { LocaleSwitcher } from '../_ui/locale-switcher';
-import { BrandLockup, Wordmark } from '../_ui/wordmark';
+import { BrandLockup } from '../_ui/wordmark';
 import { NavLink } from './nav-link';
 import { SignOutButton } from './sign-out-button';
 
@@ -216,11 +216,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Верхняя полоса — только на телефоне: там панель не видна, пока её не открыли. */}
-        <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 md:hidden">
+        {/*
+          §31 задания: знак слева, меню справа. Раньше кнопка меню стояла
+          первой, и первое, что видел человек на телефоне, — три полоски,
+          а не имя продукта.
+        */}
+        <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 md:hidden">
+          <BrandLockup className="text-base" />
+
           <label
             htmlFor={NAV_TOGGLE_ID}
             aria-label={t('nav.menu')}
-            className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
+            className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]"
           >
             <svg
               viewBox="0 0 24 24"
@@ -233,7 +240,6 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </label>
-          <Wordmark className="text-sm" />
         </header>
 
         {/*

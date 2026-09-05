@@ -337,3 +337,71 @@ body {
     transition: none;
   }
 }
+
+/*
+ * ПЕРЕЛИВ СКЕЛЕТА.
+ *
+ * Полоса света проходит по серому и уходит. Двигается только фон-градиент
+ * через `background-position` — ни размеров, ни положения элементов
+ * это не трогает, поэтому строки не прыгают.
+ *
+ * Полторы секунды и мягкая кривая: экран ожидания не должен мельтешить.
+ */
+.skeleton {
+  background:
+    linear-gradient(90deg, transparent 0%, oklch(1 0 0 / 0.65) 50%, transparent 100%) no-repeat,
+    var(--color-surface-muted);
+  background-size:
+    50% 100%,
+    100% 100%;
+  background-position:
+    -80% 0,
+    0 0;
+  animation: skeleton-sheen 1.5s var(--ease-in-out) infinite;
+}
+
+@keyframes skeleton-sheen {
+  to {
+    background-position:
+      180% 0,
+      0 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+/*
+ * ВИДИМЫЙ ФОКУС — НА ВСЁМ, ЧТО НАЖИМАЕТСЯ (§33 задания).
+ *
+ * Правило одно на весь продукт, а не по компоненту: пропущенная кнопка
+ * обнаруживается только тогда, когда до неё дошли с клавиатуры, — то есть
+ * не обнаруживается никогда. Здесь она обведена по определению.
+ *
+ * `:focus-visible`, а не `:focus`: кольцо появляется при работе
+ * с клавиатуры и не мигает после каждого клика мышью.
+ *
+ * Смещение в два пикселя — чтобы кольцо не сливалось с границей самого
+ * элемента и читалось на цветных кнопках так же, как на белых.
+ */
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/*
+ * ЦВЕТ НЕ ОСТАЁТСЯ ЕДИНСТВЕННЫМ ПРИЗНАКОМ (§33).
+ *
+ * У метки стадии рядом с цветом стоит точка того же цвета, у отключённых
+ * элементов — сниженная непрозрачность вдобавок к серому. Там, где цвет
+ * несёт смысл в одиночку, его читает не каждый.
+ */
+:where(button, a, input, textarea, select):disabled,
+:where(button, a)[aria-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
