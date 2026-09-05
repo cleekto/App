@@ -2,12 +2,21 @@ import Link from 'next/link';
 import { Photo } from '../../_ui/photo';
 import { NewProperty } from './new-property';
 import { Avatar, StagePill } from '../../_ui/accent';
+import { PropertyCard } from './property-card';
+import { ViewSwitch, type PropertyView } from './view-switch';
 import { Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
 import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
-import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
+import {
+  dateLine,
+  factsLine,
+  kindLine,
+  placeLine,
+  priceLine,
+  statusLabel,
+} from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { PropertyFilters } from './filters';
 
@@ -25,6 +34,9 @@ export default async function PropertiesPage({
   const ctx = await requireContext();
   const locale = contextLocale(ctx);
   const params = await searchParams;
+
+  // Режим показа живёт в адресе: переживает перезагрузку и передаётся ссылкой.
+  const view: PropertyView = params['view'] === 'grid' ? 'grid' : 'list';
 
   const single = (key: string): string | undefined => {
     const value = params[key];
@@ -121,8 +133,57 @@ export default async function PropertiesPage({
         statuses={statuses.map((status) => ({ id: status.id, name: statusLabel(locale, status) }))}
       />
 
+      <div className="flex items-center justify-end">
+        <ViewSwitch
+          current={view}
+          params={params}
+          labels={{ list: t('property.viewList'), grid: t('property.viewGrid') }}
+        />
+      </div>
+
       {items.length === 0 ? (
         <EmptyState title={t('property.empty')} hint={t('property.emptyHint')} />
+      ) : view === 'grid' ? (
+        /* Плиточный режим: недвижимость узнают глазами, и здесь снимок
+           крупный, а цена — главный элемент карточки (§21 задания). */
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {items.map((item) => (
+            <PropertyCard
+              key={item.id}
+              href={`/properties/${item.id}`}
+              photo={item.photo}
+              photoAlt={t('property.photoAlt')}
+              price={priceLine(locale, item)}
+              kind={kindLine(locale, item)}
+              facts={[kindLine(locale, item), factsLine(locale, item)].filter(Boolean).join(' · ')}
+              place={placeLine(item)}
+              status={
+                <StagePill
+                  label={statusLabel(locale, {
+                    name: item.pipelineStatusName,
+                    names: item.pipelineStatusNames,
+                  })}
+                  colorToken={stageColor.get(item.pipelineStatusId) ?? null}
+                />
+              }
+              agent={
+                item.assignedUserName === null ? (
+                  <span className="truncate text-[0.75rem] text-[var(--color-text-tertiary)]">
+                    {t('property.unassigned')}
+                  </span>
+                ) : (
+                  <>
+                    <Avatar name={item.assignedUserName} size="sm" />
+                    <span className="truncate text-[0.75rem] text-[var(--color-text-tertiary)]">
+                      {item.assignedUserName}
+                    </span>
+                  </>
+                )
+              }
+              updated={dateLine(locale, item.updatedAt)}
+            />
+          ))}
+        </div>
       ) : (
         /*
          * ОДНА ПОВЕРХНОСТЬ, СТРОКИ ВНУТРИ — а не двадцать одна отдельная

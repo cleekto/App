@@ -155,6 +155,10 @@ export const ru: DeepPartial<Dictionary> = {
     search: 'Поиск по адресу, району или телефону',
     found: 'найдено',
     reset: 'Сбросить',
+    // Два режима списка: плотный для работы, плиточный для просмотра.
+    viewList: 'Списком',
+    viewGrid: 'Плитками',
+    updated: 'Обновлён',
     allStatuses: 'Все статусы',
     allTypes: 'Все типы',
     publishCheckOpenExisting: 'Открыть существующее',

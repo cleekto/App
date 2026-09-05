@@ -257,7 +257,20 @@ export function Board({
              * различались только подписью, и глаз пересчитывал их каждый раз.
              * Полоса — тот же `colorToken`, что у метки в списке объектов.
              */
-            className="relative flex w-72 shrink-0 flex-col gap-2 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-3 pt-4 shadow-[var(--shadow-card)]"
+            /*
+             * ПОДСВЕТКА ЦЕЛИ ПРИ ПЕРЕТАСКИВАНИИ (§22 задания).
+             *
+             * Пока карточку тащат, все колонки — возможные цели, и без
+             * подсветки агент бросает вслепую: колонки одинаковой ширины,
+             * промахнуться легко. Фирменная граница и лёгкий подъём говорят
+             * «сюда можно», не мигая и не меняя размеров — двигается только
+             * `transform`, поэтому соседние колонки не съезжают.
+             */
+            className={`relative flex w-72 shrink-0 flex-col gap-2 overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface-muted)] p-3 pt-4 transition-[border-color,box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] ${
+              dragging?.kind === 'card'
+                ? 'border-[var(--color-brand)] shadow-[var(--shadow-hover)] -translate-y-0.5'
+                : 'border-[var(--color-border)] shadow-[var(--shadow-card)]'
+            }`}
           >
             {/* Полоса цвета стадии по верхнему краю колонки. */}
             <span
@@ -281,7 +294,16 @@ export function Board({
                   style={{ backgroundColor: columnColor(column.colorToken) }}
                 />
                 <span className="min-w-0 flex-1 truncate">{column.name}</span>
-                <span className="text-xs font-normal text-[var(--color-text-secondary)]">
+                {/* Счётчик в таблетке цвета стадии: число объектов в колонке
+                    — первое, что смотрят на доске, и серой цифрой в углу
+                    оно терялось. */}
+                <span
+                  className="shrink-0 rounded-[var(--radius-pill)] px-2 py-0.5 text-xs font-semibold tabular-nums"
+                  style={{
+                    color: columnColor(column.colorToken),
+                    backgroundColor: `color-mix(in oklch, ${columnColor(column.colorToken)} 12%, transparent)`,
+                  }}
+                >
                   {String(inColumn.length)}
                 </span>
 

@@ -262,8 +262,27 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <Card className="flex flex-col items-center gap-2 px-6 py-14 text-center">
-      <p className="text-sm font-medium">{title}</p>
+    <Card className="flex flex-col items-center gap-3 px-6 py-16 text-center">
+      {/*
+        ЗНАК ИЗ ГЕОМЕТРИИ ЛОГОТИПА (§26 задания).
+        Пустой экран — тоже экран бренда: серая строка «ничего не найдено»
+        выглядит как сбой, а фигура из тех же квадратов, что и знак, — как
+        спокойное «здесь пока пусто». Четыре квадрата разной прозрачности
+        фирменного градиента: тот же приём, что и в самом знаке.
+      */}
+      <span aria-hidden className="mb-1 grid grid-cols-2 gap-1">
+        {[0.9, 0.55, 0.35, 0.7].map((opacity, index) => (
+          <span
+            key={opacity}
+            className={`size-4 ${index === 0 ? 'rounded-tl-[var(--radius-sm)]' : ''} ${
+              index === 3 ? 'rounded-br-[var(--radius-sm)]' : ''
+            }`}
+            style={{ backgroundImage: 'var(--gradient-primary)', opacity }}
+          />
+        ))}
+      </span>
+
+      <p className="text-[0.9375rem] font-semibold">{title}</p>
       {hint === undefined ? null : (
         <p className="max-w-md text-sm text-[var(--color-text-secondary)]">{hint}</p>
       )}
