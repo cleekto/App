@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { createChatRoom, listChatRooms } from '@kleekto/core';
+import { ROOM_COLORS, createChatRoom, listChatRooms } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
 
@@ -16,6 +16,9 @@ const createSchema = z
   .object({
     name: z.string().min(1).max(80),
     topic: z.string().max(280).nullable().optional(),
+    // Набор закрыт: неизвестный цвет ядро всё равно не примет, но отвергнуть
+    // его на входе честнее, чем молча покрасить в нейтральный.
+    colorToken: z.enum(ROOM_COLORS).nullable().optional(),
   })
   .strict();
 

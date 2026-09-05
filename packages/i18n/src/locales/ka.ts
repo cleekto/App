@@ -81,6 +81,7 @@ export const ka: DeepPartial<Dictionary> = {
     newRoom: 'ახალი ოთახი',
     roomName: 'დასახელება',
     roomTopic: 'რის შესახებ',
+    roomColor: 'ფერი',
     create: 'შექმნა',
     archive: 'არქივში',
     archived: 'არქივშია',

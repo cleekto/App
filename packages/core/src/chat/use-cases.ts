@@ -22,6 +22,21 @@ import { permissionScope } from '../rbac/permissions';
  * а невозможно.
  */
 
+/**
+ * Цвета комнаты — тот же закрытый набор, что у стадий воронки.
+ *
+ * Закрытый намеренно: свободное поле дало бы `#7C3AED`, `purple` и `фиолетовый`
+ * в одной базе, а половина значений не прошла бы проверку на контраст.
+ * Неизвестный цвет молча не принимается — комната остаётся нейтральной,
+ * а не красится в невесть что.
+ */
+export const ROOM_COLORS = ['brand', 'success', 'warning', 'danger', 'neutral'] as const;
+
+function cleanRoomColor(value: string | null | undefined): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  return (ROOM_COLORS as readonly string[]).includes(value) ? value : null;
+}
+
 const MAX_BODY = 4000;
 const MAX_NAME = 80;
 
@@ -29,6 +44,8 @@ export interface ChatRoomSummary {
   id: string;
   name: string;
   topic: string | null;
+  /** Цвет комнаты из палитры продукта. Пусто — нейтральный. */
+  colorToken: string | null;
   isArchived: boolean;
   messageCount: number;
   lastMessageAt: string | null;
@@ -213,6 +230,7 @@ export async function listChatRooms(
     id: room.id,
     name: room.name,
     topic: room.topic,
+    colorToken: room.colorToken,
     isArchived: room.isArchived,
     messageCount: room._count.messages,
     lastMessageAt: room.messages[0]?.createdAt.toISOString() ?? null,
@@ -221,7 +239,11 @@ export async function listChatRooms(
 
 export async function createChatRoom(
   ctx: AuthContext,
-  input: { name: string; topic?: string | null | undefined },
+  input: {
+    name: string;
+    topic?: string | null | undefined;
+    colorToken?: string | null | undefined;
+  },
 ): Promise<{ id: string }> {
   const scope = requirePermission(ctx, 'chatRoom', 'create');
   assertScope(ctx, scope, { companyId: ctx.companyId, teamId: null });
@@ -238,6 +260,7 @@ export async function createChatRoom(
       companyId: ctx.companyId,
       name,
       topic: topic === undefined || topic === '' ? null : topic,
+      colorToken: cleanRoomColor(input.colorToken),
       createdByUserId: ctx.userId,
     },
     select: { id: true },
@@ -259,6 +282,7 @@ export async function updateChatRoom(
   input: {
     name?: string | undefined;
     topic?: string | null | undefined;
+    colorToken?: string | null | undefined;
     isArchived?: boolean | undefined;
   },
 ): Promise<{ id: string }> {
@@ -284,6 +308,7 @@ export async function updateChatRoom(
     data: {
       ...(name === undefined ? {} : { name }),
       ...(input.topic === undefined ? {} : { topic: topic === '' ? null : (topic ?? null) }),
+      ...(input.colorToken === undefined ? {} : { colorToken: cleanRoomColor(input.colorToken) }),
       ...(input.isArchived === undefined ? {} : { isArchived: input.isArchived }),
     },
   });

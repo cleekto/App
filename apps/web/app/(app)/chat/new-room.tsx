@@ -3,7 +3,17 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { stageColors } from '../../_ui/accent';
 import { Button, Field, Input } from '../../_ui/primitives';
+
+/**
+ * Цвета комнаты — тот же закрытый набор, что у стадий воронки.
+ *
+ * Общий набор, а не свой: две палитры в одном продукте расходятся на первой
+ * же правке, и пользователь начинает видеть «почти такой же, но другой»
+ * зелёный в двух местах.
+ */
+const COLORS = ['brand', 'success', 'warning', 'danger', 'neutral'] as const;
 
 /**
  * Заведение комнаты.
@@ -18,11 +28,19 @@ import { Button, Field, Input } from '../../_ui/primitives';
 export function NewRoom({
   labels,
 }: {
-  labels: { open: string; name: string; topic: string; create: string; cancel: string };
+  labels: {
+    open: string;
+    name: string;
+    topic: string;
+    color: string;
+    create: string;
+    cancel: string;
+  };
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [color, setColor] = useState<string>('brand');
 
   if (!open) {
     return (
@@ -48,6 +66,7 @@ export function NewRoom({
           body: JSON.stringify({
             name: String(form.get('name') ?? ''),
             topic: String(form.get('topic') ?? ''),
+            colorToken: color,
           }),
         })
           .then((response) => {
@@ -67,6 +86,30 @@ export function NewRoom({
       <Field label={labels.topic}>
         <Input name="topic" maxLength={280} />
       </Field>
+
+      {/* Цвет — кружками, а не списком: цвет выбирают глазами, и название
+          «brand» человеку ничего не говорит. Выбранный обведён кольцом,
+          чтобы состояние читалось не только по насыщенности. */}
+      <div className="flex items-center gap-1.5 pb-1">
+        {COLORS.map((token) => {
+          const colors = stageColors(token);
+          const selected = token === color;
+
+          return (
+            <button
+              key={token}
+              type="button"
+              onClick={() => setColor(token)}
+              aria-label={labels.color}
+              aria-pressed={selected}
+              className={`size-6 rounded-full transition-transform duration-[var(--duration-fast)] ${
+                selected ? 'ring-2 ring-offset-2 ring-[var(--color-text-primary)]' : ''
+              }`}
+              style={{ backgroundColor: colors.fg }}
+            />
+          );
+        })}
+      </div>
 
       <Button type="submit" size="sm" disabled={busy}>
         {labels.create}

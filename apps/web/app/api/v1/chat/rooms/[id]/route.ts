@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { updateChatRoom } from '@kleekto/core';
+import { ROOM_COLORS, updateChatRoom } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../_lib/handler';
 
@@ -16,6 +16,7 @@ const patchSchema = z
   .object({
     name: z.string().min(1).max(80).optional(),
     topic: z.string().max(280).nullable().optional(),
+    colorToken: z.enum(ROOM_COLORS).nullable().optional(),
     isArchived: z.boolean().optional(),
   })
   .strict();

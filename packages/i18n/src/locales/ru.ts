@@ -80,6 +80,7 @@ export const ru: DeepPartial<Dictionary> = {
     newRoom: 'Новая комната',
     roomName: 'Название',
     roomTopic: 'О чём комната',
+    roomColor: 'Цвет',
     create: 'Создать',
     archive: 'В архив',
     archived: 'В архиве',

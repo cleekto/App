@@ -10,6 +10,7 @@ import {
 import { formatDateTime, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
+import { stageColors } from '../../_ui/accent';
 import { Card, EmptyState } from '../../_ui/primitives';
 import { Conversation } from './conversation';
 import { NewRoom } from './new-room';
@@ -71,6 +72,7 @@ export default async function ChatPage({
               open: t('chat.newRoom'),
               name: t('chat.roomName'),
               topic: t('chat.roomTopic'),
+              color: t('chat.roomColor'),
               create: t('chat.create'),
               cancel: t('common.cancel'),
             }}
@@ -101,7 +103,16 @@ export default async function ChatPage({
                           : 'hover:bg-[var(--color-surface-muted)]'
                       }`}
                     >
-                      <span className="truncate text-sm font-medium">{room.name}</span>
+                      <span className="flex min-w-0 items-center gap-2">
+                        {/* Точка цвета комнаты: в списке из десяти строк
+                            нужную находят по цвету, а не читают названия. */}
+                        <span
+                          aria-hidden
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: stageColors(room.colorToken).fg }}
+                        />
+                        <span className="truncate text-sm font-medium">{room.name}</span>
+                      </span>
                       {room.topic === null ? null : (
                         <span className="truncate text-xs text-[var(--color-text-tertiary)]">
                           {room.topic}

@@ -74,6 +74,7 @@ export const en = {
     newRoom: 'New room',
     roomName: 'Name',
     roomTopic: 'What it is about',
+    roomColor: 'Colour',
     create: 'Create',
     archive: 'Archive',
     archived: 'Archived',
