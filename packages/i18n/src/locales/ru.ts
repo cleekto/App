@@ -77,6 +77,11 @@ export const ru: DeepPartial<Dictionary> = {
   chat: {
     // Чат компании: комнаты видит вся компания, создают их админ и менеджер.
     rooms: 'Комнаты',
+    feed: 'Общая лента',
+    feedHint: 'Всё, что происходит в комнатах. Чтобы ответить, откройте комнату.',
+    allInRoom: 'Всё в комнате',
+    newTopic: '+ Тема',
+    topicName: 'О чём разговор',
     newRoom: 'Новая комната',
     roomName: 'Название',
     roomTopic: 'О чём комната',
@@ -94,6 +99,10 @@ export const ru: DeepPartial<Dictionary> = {
     edited: 'изменено',
     deleted: 'Сообщение удалено',
     delete: 'Удалить',
+    reply: 'Ответить',
+    replyingTo: 'Отвечаете на',
+    cancelReply: 'Отменить',
+    deletedQuote: 'сообщение удалено',
     // Личная переписка.
     conversations: 'Переписки',
     newConversation: 'Написать сотруднику',

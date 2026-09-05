@@ -21,6 +21,9 @@ import { Button } from '../../_ui/primitives';
  * не быть данных грузинской локали).
  */
 
+/** Разделитель в строке «отвечаете на»: литералы в разметке запрещены. */
+const SEPARATOR = ' · ';
+
 export interface ChatMessageItem {
   id: string;
   body: string | null;
@@ -32,9 +35,15 @@ export interface ChatMessageItem {
   isDeleted: boolean;
   canDelete: boolean;
   canEdit: boolean;
+  /** На что это ответ. `null` — не ответ. */
+  replyTo: { id: string; authorName: string; body: string | null } | null;
 }
 
 export interface ChatLabels {
+  reply: string;
+  replyingTo: string;
+  cancelReply: string;
+  deletedQuote: string;
   write: string;
   send: string;
   edited: string;
@@ -65,6 +74,7 @@ export function Conversation({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
+  const [replyTo, setReplyTo] = useState<ChatMessageItem | null>(null);
   const bottom = useRef<HTMLDivElement>(null);
 
   /*
@@ -147,11 +157,15 @@ export function Conversation({
       const response = await fetch(postTo, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({
+          body,
+          ...(replyTo === null ? {} : { replyToId: replyTo.id }),
+        }),
       });
 
       if (response.ok) {
         setDraft('');
+        setReplyTo(null);
         // Своё сообщение должно появиться немедленно, а не через три
         // секунды: ждать собственных слов — худшее, что может делать чат.
         versionRef.current = '';
@@ -213,6 +227,23 @@ export function Conversation({
                       Так лента читается без чтения имён: взгляд отличает
                       свои реплики по стороне и цвету.
                     */}
+                    {/*
+                      Цитата над сообщением: короткая, в одну строку.
+                      Приводится живой текст исходного, а не копия — исходное
+                      правят и удаляют, и копия рассказывала бы то, чего
+                      человек уже не говорит.
+                    */}
+                    {message.replyTo === null ? null : (
+                      <div className="flex items-start gap-2 rounded-[var(--radius-sm)] border-l-2 border-[var(--color-brand)] bg-[var(--color-surface-muted)] px-2 py-1 text-xs">
+                        <span className="shrink-0 font-medium text-[var(--color-text-secondary)]">
+                          {message.replyTo.authorName}
+                        </span>
+                        <span className="truncate text-[var(--color-text-tertiary)]">
+                          {message.replyTo.body ?? labels.deletedQuote}
+                        </span>
+                      </div>
+                    )}
+
                     <div
                       className={`rounded-[var(--radius-card)] px-3 py-2 text-sm break-words ${
                         message.isDeleted
@@ -225,17 +256,27 @@ export function Conversation({
                       {message.isDeleted ? labels.deleted : message.body}
                     </div>
 
-                    {message.canDelete ? (
-                      <button
-                        type="button"
-                        onClick={() => void remove(message.id)}
-                        className={`text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-danger)] ${
-                          mine ? 'self-end' : 'self-start'
-                        }`}
-                      >
-                        {labels.delete}
-                      </button>
-                    ) : null}
+                    <div className={`flex gap-3 ${mine ? 'self-end' : 'self-start'}`}>
+                      {message.isDeleted ? null : (
+                        <button
+                          type="button"
+                          onClick={() => setReplyTo(message)}
+                          className="text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-brand)]"
+                        >
+                          {labels.reply}
+                        </button>
+                      )}
+
+                      {message.canDelete ? (
+                        <button
+                          type="button"
+                          onClick={() => void remove(message.id)}
+                          className="text-xs text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-danger)]"
+                        >
+                          {labels.delete}
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </li>
               );
@@ -245,6 +286,24 @@ export function Conversation({
 
         <div ref={bottom} />
       </div>
+
+      {replyTo === null ? null : (
+        <div className="flex items-center gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 text-xs">
+          <span className="shrink-0 text-[var(--color-text-secondary)]">{labels.replyingTo}</span>
+          <span className="min-w-0 flex-1 truncate text-[var(--color-text-tertiary)]">
+            {replyTo.authorName}
+            {SEPARATOR}
+            {replyTo.body ?? labels.deletedQuote}
+          </span>
+          <button
+            type="button"
+            onClick={() => setReplyTo(null)}
+            className="shrink-0 text-[var(--color-text-tertiary)] transition-colors hover:text-[var(--color-text-primary)]"
+          >
+            {labels.cancelReply}
+          </button>
+        </div>
+      )}
 
       <div className="flex items-end gap-2 border-t border-[var(--color-border)] p-3">
         <textarea

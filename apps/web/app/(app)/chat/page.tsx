@@ -2,8 +2,10 @@ import Link from 'next/link';
 
 import {
   chatVersion,
+  companyFeed,
   listChatMessages,
   listChatRooms,
+  listChatTopics,
   markChatRead,
   permissionScope,
 } from '@kleekto/core';
@@ -12,7 +14,9 @@ import { formatDateTime, translate } from '@kleekto/i18n';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { stageColors } from '../../_ui/accent';
 import { Card, EmptyState } from '../../_ui/primitives';
+import { CompanyFeed } from './company-feed';
 import { Conversation } from './conversation';
+import { TopicBar } from './topic-bar';
 import { NewRoom } from './new-room';
 
 /**
@@ -38,21 +42,38 @@ export default async function ChatPage({
 
   const rooms = await listChatRooms(ctx);
 
+  /*
+   * НЕ ЗАШЁЛ В КОМНАТУ — ЗНАЧИТ, В ОБЩЕЙ ЛЕНТЕ (решение владельца).
+   *
+   * Раньше по умолчанию открывалась первая комната списка, и это был
+   * произвол: почему именно она. Лента отвечает на вопрос «что вообще
+   * происходит», комната — «что происходит вот здесь».
+   */
   const requested = typeof params['room'] === 'string' ? params['room'] : undefined;
-  const active = rooms.find((room) => room.id === requested) ?? rooms[0] ?? null;
+  const active =
+    requested === undefined ? null : (rooms.find((room) => room.id === requested) ?? null);
+
+  const topicId = typeof params['topic'] === 'string' ? params['topic'] : undefined;
+
+  const feed = active === null ? await companyFeed(ctx) : [];
 
   // Отпечаток нужен клиенту, чтобы спрашивать «изменилось ли» и получать
   // короткий ответ, когда нет.
-  const version = active === null ? '' : await chatVersion(ctx, { roomId: active.id });
+  const target =
+    active === null ? null : { roomId: active.id, ...(topicId === undefined ? {} : { topicId }) };
+
+  const version = target === null ? '' : await chatVersion(ctx, target);
 
   // Открыл — значит прочитал. Отметка ставится серверным временем: браузер
   // с уехавшими часами пометил бы прочитанным то, что ещё не пришло.
-  if (active !== null) await markChatRead(ctx, { roomId: active.id });
+  if (target !== null) await markChatRead(ctx, target);
+
+  const topics = active === null ? [] : await listChatTopics(ctx, active.id);
 
   const messages =
-    active === null
+    target === null
       ? []
-      : (await listChatMessages(ctx, { roomId: active.id })).map((message) => ({
+      : (await listChatMessages(ctx, target)).map((message) => ({
           ...message,
           // Дата считается здесь, на сервере: у браузера агента может
           // не быть данных грузинской локали.
@@ -89,6 +110,26 @@ export default async function ChatPage({
               {t('chat.rooms')}
             </p>
             <ul className="flex flex-col p-1.5">
+              {/* Общая лента — первый пункт и место по умолчанию: сюда
+                  человек попадает, пока не зашёл в конкретную комнату. */}
+              <li>
+                <Link
+                  href="/chat"
+                  aria-current={active === null ? 'page' : undefined}
+                  className={`flex items-center gap-2 rounded-[var(--radius-sm)] px-2.5 py-2 transition-colors duration-[var(--duration-fast)] ${
+                    active === null
+                      ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
+                      : 'hover:bg-[var(--color-surface-muted)]'
+                  }`}
+                >
+                  <span
+                    aria-hidden
+                    className="size-2 shrink-0 rounded-full bg-[image:var(--gradient-primary)]"
+                  />
+                  <span className="truncate text-sm font-medium">{t('chat.feed')}</span>
+                </Link>
+              </li>
+
               {rooms.map((room) => {
                 const selected = room.id === active?.id;
 
@@ -127,25 +168,52 @@ export default async function ChatPage({
 
           <Card className="flex h-[calc(100vh-13rem)] min-h-96 flex-col overflow-hidden">
             {active === null ? (
-              <p className="m-auto text-sm text-[var(--color-text-secondary)]">
-                {t('chat.pickRoom')}
-              </p>
-            ) : (
-              <Conversation
-                messages={messages}
-                postTo={`/api/v1/chat/rooms/${active.id}/messages`}
-                currentUserId={ctx.userId}
-                version={version}
+              <CompanyFeed
+                items={feed.map((item) => ({
+                  ...item,
+                  timeLabel: formatDateTime(locale, new Date(item.createdAt)),
+                }))}
                 labels={{
-                  write: t('chat.write'),
-                  send: t('chat.send'),
-                  edited: t('chat.edited'),
-                  deleted: t('chat.deleted'),
-                  delete: t('chat.delete'),
+                  title: t('chat.feed'),
+                  hint: t('chat.feedHint'),
                   empty: t('chat.emptyMessages'),
-                  emptyHint: t('chat.emptyMessagesHint'),
                 }}
               />
+            ) : (
+              <>
+                <TopicBar
+                  roomId={active.id}
+                  topics={topics}
+                  activeTopicId={topicId ?? null}
+                  labels={{
+                    all: t('chat.allInRoom'),
+                    add: t('chat.newTopic'),
+                    name: t('chat.topicName'),
+                    create: t('chat.create'),
+                    cancel: t('common.cancel'),
+                  }}
+                />
+
+                <Conversation
+                  messages={messages}
+                  postTo={`/api/v1/chat/rooms/${active.id}/messages${topicId === undefined ? '' : `?topic=${topicId}`}`}
+                  currentUserId={ctx.userId}
+                  version={version}
+                  labels={{
+                    write: t('chat.write'),
+                    send: t('chat.send'),
+                    edited: t('chat.edited'),
+                    deleted: t('chat.deleted'),
+                    delete: t('chat.delete'),
+                    reply: t('chat.reply'),
+                    replyingTo: t('chat.replyingTo'),
+                    cancelReply: t('chat.cancelReply'),
+                    deletedQuote: t('chat.deletedQuote'),
+                    empty: t('chat.emptyMessages'),
+                    emptyHint: t('chat.emptyMessagesHint'),
+                  }}
+                />
+              </>
             )}
           </Card>
         </div>

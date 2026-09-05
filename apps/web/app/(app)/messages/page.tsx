@@ -124,6 +124,10 @@ export default async function MessagesPage({
                   edited: t('chat.edited'),
                   deleted: t('chat.deleted'),
                   delete: t('chat.delete'),
+                  reply: t('chat.reply'),
+                  replyingTo: t('chat.replyingTo'),
+                  cancelReply: t('chat.cancelReply'),
+                  deletedQuote: t('chat.deletedQuote'),
                   empty: t('chat.emptyMessages'),
                   emptyHint: t('chat.emptyMessagesHint'),
                 }}

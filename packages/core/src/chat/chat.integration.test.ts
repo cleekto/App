@@ -5,11 +5,14 @@ import type { AuthContext } from '../auth/context';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import { seed } from '../seed/seed';
 import {
+  companyFeed,
   createChatRoom,
+  createChatTopic,
   deleteChatMessage,
   editChatMessage,
   listChatMessages,
   listChatRooms,
+  listChatTopics,
   listDirectConversations,
   openDirectConversation,
   postChatMessage,
@@ -159,9 +162,15 @@ describe('сообщения в комнате', () => {
     await expect(deleteChatMessage(actors.admin, foreign.id)).resolves.toBeTruthy();
   });
 
+  /*
+   * Метки в этих проверках нарочно кириллические. Цифровые давали ложные
+   * срабатывания: «321» находится внутри случайного UUID, и тест падал
+   * на исправном коде. В шестнадцатеричном идентификаторе кириллицы быть
+   * не может, поэтому совпадение означает настоящую утечку.
+   */
   it('ТЕКСТ УДАЛЁННОГО НЕ ОТДАЁТСЯ ВОВСЕ', async () => {
     const roomId = await roomFor(actors.admin, 'Скрытое');
-    const message = await postChatMessage(actors.agent, { roomId }, 'Секретный номер 555');
+    const message = await postChatMessage(actors.agent, { roomId }, 'Секретный номер ЯБЛОКО');
     await deleteChatMessage(actors.agent, message.id);
 
     const messages = await listChatMessages(actors.otherAgent, { roomId });
@@ -171,7 +180,7 @@ describe('сообщения в комнате', () => {
     // и лежал бы в ответе сервера.
     expect(deleted?.isDeleted).toBe(true);
     expect(deleted?.body).toBeNull();
-    expect(JSON.stringify(messages)).not.toContain('555');
+    expect(JSON.stringify(messages)).not.toContain('ЯБЛОКО');
   });
 });
 
@@ -251,5 +260,160 @@ describe('личная переписка', () => {
     ).rejects.toThrow(ValidationError);
 
     await expect(postChatMessage(actors.agent, {}, 'Никуда')).rejects.toThrow(ValidationError);
+  });
+});
+
+describe('темы внутри комнаты', () => {
+  it('тему заводит любой сотрудник, в отличие от комнаты', async () => {
+    const roomId = await roomFor(actors.admin, 'С темами');
+
+    // Начать разговор — не то же самое, что завести круг людей: комнату
+    // агент создать не может, тему — может.
+    await expect(createChatTopic(actors.agent, roomId, 'Жванияс 5')).resolves.toBeTruthy();
+  });
+
+  it('сообщения темы не смешиваются с общей лентой комнаты', async () => {
+    const roomId = await roomFor(actors.admin, 'Разделение');
+    const topic = await createChatTopic(actors.agent, roomId, 'Торг');
+
+    await postChatMessage(actors.agent, { roomId }, 'В комнате');
+    await postChatMessage(actors.agent, { roomId, topicId: topic.id }, 'В теме');
+
+    const inRoom = await listChatMessages(actors.agent, { roomId });
+    const inTopic = await listChatMessages(actors.agent, { roomId, topicId: topic.id });
+
+    expect(inRoom.map((message) => message.body)).toEqual(['В комнате']);
+    expect(inTopic.map((message) => message.body)).toEqual(['В теме']);
+  });
+
+  it('в тему соседней комнаты написать нельзя', async () => {
+    const first = await roomFor(actors.admin, 'Первая');
+    const second = await roomFor(actors.admin, 'Вторая');
+    const topic = await createChatTopic(actors.agent, first, 'Своя тема');
+
+    // Знание идентификатора не должно давать доступ.
+    await expect(
+      postChatMessage(actors.agent, { roomId: second, topicId: topic.id }, 'Мимо'),
+    ).rejects.toThrow(NotFoundError);
+  });
+
+  it('у личной переписки тем не бывает', async () => {
+    const conversation = await openDirectConversation(actors.agent, actors.manager.userId);
+
+    await expect(
+      listChatMessages(actors.agent, {
+        conversationId: conversation.id,
+        topicId: '00000000-0000-0000-0000-000000000001',
+      }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it('темы комнаты перечисляются со счётчиком', async () => {
+    const roomId = await roomFor(actors.admin, 'Счётчик тем');
+    const topic = await createChatTopic(actors.agent, roomId, 'Обсуждение');
+    await postChatMessage(actors.agent, { roomId, topicId: topic.id }, 'Раз');
+    await postChatMessage(actors.manager, { roomId, topicId: topic.id }, 'Два');
+
+    const topics = await listChatTopics(actors.otherAgent, roomId);
+    expect(topics.find((item) => item.id === topic.id)?.messageCount).toBe(2);
+  });
+});
+
+describe('ответ на сообщение', () => {
+  it('ответ приводит цитату исходного', async () => {
+    const roomId = await roomFor(actors.admin, 'Ответы');
+    const original = await postChatMessage(actors.manager, { roomId }, 'Когда показ?');
+    await postChatMessage(actors.agent, { roomId }, 'Завтра в шесть', {
+      replyToId: original.id,
+    });
+
+    const messages = await listChatMessages(actors.agent, { roomId });
+    const answer = messages.at(-1);
+
+    expect(answer?.replyTo?.body).toBe('Когда показ?');
+    expect(answer?.replyTo?.authorName).not.toBe('');
+  });
+
+  /**
+   * ГЛАВНАЯ ПРОВЕРКА ЭТОГО НАБОРА.
+   *
+   * Без проверки принадлежности можно было бы ответить в своей переписке
+   * на сообщение из чужой — и процитированный текст утёк бы вместе с ответом.
+   */
+  it('ОТВЕТ НА ЧУЖОЙ РАЗГОВОР НЕ ТАЩИТ ЕГО ТЕКСТ', async () => {
+    const roomId = await roomFor(actors.admin, 'Источник');
+    const secret = await postChatMessage(actors.manager, { roomId }, 'Секрет-ГРУША');
+
+    const conversation = await openDirectConversation(actors.agent, actors.otherAgent.userId);
+    await postChatMessage(actors.agent, { conversationId: conversation.id }, 'Смотри', {
+      replyToId: secret.id,
+    });
+
+    const messages = await listChatMessages(actors.agent, { conversationId: conversation.id });
+
+    // Сообщение осталось — потерять написанное из-за чужой ссылки нельзя, —
+    // но цитаты в нём нет.
+    expect(messages.at(-1)?.body).toBe('Смотри');
+    expect(messages.at(-1)?.replyTo).toBeNull();
+    expect(JSON.stringify(messages)).not.toContain('ГРУША');
+  });
+
+  it('удаление исходного не уносит ответ, а только цитату', async () => {
+    const roomId = await roomFor(actors.admin, 'Удаление цитаты');
+    const original = await postChatMessage(actors.agent, { roomId }, 'Исходное');
+    await postChatMessage(actors.manager, { roomId }, 'Ответ на него', {
+      replyToId: original.id,
+    });
+
+    await deleteChatMessage(actors.agent, original.id);
+
+    const messages = await listChatMessages(actors.otherAgent, { roomId });
+    const answer = messages.find((message) => message.body === 'Ответ на него');
+
+    expect(answer).toBeDefined();
+    expect(answer?.replyTo?.body).toBeNull();
+  });
+});
+
+describe('общая лента компании', () => {
+  it('собирает сообщения из всех комнат и говорит, откуда каждое', async () => {
+    const first = await roomFor(actors.admin, 'Лента-1');
+    const second = await roomFor(actors.admin, 'Лента-2');
+    await postChatMessage(actors.agent, { roomId: first }, 'Из первой');
+    await postChatMessage(actors.manager, { roomId: second }, 'Из второй');
+
+    const feed = await companyFeed(actors.otherAgent);
+    const bodies = feed.map((item) => item.body);
+
+    expect(bodies).toContain('Из первой');
+    expect(bodies).toContain('Из второй');
+    expect(feed.find((item) => item.body === 'Из первой')?.roomName).toBe('Лента-1');
+  });
+
+  it('ЛИЧНОЙ ПЕРЕПИСКИ В ЛЕНТЕ НЕТ', async () => {
+    const conversation = await openDirectConversation(actors.agent, actors.manager.userId);
+    await postChatMessage(actors.agent, { conversationId: conversation.id }, 'Личное-СЛИВА');
+
+    // Лента общая для компании; личное в ней означало бы, что переписку
+    // видят все.
+    const feed = await companyFeed(actors.admin);
+    expect(JSON.stringify(feed)).not.toContain('СЛИВА');
+  });
+
+  it('лента чужой компании не пересекается с нашей', async () => {
+    const roomId = await roomFor(actors.admin, 'Только Тбилиси');
+    await postChatMessage(actors.agent, { roomId }, 'Тбилисское-ВИШНЯ');
+
+    const foreign = await companyFeed(actors.batumiAdmin);
+    expect(JSON.stringify(foreign)).not.toContain('ВИШНЯ');
+  });
+
+  it('архивная комната из ленты уходит', async () => {
+    const roomId = await roomFor(actors.admin, 'Уйдёт в архив');
+    await postChatMessage(actors.agent, { roomId }, 'Было-АЙВА');
+    await updateChatRoom(actors.admin, roomId, { isArchived: true });
+
+    const feed = await companyFeed(actors.agent);
+    expect(JSON.stringify(feed)).not.toContain('АЙВА');
   });
 });

@@ -78,6 +78,11 @@ export const ka: DeepPartial<Dictionary> = {
 
   chat: {
     rooms: 'ოთახები',
+    feed: 'საერთო ლენტა',
+    feedHint: 'ყველაფერი, რაც ოთახებში ხდება. საპასუხოდ გახსენით ოთახი.',
+    allInRoom: 'ყველა ოთახში',
+    newTopic: '+ თემა',
+    topicName: 'რის შესახებ',
     newRoom: 'ახალი ოთახი',
     roomName: 'დასახელება',
     roomTopic: 'რის შესახებ',
@@ -95,6 +100,10 @@ export const ka: DeepPartial<Dictionary> = {
     edited: 'შესწორდა',
     deleted: 'შეტყობინება წაიშალა',
     delete: 'წაშლა',
+    reply: 'პასუხი',
+    replyingTo: 'პასუხობთ',
+    cancelReply: 'გაუქმება',
+    deletedQuote: 'შეტყობინება წაიშალა',
     conversations: 'მიმოწერები',
     newConversation: 'მიწერე კოლეგას',
     pickConversation: 'აირჩიეთ მიმოწერა მარცხნივ',

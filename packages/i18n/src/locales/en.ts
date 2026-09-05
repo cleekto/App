@@ -71,6 +71,11 @@ export const en = {
 
   chat: {
     rooms: 'Rooms',
+    feed: 'Company feed',
+    feedHint: 'Everything happening across the rooms. Open a room to reply.',
+    allInRoom: 'All in room',
+    newTopic: '+ Topic',
+    topicName: 'What is it about',
     newRoom: 'New room',
     roomName: 'Name',
     roomTopic: 'What it is about',
@@ -88,6 +93,10 @@ export const en = {
     edited: 'edited',
     deleted: 'Message deleted',
     delete: 'Delete',
+    reply: 'Reply',
+    replyingTo: 'Replying to',
+    cancelReply: 'Cancel',
+    deletedQuote: 'message deleted',
     conversations: 'Conversations',
     newConversation: 'Message a colleague',
     pickConversation: 'Pick a conversation on the left',

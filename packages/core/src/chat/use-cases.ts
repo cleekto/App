@@ -37,6 +37,19 @@ function cleanRoomColor(value: string | null | undefined): string | null {
   return (ROOM_COLORS as readonly string[]).includes(value) ? value : null;
 }
 
+/**
+ * Куда адресовано сообщение.
+ *
+ * Комната, тема внутри комнаты либо личная переписка. Тема без комнаты
+ * бессмысленна и отвергается; в личной переписке тем нет вовсе — там
+ * и так один разговор.
+ */
+export interface ChatTarget {
+  roomId?: string | undefined;
+  topicId?: string | undefined;
+  conversationId?: string | undefined;
+}
+
 const MAX_BODY = 4000;
 const MAX_NAME = 80;
 
@@ -63,6 +76,29 @@ export interface ChatMessageView {
   canDelete: boolean;
   /** Правит только автор — и только пока сообщение не удалено. */
   canEdit: boolean;
+  /**
+   * На что это ответ. `null` — не ответ.
+   *
+   * Приводится ссылкой на живое сообщение, а не копией текста: процитированное
+   * потом правят и удаляют, и копия рассказывала бы то, чего человек уже
+   * не говорит. Удалённое исходное отдаётся без текста — ответ остаётся
+   * на месте, исчезает только цитата.
+   */
+  replyTo: { id: string; authorName: string; body: string | null } | null;
+}
+
+export interface ChatTopicSummary {
+  id: string;
+  name: string;
+  messageCount: number;
+  lastMessageAt: string | null;
+}
+
+/** Строка общей ленты: сообщение вместе с комнатой, откуда оно. */
+export interface FeedItem extends ChatMessageView {
+  roomId: string;
+  roomName: string;
+  roomColorToken: string | null;
 }
 
 export interface DirectConversationSummary {
@@ -162,10 +198,7 @@ export async function unreadCounts(
  * серверный, а не присланный клиентом: иначе браузер с уехавшими часами
  * пометил бы прочитанным то, что ещё не пришло.
  */
-export async function markChatRead(
-  ctx: AuthContext,
-  target: { roomId?: string | undefined; conversationId?: string | undefined },
-): Promise<void> {
+export async function markChatRead(ctx: AuthContext, target: ChatTarget): Promise<void> {
   requirePermission(ctx, 'chatMessage', 'read');
   const where = await assertTarget(ctx, target);
 
@@ -324,6 +357,149 @@ export async function updateChatRoom(
   return { id: room.id };
 }
 
+// ── Темы внутри комнаты ──────────────────────────────────────────────────────
+
+/**
+ * Темы комнаты.
+ *
+ * Тему заводит любой сотрудник, в отличие от комнаты: начать разговор —
+ * не то же самое, что завести новый круг людей. Поэтому здесь право
+ * на сообщение, а не на комнату.
+ */
+export async function listChatTopics(
+  ctx: AuthContext,
+  roomId: string,
+): Promise<ChatTopicSummary[]> {
+  requirePermission(ctx, 'chatMessage', 'read');
+  await assertTarget(ctx, { roomId });
+
+  const topics = await prisma.chatTopic.findMany({
+    where: { roomId, companyId: ctx.companyId },
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      _count: { select: { messages: true } },
+      messages: {
+        where: { deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+  });
+
+  return topics.map((topic) => ({
+    id: topic.id,
+    name: topic.name,
+    messageCount: topic._count.messages,
+    lastMessageAt: topic.messages[0]?.createdAt.toISOString() ?? null,
+  }));
+}
+
+export async function createChatTopic(
+  ctx: AuthContext,
+  roomId: string,
+  name: string,
+): Promise<{ id: string }> {
+  requirePermission(ctx, 'chatMessage', 'create');
+  const where = await assertTarget(ctx, { roomId });
+
+  const clean = name.trim();
+  if (clean === '' || clean.length > MAX_NAME) {
+    throw new ValidationError('Нужно название темы', { fields: ['name'] });
+  }
+
+  if (where.roomId === null) throw new NotFoundError();
+
+  const topic = await prisma.chatTopic.create({
+    data: {
+      companyId: ctx.companyId,
+      roomId: where.roomId,
+      name: clean,
+      createdByUserId: ctx.userId,
+    },
+    select: { id: true },
+  });
+
+  return topic;
+}
+
+// ── Общая лента ──────────────────────────────────────────────────────────────
+
+/**
+ * Всё, что происходит в компании, одной лентой.
+ *
+ * ГДЕ ЧЕЛОВЕК ОКАЗЫВАЕТСЯ, ПОКА НЕ ЗАШЁЛ В КОМНАТУ — решение владельца
+ * 2026-09-05. Раньше по умолчанию открывалась первая комната списка, и это
+ * было произволом: почему именно она. Лента отвечает на вопрос «что вообще
+ * происходит», а комната — «что происходит вот здесь».
+ *
+ * Лента только для чтения. Писать «в ленту» некуда: у сообщения обязана быть
+ * комната, иначе непонятно, кому оно адресовано. Поэтому у каждой строки
+ * видно, откуда она, и по ней переходят в саму комнату.
+ *
+ * Личной переписки в ленте нет и быть не может: её видят только двое.
+ */
+export async function companyFeed(ctx: AuthContext, limit = 60): Promise<FeedItem[]> {
+  requirePermission(ctx, 'chatMessage', 'read');
+
+  const messages = await prisma.chatMessage.findMany({
+    where: {
+      companyId: ctx.companyId,
+      roomId: { not: null },
+      room: { isArchived: false },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(limit, 200),
+    include: {
+      room: { select: { id: true, name: true, colorToken: true } },
+      replyTo: { select: { id: true, body: true, deletedAt: true, authorUserId: true } },
+    },
+  });
+
+  const authorIds = new Set(messages.map((row) => row.authorUserId));
+  for (const row of messages) {
+    if (row.replyTo !== null) authorIds.add(row.replyTo.authorUserId);
+  }
+
+  const authors = await prisma.user.findMany({
+    where: { id: { in: [...authorIds] } },
+    select: { id: true, fullName: true },
+  });
+  const names = new Map(authors.map((user) => [user.id, user.fullName]));
+
+  const canDeleteAny = canDeleteOthers(ctx);
+
+  // Порядок в выборке обратный — так база берёт последние строки по индексу.
+  // Читается лента сверху вниз, поэтому здесь разворачивается обратно.
+  return messages.reverse().map((message) => {
+    const isDeleted = message.deletedAt !== null;
+    const isAuthor = message.authorUserId === ctx.userId;
+
+    return {
+      id: message.id,
+      body: isDeleted ? null : message.body,
+      authorUserId: message.authorUserId,
+      authorName: names.get(message.authorUserId) ?? '',
+      createdAt: message.createdAt.toISOString(),
+      editedAt: message.editedAt?.toISOString() ?? null,
+      isDeleted,
+      canDelete: !isDeleted && (isAuthor || canDeleteAny),
+      canEdit: !isDeleted && isAuthor,
+      replyTo:
+        message.replyTo === null
+          ? null
+          : {
+              id: message.replyTo.id,
+              authorName: names.get(message.replyTo.authorUserId) ?? '',
+              body: message.replyTo.deletedAt === null ? message.replyTo.body : null,
+            },
+      roomId: message.room?.id ?? '',
+      roomName: message.room?.name ?? '',
+      roomColorToken: message.room?.colorToken ?? null,
+    };
+  });
+}
+
 // ── Личная переписка ─────────────────────────────────────────────────────────
 
 /**
@@ -416,8 +592,8 @@ export async function listDirectConversations(
  */
 async function assertTarget(
   ctx: AuthContext,
-  target: { roomId?: string | undefined; conversationId?: string | undefined },
-): Promise<{ roomId: string | null; conversationId: string | null }> {
+  target: ChatTarget,
+): Promise<{ roomId: string | null; conversationId: string | null; topicId: string | null }> {
   const roomId = target.roomId;
   const conversationId = target.conversationId;
 
@@ -432,7 +608,24 @@ async function assertTarget(
     });
     if (room === null) throw new NotFoundError();
 
-    return { roomId: room.id, conversationId: null };
+    // Тема проверяется отдельно и обязана принадлежать ЭТОЙ комнате:
+    // иначе, зная идентификатор, можно было бы писать в тему соседней.
+    if (target.topicId !== undefined) {
+      const topic = await prisma.chatTopic.findFirst({
+        where: { id: target.topicId, roomId: room.id, companyId: ctx.companyId },
+        select: { id: true },
+      });
+      if (topic === null) throw new NotFoundError();
+
+      return { roomId: room.id, conversationId: null, topicId: topic.id };
+    }
+
+    return { roomId: room.id, conversationId: null, topicId: null };
+  }
+
+  // Тема бывает только в комнате: в личной переписке и так один разговор.
+  if (target.topicId !== undefined) {
+    throw new ValidationError('Тема бывает только в комнате');
   }
 
   // Проверка «одна цель из двух» выше это уже гарантирует, но компилятор
@@ -452,7 +645,7 @@ async function assertTarget(
   });
   if (conversation === null) throw new NotFoundError();
 
-  return { roomId: null, conversationId: conversation.id };
+  return { roomId: null, conversationId: conversation.id, topicId: null };
 }
 
 /**
@@ -473,10 +666,7 @@ async function assertTarget(
  * Считается одним запросом-агрегатом, без выборки самих сообщений: ответ
  * «ничего не изменилось» должен быть дешёвым, потому что он самый частый.
  */
-export async function chatVersion(
-  ctx: AuthContext,
-  target: { roomId?: string | undefined; conversationId?: string | undefined },
-): Promise<string> {
+export async function chatVersion(ctx: AuthContext, target: ChatTarget): Promise<string> {
   requirePermission(ctx, 'chatMessage', 'read');
   const where = await assertTarget(ctx, target);
 
@@ -500,7 +690,7 @@ export async function chatVersion(
 
 export async function listChatMessages(
   ctx: AuthContext,
-  target: { roomId?: string | undefined; conversationId?: string | undefined },
+  target: ChatTarget,
   options: { limit?: number } = {},
 ): Promise<ChatMessageView[]> {
   requirePermission(ctx, 'chatMessage', 'read');
@@ -513,14 +703,22 @@ export async function listChatMessages(
       companyId: ctx.companyId,
       ...(where.roomId === null
         ? { conversationId: where.conversationId }
-        : { roomId: where.roomId }),
+        : { roomId: where.roomId, topicId: where.topicId }),
     },
     orderBy: { createdAt: 'asc' },
     take: Math.min(options.limit ?? 200, 500),
+    include: {
+      replyTo: { select: { id: true, body: true, deletedAt: true, authorUserId: true } },
+    },
   });
 
+  const authorIds = new Set(messages.map((row) => row.authorUserId));
+  for (const row of messages) {
+    if (row.replyTo !== null) authorIds.add(row.replyTo.authorUserId);
+  }
+
   const authors = await prisma.user.findMany({
-    where: { id: { in: [...new Set(messages.map((row) => row.authorUserId))] } },
+    where: { id: { in: [...authorIds] } },
     select: { id: true, fullName: true },
   });
   const names = new Map(authors.map((user) => [user.id, user.fullName]));
@@ -541,14 +739,25 @@ export async function listChatMessages(
       isDeleted,
       canDelete: !isDeleted && (isAuthor || canDeleteAny),
       canEdit: !isDeleted && isAuthor,
+      replyTo:
+        message.replyTo === null
+          ? null
+          : {
+              id: message.replyTo.id,
+              authorName: names.get(message.replyTo.authorUserId) ?? '',
+              // Удалённое исходное — без текста: скрытое на экране всё равно
+              // уехало бы в браузер.
+              body: message.replyTo.deletedAt === null ? message.replyTo.body : null,
+            },
     };
   });
 }
 
 export async function postChatMessage(
   ctx: AuthContext,
-  target: { roomId?: string | undefined; conversationId?: string | undefined },
+  target: ChatTarget,
   body: string,
+  options: { replyToId?: string | undefined } = {},
 ): Promise<{ id: string }> {
   requirePermission(ctx, 'chatMessage', 'create');
 
@@ -560,12 +769,24 @@ export async function postChatMessage(
 
   const where = await assertTarget(ctx, target);
 
+  /*
+   * ОТВЕТ ПРОВЕРЯЕТСЯ НА ПРИНАДЛЕЖНОСТЬ ТОМУ ЖЕ РАЗГОВОРУ.
+   *
+   * Иначе, зная идентификатор, можно было бы ответить в своей переписке
+   * на сообщение из чужой — и процитированный текст утёк бы вместе
+   * с ответом. Не найдено — отвечаем без цитаты, а не отказываем: человек
+   * написал сообщение, и терять его из-за пропавшего исходного незачем.
+   */
+  const replyTo = await resolveReplyTarget(ctx, where, options.replyToId);
+
   const message = await prisma.$transaction(async (tx) => {
     const created = await tx.chatMessage.create({
       data: {
         companyId: ctx.companyId,
         roomId: where.roomId,
         conversationId: where.conversationId,
+        topicId: where.topicId,
+        replyToId: replyTo,
         authorUserId: ctx.userId,
         body: text,
       },
@@ -659,6 +880,36 @@ export async function deleteChatMessage(
   }
 
   return { id: message.id };
+}
+
+/**
+ * Идентификатор сообщения, на которое отвечают, — если оно из того же
+ * разговора. Иначе `null`.
+ *
+ * ПРОВЕРКА ОБЯЗАТЕЛЬНА. Без неё, зная идентификатор, можно было бы ответить
+ * в своей переписке на сообщение из чужой — и процитированный текст утёк бы
+ * вместе с ответом. Не найдено — отвечаем без цитаты, а не отказываем:
+ * человек написал сообщение, и терять его из-за пропавшего исходного незачем.
+ */
+async function resolveReplyTarget(
+  ctx: AuthContext,
+  where: { roomId: string | null; conversationId: string | null },
+  replyToId: string | undefined,
+): Promise<string | null> {
+  if (replyToId === undefined) return null;
+
+  const original = await prisma.chatMessage.findFirst({
+    where: {
+      id: replyToId,
+      companyId: ctx.companyId,
+      ...(where.roomId === null
+        ? { conversationId: where.conversationId }
+        : { roomId: where.roomId }),
+    },
+    select: { id: true },
+  });
+
+  return original?.id ?? null;
 }
 
 /**
