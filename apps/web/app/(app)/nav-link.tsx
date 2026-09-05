@@ -48,10 +48,15 @@ export function NavLink({
         const toggle = document.getElementById(toggleId);
         if (toggle instanceof HTMLInputElement) toggle.checked = false;
       }}
-      className={`flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors ${
+      /*
+       * Открытый раздел отмечен полосой у левого края, а не только заливкой.
+       * Заливка на тёмной панели читается слабо, и пять пунктов оставались
+       * почти одинаковыми; полоса видна боковым зрением.
+       */
+      className={`relative flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors duration-[var(--duration-fast)] before:absolute before:top-1.5 before:bottom-1.5 before:-left-2 before:w-[3px] before:rounded-full before:transition-colors ${
         active
-          ? 'bg-[var(--color-sidebar-active-bg)] font-medium text-[var(--color-sidebar-active-fg)]'
-          : 'text-[var(--color-sidebar-fg-muted)] hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
+          ? 'bg-[var(--color-sidebar-active-bg)] font-medium text-[var(--color-sidebar-active-fg)] before:bg-[var(--color-brand)]'
+          : 'text-[var(--color-sidebar-fg-muted)] before:bg-transparent hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
       }`}
     >
       {children}

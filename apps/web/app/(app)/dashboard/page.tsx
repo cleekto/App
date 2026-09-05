@@ -3,10 +3,20 @@ import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
 import { statusLabel } from '../../_lib/format';
-import { stageColors } from '../../_ui/accent';
+import { Avatar, accentOf, stageColors } from '../../_ui/accent';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Card } from '../../_ui/primitives';
-import { FunnelRow, Metric, MetricGroup, Rule } from './parts';
+import {
+  DistributionBar,
+  DonutStat,
+  FunnelRow,
+  Metric,
+  MetricGroup,
+  PersonRow,
+  Rule,
+  StatTile,
+  StatTiles,
+} from './parts';
 
 /**
  * Аналитика — DESIGN §12.
@@ -37,6 +47,10 @@ export default async function DashboardPage() {
    * и отвечает на вопрос «где затор».
    */
   const peak = Math.max(...data.properties.byStatus.map((status) => status.count), 1);
+
+  // Лучший результат недели — им меряются полосы рейтинга. Единица,
+  // когда согласий нет ни у кого: делить на ноль нечем, а строки показать надо.
+  const bestConsents = Math.max(...data.people.map((person) => person.consentsThisWeek), 1);
 
   const quality = [
     {
@@ -71,20 +85,62 @@ export default async function DashboardPage() {
         </p>
       </header>
 
-      {/* ── Главные числа ────────────────────────────────────────────────── */}
-      <MetricGroup columns={3}>
-        <Metric size="lg" label={t('dashboard.newToday')} value={n(data.properties.createdToday)} />
-        <Metric
-          size="lg"
+      {/* ── Главные числа ──────────────────────────────────────────────────
+          Плитки со знаками, а не строка чисел на белом листе: это первое,
+          что видит агент, открыв продукт. */}
+      <StatTiles>
+        <StatTile
+          label={t('dashboard.newToday')}
+          value={n(data.properties.createdToday)}
+          accent={accentOf('newToday')}
+          icon={
+            <>
+              <path d="M12 5v14M5 12h14" />
+            </>
+          }
+        />
+        <StatTile
           label={t('dashboard.newThisWeek')}
           value={n(data.properties.createdThisWeek)}
+          accent={accentOf('newThisWeek')}
+          icon={
+            <>
+              <rect x="3" y="5" width="18" height="16" rx="2" />
+              <path d="M3 10h18M8 3v4M16 3v4" />
+            </>
+          }
         />
-        <Metric size="lg" label={t('dashboard.totalProperties')} value={n(data.properties.total)} />
-      </MetricGroup>
+        <StatTile
+          label={t('dashboard.totalProperties')}
+          value={n(data.properties.total)}
+          accent={accentOf('totalProperties')}
+          icon={
+            <>
+              <path d="M3 10.5 12 3l9 7.5" />
+              <path d="M5 9.5V20h14V9.5" />
+              <path d="M9.5 20v-6h5v6" />
+            </>
+          }
+        />
+      </StatTiles>
 
       {/* ── Воронка ──────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <Rule title={t('dashboard.byStatus')} />
+        <Card className="px-4 py-4">
+          {/* Вся воронка одной полосой: пропорции видны раньше, чем цифры. */}
+          <DistributionBar
+            parts={data.properties.byStatus.map((status) => ({
+              id: status.statusId,
+              label: statusLabel(locale, {
+                name: status.statusName,
+                names: status.statusNames,
+              }),
+              value: status.count,
+              color: stageColors(status.colorToken).fg,
+            }))}
+          />
+        </Card>
         <Card>
           <ul className="divide-y divide-[var(--color-border)]">
             {data.properties.byStatus.map((status) => (
@@ -112,26 +168,20 @@ export default async function DashboardPage() {
           </p>
         ) : (
           <Card>
+            {/* Рейтинг, а не таблица: полоса длиннее у того, кто сделал
+                больше, и сравнение становится мгновенным. Мера — согласия
+                за неделю, главная продуктовая метрика. */}
             <ul className="divide-y divide-[var(--color-border)]">
               {data.people.map((person) => (
-                <li
+                <PersonRow
                   key={person.userId}
-                  className="grid grid-cols-[1fr_auto_auto] items-baseline gap-6 px-4 py-2.5"
-                >
-                  <span className="min-w-0 truncate text-[0.8125rem]">{person.fullName}</span>
-                  <span className="text-right text-[0.8125rem]">
-                    <span className="text-[var(--color-text-secondary)]">
-                      {t('dashboard.consentsThisWeek')}
-                    </span>
-                    <span className="ml-2 font-medium">{n(person.consentsThisWeek)}</span>
-                  </span>
-                  <span className="w-40 text-right text-[0.8125rem]">
-                    <span className="text-[var(--color-text-secondary)]">
-                      {t('dashboard.propertiesOwned')}
-                    </span>
-                    <span className="ml-2 font-medium">{n(person.propertiesOwned)}</span>
-                  </span>
-                </li>
+                  avatar={<Avatar name={person.fullName} />}
+                  name={person.fullName}
+                  value={n(person.consentsThisWeek)}
+                  share={person.consentsThisWeek / bestConsents}
+                  color={accentOf(person.fullName).fg}
+                  secondary={`${t('dashboard.propertiesOwned')} ${n(person.propertiesOwned)}`}
+                />
               ))}
             </ul>
           </Card>
@@ -170,6 +220,25 @@ export default async function DashboardPage() {
       {/* ── Публикация ───────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
         <Rule title={t('dashboard.publishing')} />
+
+        {/* Две доли — кольцами: доля от целого читается кругом мгновенно,
+            а тем же числом требует помнить, восемьдесят процентов — это
+            много или мало. Остальные показатели остаются числами: они
+            не доли, и рисовать их кругом было бы враньём. */}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <DonutStat
+            label={t('dashboard.publishedShare')}
+            share={data.publishing.publishedShare}
+            caption={`${t('dashboard.publishedThisWeek')}: ${n(data.publishing.publishedThisWeek)}`}
+            color={accentOf('publishedShare').fg}
+          />
+          <DonutStat
+            label={t('dashboard.fillFailureRate')}
+            share={data.publishing.fillFailureRate}
+            caption={`${t('dashboard.averageUnfilled')}: ${n(data.publishing.averageUnfilled)}`}
+            color={accentOf('fillFailureRate').fg}
+          />
+        </div>
 
         <MetricGroup columns={3}>
           {publishing.map((tile) => (
