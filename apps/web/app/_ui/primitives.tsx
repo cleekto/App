@@ -18,8 +18,19 @@ type ButtonTone = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'md' | 'sm';
 
 const BUTTON_TONE: Record<ButtonTone, string> = {
+  /*
+   * Главное действие — фирменный градиент, а не плоская заливка.
+   *
+   * Смещение градиента при наведении — фирменный приём движения: цвет
+   * едва заметно съезжает, кнопка «оживает» под курсором, но ничего
+   * не двигается и не мигает. Достигается растяжкой фона вдвое и сдвигом
+   * позиции, то есть без единого лишнего элемента в разметке.
+   *
+   * Отключённая кнопка теряет градиент вовсе: приглушённый градиент
+   * по-прежнему выглядит нажимаемым.
+   */
   primary:
-    'bg-[var(--color-brand)] text-white shadow-[var(--shadow-card)] hover:bg-[var(--color-brand-hover)] disabled:bg-[var(--color-border-strong)] disabled:shadow-none',
+    'bg-[image:var(--gradient-primary)] bg-[length:180%_100%] bg-[position:0%_0%] text-white shadow-[var(--shadow-card)] transition-[background-position,box-shadow,transform] hover:bg-[position:100%_0%] hover:shadow-[var(--shadow-hover)] disabled:bg-none disabled:bg-[var(--color-border-strong)] disabled:shadow-none',
   secondary:
     'bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]',
   ghost:

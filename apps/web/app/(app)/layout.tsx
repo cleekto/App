@@ -6,7 +6,7 @@ import { translate } from '@kleekto/i18n';
 import { contextLocale, me, requireContext } from '../_lib/session';
 import { Avatar } from '../_ui/accent';
 import { LocaleSwitcher } from '../_ui/locale-switcher';
-import { Wordmark } from '../_ui/wordmark';
+import { BrandLockup, Wordmark } from '../_ui/wordmark';
 import { NavLink } from './nav-link';
 import { SignOutButton } from './sign-out-button';
 
@@ -79,11 +79,18 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
 
+  /*
+   * Порядок — по ходу рабочего дня, а не по важности раздела.
+   *
+   * Доска первой: агент начинает с того, что у него в работе, а не со сводки.
+   * Аналитика ушла ниже задач — в неё заходят разбираться, а не работать.
+   * Порядок задан владельцем 2026-09-05.
+   */
   const nav = [
-    { href: '/dashboard', label: t('dashboard.title'), icon: 'dashboard' },
-    { href: '/properties', label: t('nav.properties'), icon: 'properties' },
     { href: '/board', label: t('nav.board'), icon: 'board' },
+    { href: '/properties', label: t('nav.properties'), icon: 'properties' },
     { href: '/tasks', label: t('nav.tasks'), icon: 'tasks' },
+    { href: '/dashboard', label: t('dashboard.title'), icon: 'dashboard' },
     { href: '/settings', label: t('nav.settings'), icon: 'settings' },
   ];
 
@@ -124,12 +131,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         и переключатель языка с кнопкой выхода становится не достать —
         именно это и случилось при первой проверке.
       */}
-      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] bg-[image:var(--gradient-sidebar)] shadow-[8px_0_32px_-16px_oklch(0.27_0.015_260_/_0.5)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
+      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] bg-[image:var(--gradient-sidebar)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <div className="flex items-center justify-between px-5 py-5">
             <Link href="/properties" className="flex items-center gap-2 text-base tracking-tight">
-              <img src="/brand/mark.png" alt="" className="size-7 object-contain" />
-              <Wordmark tone="dark" className="text-base" />
+              <BrandLockup tone="dark" className="text-lg" />
             </Link>
 
             {/* Закрыть панель — только на телефоне, на md её и так видно всегда. */}

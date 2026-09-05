@@ -3,7 +3,7 @@ import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
 import { statusLabel, groupSeparator } from '../../_lib/format';
-import { Avatar, accentOf, gradientAt, stageColors } from '../../_ui/accent';
+import { Avatar, accentOf, stageColors } from '../../_ui/accent';
 import { AnimatedNumber } from '../../_ui/motion';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Card } from '../../_ui/primitives';
@@ -97,7 +97,8 @@ export default async function DashboardPage() {
         <StatTile
           label={t('dashboard.newToday')}
           value={<AnimatedNumber value={data.properties.createdToday} groupSeparator={separator} />}
-          gradient={gradientAt(0)}
+          accent={accentOf('newToday')}
+          featured
           icon={
             <>
               <path d="M12 5v14M5 12h14" />
@@ -109,7 +110,7 @@ export default async function DashboardPage() {
           value={
             <AnimatedNumber value={data.properties.createdThisWeek} groupSeparator={separator} />
           }
-          gradient={gradientAt(1)}
+          accent={accentOf('newThisWeek')}
           icon={
             <>
               <rect x="3" y="5" width="18" height="16" rx="2" />
@@ -120,7 +121,7 @@ export default async function DashboardPage() {
         <StatTile
           label={t('dashboard.totalProperties')}
           value={<AnimatedNumber value={data.properties.total} groupSeparator={separator} />}
-          gradient={gradientAt(2)}
+          accent={accentOf('totalProperties')}
           icon={
             <>
               <path d="M3 10.5 12 3l9 7.5" />

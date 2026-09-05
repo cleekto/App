@@ -166,57 +166,86 @@ export function StatTile({
   label,
   value,
   icon,
-  gradient,
+  accent,
+  featured = false,
 }: {
   label: string;
   value: ReactNode;
   icon: ReactNode;
-  /** Градиент заливки — плитка окрашена целиком. */
-  gradient: string;
+  /** Цвет знака — на обычной плитке. У главной он белый. */
+  accent: { fg: string; bg: string };
+  /**
+   * Главная плитка экрана — залита фирменным градиентом.
+   *
+   * ТОЛЬКО ОДНА НА СТРАНИЦЕ. Когда цветом залиты все три, ни одна не главная:
+   * взгляд мечется между ними, и экран начинает выглядеть нарядно вместо
+   * того, чтобы отвечать на вопрос. Остальные держат цвет в знаке.
+   */
+  featured?: boolean;
 }) {
-  return (
-    <div
-      className="group relative flex min-w-0 flex-col justify-between gap-6 overflow-hidden rounded-[var(--radius-panel)] p-5 text-white shadow-[var(--shadow-card)] transition-all duration-[var(--duration-base)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
-      style={{ backgroundImage: gradient }}
-    >
-      {/*
-        Блик по диагонали — тонкая светлая плёнка поверх заливки. Без него
-        плитка выглядит куском цветной бумаги; с ним — поверхностью,
-        на которую падает свет. При наведении блик усиливается.
-      */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,oklch(1_0_0_/_0.22),transparent_45%)] opacity-70 transition-opacity duration-[var(--duration-slow)] group-hover:opacity-100"
-      />
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -right-8 -bottom-10 size-32 rounded-full bg-[oklch(1_0_0_/_0.14)] blur-2xl"
-      />
+  if (featured) {
+    return (
+      <div className="group relative flex min-w-0 flex-col justify-between gap-6 overflow-hidden rounded-[var(--radius-panel)] bg-[image:var(--gradient-primary)] bg-[length:160%_100%] bg-[position:0%_0%] p-5 text-white shadow-[var(--shadow-card)] transition-[background-position,transform,box-shadow] duration-[var(--duration-slow)] ease-[var(--ease-out)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:bg-[position:100%_0%] [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]">
+        {/* Тонкая световая плёнка по диагонали: заливка перестаёт выглядеть
+            куском цветной бумаги и становится поверхностью под светом. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,oklch(1_0_0_/_0.18),transparent_45%)]"
+        />
 
+        <span
+          aria-hidden
+          className="relative inline-flex size-10 items-center justify-center rounded-[var(--radius-control)] bg-[oklch(1_0_0_/_0.18)] shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.26)]"
+        >
+          <TileIcon>{icon}</TileIcon>
+        </span>
+
+        <div className="relative min-w-0">
+          <p className="truncate text-[0.8125rem] leading-5 text-white/80">{label}</p>
+          <p className="mt-1 text-[2.5rem] leading-11 font-semibold tracking-tight tabular-nums">
+            {value}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="group flex min-w-0 flex-col justify-between gap-6 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--duration-base)] ease-[var(--ease-out)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:border-[var(--color-border-strong)] [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]">
       <span
         aria-hidden
-        className="relative inline-flex size-11 items-center justify-center rounded-[var(--radius-card)] bg-[oklch(1_0_0_/_0.2)] shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.28)]"
+        className="inline-flex size-10 items-center justify-center rounded-[var(--radius-control)]"
+        style={{ color: accent.fg, backgroundColor: accent.bg }}
       >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="size-5"
-        >
-          {icon}
-        </svg>
+        <TileIcon>{icon}</TileIcon>
       </span>
 
-      <div className="relative min-w-0">
-        <p className="truncate text-[0.8125rem] leading-5 text-white/80">{label}</p>
-        <p className="mt-1 text-[2.75rem] leading-12 font-semibold tracking-tight tabular-nums">
+      <div className="min-w-0">
+        <p className="truncate text-[0.8125rem] leading-5 text-[var(--color-text-secondary)]">
+          {label}
+        </p>
+        <p className="mt-1 text-[2.5rem] leading-11 font-semibold tracking-tight tabular-nums">
           {value}
         </p>
       </div>
     </div>
+  );
+}
+
+/** Оболочка знака: одна толщина штриха на все плитки. */
+function TileIcon({ children }: { children: ReactNode }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-5"
+    >
+      {children}
+    </svg>
   );
 }
 

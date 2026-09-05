@@ -5,7 +5,7 @@ import { translate } from '@kleekto/i18n';
 import { optionalContext } from '../_lib/session';
 import { LocaleSwitcher } from '../_ui/locale-switcher';
 import { Card } from '../_ui/primitives';
-import { Wordmark } from '../_ui/wordmark';
+import { BrandLockup } from '../_ui/wordmark';
 import { serverLocale } from '../locale';
 import { LoginForm } from './login-form';
 
@@ -27,9 +27,9 @@ export default async function LoginPage() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-2 text-center">
-          <img src="/brand/mark.png" alt="" className="h-11 w-11 object-contain" />
-          <h1 className="text-xl tracking-tight">
-            <Wordmark />
+          {/* Знак и слово — одна сборка: он занимает место первой буквы. */}
+          <h1 className="text-3xl tracking-tight">
+            <BrandLockup />
           </h1>
           <p className="text-sm text-[var(--color-text-secondary)]">{t('app.tagline')}</p>
         </div>

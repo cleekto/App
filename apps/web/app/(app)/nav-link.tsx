@@ -52,11 +52,15 @@ export function NavLink({
        * Открытый раздел отмечен полосой у левого края, а не только заливкой.
        * Заливка на тёмной панели читается слабо, и пять пунктов оставались
        * почти одинаковыми; полоса видна боковым зрением.
+       *
+       * Свечения у полосы нет намеренно: задание прямо просит его убрать —
+       * ореол вокруг активного пункта читается как подсветка ошибки. Вместо
+       * него — тонкая внутренняя обводка и фирменный градиент в самой полосе.
        */
       className={`relative flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors duration-[var(--duration-fast)] before:absolute before:top-1.5 before:bottom-1.5 before:-left-2 before:w-[3px] before:rounded-full before:transition-colors ${
         active
-          ? 'bg-[linear-gradient(90deg,oklch(0.45_0.19_300_/_0.9),oklch(0.35_0.14_290_/_0.55))] font-medium text-[var(--color-sidebar-active-fg)] shadow-[0_8px_20px_-10px_oklch(0.52_0.24_300_/_0.9)] before:bg-[oklch(0.72_0.2_300)] before:shadow-[0_0_12px_oklch(0.72_0.2_300)]'
-          : 'text-[var(--color-sidebar-fg-muted)] before:bg-transparent hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
+          ? 'bg-[linear-gradient(90deg,oklch(0.52_0.24_300_/_0.28),oklch(0.55_0.22_265_/_0.14))] font-medium text-[var(--color-sidebar-active-fg)] shadow-[inset_0_0_0_1px_oklch(0.52_0.24_300_/_0.25)] before:bg-[image:var(--gradient-primary)]'
+          : 'text-[var(--color-sidebar-fg-muted)] before:bg-transparent hover:bg-[var(--color-sidebar-hover-tint)] hover:text-[var(--color-sidebar-fg)]'
       }`}
     >
       {children}
