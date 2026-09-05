@@ -8,6 +8,7 @@ import { Avatar } from '../_ui/accent';
 import { LocaleSwitcher } from '../_ui/locale-switcher';
 import { BrandLockup } from '../_ui/wordmark';
 import { NavLink } from './nav-link';
+import { UnreadBadge } from './unread-badge';
 import { SignOutButton } from './sign-out-button';
 
 /**
@@ -104,8 +105,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     // Чат и сообщения встали после задач: ими пользуются в течение дня,
     // а не заходят разбираться, как в аналитику. Порядок пяти прежних
     // разделов, заданный владельцем, при этом сохранён.
-    { href: '/chat', label: t('nav.chat'), icon: 'chat' },
-    { href: '/messages', label: t('nav.messages'), icon: 'messages' },
+    { href: '/chat', label: t('nav.chat'), icon: 'chat', unread: 'rooms' as const },
+    { href: '/messages', label: t('nav.messages'), icon: 'messages', unread: 'direct' as const },
     { href: '/dashboard', label: t('dashboard.title'), icon: 'dashboard' },
     { href: '/settings', label: t('nav.settings'), icon: 'settings' },
   ];
@@ -188,7 +189,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 >
                   {ICONS[item.icon]}
                 </svg>
-                {item.label}
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+
+                {item.unread === undefined ? null : (
+                  <UnreadBadge kind={item.unread} label={item.label} />
+                )}
               </NavLink>
             ))}
           </nav>

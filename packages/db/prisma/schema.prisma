@@ -55,6 +55,8 @@ model Company {
   propertyLinks    PropertyLink[]
   properties       Property[]
   chatRooms           ChatRoom[]
+  chatTopics          ChatTopic[]
+  chatReads           ChatRead[]
   directConversations DirectConversation[]
   chatMessages        ChatMessage[]
   publications     Publication[]
@@ -117,6 +119,14 @@ model User {
   passwordHash String
   fullName     String
 
+  /// Адрес аватарки в хранилище.
+  ///
+  /// Только адрес, самого файла в базе нет: картинки в базе раздувают
+  /// резервные копии и всё равно отдаются через хранилище. Пусто — рисуется
+  /// кружок с инициалами, и это не ущербное состояние, а обычное: половина
+  /// сотрудников фотографию не поставит никогда.
+  avatarUrl String?
+
   /// Рабочий телефон сотрудника — тот, что уходит в объявление.
   ///
   /// Агент публикует под своим именем и своим номером (решение владельца
@@ -161,6 +171,7 @@ model User {
   /// опознаётся как своё, а номер не попадает в признаки дедупликации.
   @@index([companyId, phoneNormalized])
   @@map("users")
+  chatReads ChatRead[]
 }
 
 /// Членство в команде.
@@ -994,6 +1005,12 @@ model ChatRoom {
   /// Тема комнаты — о чём она. Необязательна: у «Общего» темы нет.
   topic String?
 
+  /// Цвет комнаты из палитры продукта — тот же набор токенов, что и у стадий
+  /// воронки. Свой цвет у комнаты нужен по той же причине, что и у стадии:
+  /// в списке из десяти строк взгляд находит нужную по цвету, а не читает
+  /// названия подряд.
+  colorToken String?
+
   /// Архивная комната не показывается в списке, но история остаётся.
   /// Удаления комнат нет: вместе с ней исчезла бы переписка команды.
   isArchived Boolean @default(false)
@@ -1004,9 +1021,39 @@ model ChatRoom {
 
   company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
+  topics   ChatTopic[]
 
   @@index([companyId, isArchived, updatedAt(sort: Desc)])
   @@map("chat_rooms")
+}
+
+/// Тема внутри комнаты.
+///
+/// ЗАЧЕМ ОНА, КОГДА ЕСТЬ КОМНАТЫ. Комната — это круг людей и предмет
+/// в целом («Ваке», «Объявления»); тема — один разговор внутри него
+/// («Жванияс 5, торг с собственником»). Без тем длинный день в комнате
+/// превращается в одну ленту, где три разговора идут вперемешку и ни один
+/// нельзя дочитать.
+///
+/// Создаёт тему любой сотрудник, в отличие от комнаты: завести разговор —
+/// это не то же самое, что завести новый круг людей.
+model ChatTopic {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  roomId    String @db.Uuid
+
+  name String
+
+  createdByUserId String   @db.Uuid
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  room     ChatRoom      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  messages ChatMessage[]
+
+  @@index([roomId, updatedAt(sort: Desc)])
+  @@map("chat_topics")
 }
 
 /// Личная переписка двух сотрудников ОДНОЙ компании.
@@ -1036,6 +1083,35 @@ model DirectConversation {
   @@map("direct_conversations")
 }
 
+/// До какого момента человек дочитал комнату или переписку.
+///
+/// ЗАЧЕМ ОТДЕЛЬНАЯ ТАБЛИЦА, А НЕ ПОЛЕ У СООБЩЕНИЯ. Прочитанность — это
+/// отношение «человек ↔ разговор», а не свойство сообщения: одно и то же
+/// сообщение для одного прочитано, для другого нет. Хранить её на сообщении
+/// значило бы держать там список всех сотрудников компании.
+///
+/// Хранится момент, а не список сообщений: непрочитанное считается как «всё,
+/// что пришло позже отметки». Список рос бы вместе с перепиской, а момент —
+/// это одна строка на человека и разговор.
+model ChatRead {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  userId    String @db.Uuid
+
+  roomId         String? @db.Uuid
+  conversationId String? @db.Uuid
+
+  lastReadAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roomId])
+  @@unique([userId, conversationId])
+  @@index([companyId, userId])
+  @@map("chat_reads")
+}
+
 /// Сообщение — и в комнате, и в личной переписке.
 ///
 /// ОДНА ТАБЛИЦА НА ОБА СЛУЧАЯ, потому что правила правки и удаления у них
@@ -1054,6 +1130,18 @@ model ChatMessage {
   roomId         String? @db.Uuid
   conversationId String? @db.Uuid
 
+  /// Тема внутри комнаты. Пусто — сообщение в общей ленте комнаты.
+  /// У личной переписки тем нет: там и так один разговор.
+  topicId String? @db.Uuid
+
+  /// Ответ на конкретное сообщение.
+  ///
+  /// Ссылка, а не копия текста: процитированное сообщение потом правят
+  /// и удаляют, и копия рассказывала бы то, чего человек уже не говорит.
+  /// При удалении исходного ответ остаётся — исчезает только приведённый
+  /// текст, а сам ответ по-прежнему чей-то и на месте.
+  replyToId String? @db.Uuid
+
   authorUserId String @db.Uuid
   body         String
 
@@ -1068,8 +1156,15 @@ model ChatMessage {
   company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   room         ChatRoom?           @relation(fields: [roomId], references: [id], onDelete: Cascade)
   conversation DirectConversation? @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  topic        ChatTopic?          @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  /// Ответ на сообщение той же таблицы. `SetNull` намеренно: удалённое
+  /// исходное не должно утаскивать за собой ответы на него.
+  replyTo   ChatMessage?  @relation("ChatReply", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies   ChatMessage[] @relation("ChatReply")
 
   @@index([roomId, createdAt(sort: Desc)])
+  @@index([topicId, createdAt(sort: Desc)])
   @@index([conversationId, createdAt(sort: Desc)])
   @@index([companyId, authorUserId])
   @@map("chat_messages")

@@ -55,6 +55,135 @@ export interface DirectConversationSummary {
   lastMessageAt: string | null;
 }
 
+/**
+ * Сколько непрочитанного у человека — по комнатам и перепискам вместе.
+ *
+ * СЧИТАЕТСЯ ОТ ОТМЕТКИ, А НЕ ПО СПИСКУ. У каждого разговора хранится момент,
+ * до которого человек дочитал; непрочитанное — это всё, что пришло позже.
+ * Список прочитанных сообщений рос бы вместе с перепиской, а момент —
+ * одна строка на человека и разговор.
+ *
+ * СВОИ СООБЩЕНИЯ НЕ СЧИТАЮТСЯ. Иначе значок загорался бы от собственной
+ * реплики, и человек шёл бы смотреть, что он сам только что написал.
+ *
+ * Отметки нет вовсе — считается всё: человек в этом разговоре ещё не был.
+ * Это верно и удобно: новая комната сразу показывает, что в ней есть жизнь.
+ */
+export async function unreadCounts(
+  ctx: AuthContext,
+): Promise<{ rooms: number; direct: number; byRoom: Record<string, number> }> {
+  requirePermission(ctx, 'chatMessage', 'read');
+
+  const marks = await prisma.chatRead.findMany({
+    where: { userId: ctx.userId, companyId: ctx.companyId },
+    select: { roomId: true, conversationId: true, lastReadAt: true },
+  });
+
+  const roomMark = new Map(
+    marks.filter((mark) => mark.roomId !== null).map((mark) => [mark.roomId, mark.lastReadAt]),
+  );
+  const directMark = new Map(
+    marks
+      .filter((mark) => mark.conversationId !== null)
+      .map((mark) => [mark.conversationId, mark.lastReadAt]),
+  );
+
+  const [rooms, conversations] = await Promise.all([
+    prisma.chatRoom.findMany({
+      where: { companyId: ctx.companyId, isArchived: false },
+      select: { id: true },
+    }),
+    prisma.directConversation.findMany({
+      where: {
+        companyId: ctx.companyId,
+        OR: [{ userAId: ctx.userId }, { userBId: ctx.userId }],
+      },
+      select: { id: true },
+    }),
+  ]);
+
+  const byRoom: Record<string, number> = {};
+  let roomTotal = 0;
+
+  for (const room of rooms) {
+    const after = roomMark.get(room.id);
+
+    const count = await prisma.chatMessage.count({
+      where: {
+        roomId: room.id,
+        deletedAt: null,
+        authorUserId: { not: ctx.userId },
+        ...(after === undefined ? {} : { createdAt: { gt: after } }),
+      },
+    });
+
+    if (count > 0) byRoom[room.id] = count;
+    roomTotal += count;
+  }
+
+  let directTotal = 0;
+  for (const conversation of conversations) {
+    const after = directMark.get(conversation.id);
+
+    directTotal += await prisma.chatMessage.count({
+      where: {
+        conversationId: conversation.id,
+        deletedAt: null,
+        authorUserId: { not: ctx.userId },
+        ...(after === undefined ? {} : { createdAt: { gt: after } }),
+      },
+    });
+  }
+
+  return { rooms: roomTotal, direct: directTotal, byRoom };
+}
+
+/**
+ * Отметить разговор прочитанным до текущего момента.
+ *
+ * Вызывается, когда человек открыл комнату или переписку. Момент берётся
+ * серверный, а не присланный клиентом: иначе браузер с уехавшими часами
+ * пометил бы прочитанным то, что ещё не пришло.
+ */
+export async function markChatRead(
+  ctx: AuthContext,
+  target: { roomId?: string | undefined; conversationId?: string | undefined },
+): Promise<void> {
+  requirePermission(ctx, 'chatMessage', 'read');
+  const where = await assertTarget(ctx, target);
+
+  const now = new Date();
+
+  if (where.roomId !== null) {
+    await prisma.chatRead.upsert({
+      where: { userId_roomId: { userId: ctx.userId, roomId: where.roomId } },
+      create: {
+        companyId: ctx.companyId,
+        userId: ctx.userId,
+        roomId: where.roomId,
+        lastReadAt: now,
+      },
+      update: { lastReadAt: now },
+    });
+    return;
+  }
+
+  if (where.conversationId !== null) {
+    await prisma.chatRead.upsert({
+      where: {
+        userId_conversationId: { userId: ctx.userId, conversationId: where.conversationId },
+      },
+      create: {
+        companyId: ctx.companyId,
+        userId: ctx.userId,
+        conversationId: where.conversationId,
+        lastReadAt: now,
+      },
+      update: { lastReadAt: now },
+    });
+  }
+}
+
 // ── Комнаты ──────────────────────────────────────────────────────────────────
 
 export async function listChatRooms(

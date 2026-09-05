@@ -1,6 +1,12 @@
 import Link from 'next/link';
 
-import { chatVersion, listChatMessages, listChatRooms, permissionScope } from '@kleekto/core';
+import {
+  chatVersion,
+  listChatMessages,
+  listChatRooms,
+  markChatRead,
+  permissionScope,
+} from '@kleekto/core';
 import { formatDateTime, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
@@ -37,6 +43,10 @@ export default async function ChatPage({
   // Отпечаток нужен клиенту, чтобы спрашивать «изменилось ли» и получать
   // короткий ответ, когда нет.
   const version = active === null ? '' : await chatVersion(ctx, { roomId: active.id });
+
+  // Открыл — значит прочитал. Отметка ставится серверным временем: браузер
+  // с уехавшими часами пометил бы прочитанным то, что ещё не пришло.
+  if (active !== null) await markChatRead(ctx, { roomId: active.id });
 
   const messages =
     active === null
