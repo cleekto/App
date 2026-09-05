@@ -127,7 +127,11 @@ export async function createChatRoom(
 export async function updateChatRoom(
   ctx: AuthContext,
   roomId: string,
-  input: { name?: string | undefined; topic?: string | null | undefined; isArchived?: boolean },
+  input: {
+    name?: string | undefined;
+    topic?: string | null | undefined;
+    isArchived?: boolean | undefined;
+  },
 ): Promise<{ id: string }> {
   const scope = requirePermission(ctx, 'chatRoom', 'update');
 

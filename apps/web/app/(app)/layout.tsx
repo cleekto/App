@@ -52,6 +52,17 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M4 17h9" />
     </>
   ),
+  chat: (
+    <>
+      <path d="M20 15a2 2 0 0 1-2 2H8l-4 3V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z" />
+    </>
+  ),
+  messages: (
+    <>
+      <path d="M3 7.5 12 13l9-5.5" />
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+    </>
+  ),
   settings: (
     <>
       <circle cx="12" cy="12" r="3" />
@@ -90,6 +101,11 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     { href: '/board', label: t('nav.board'), icon: 'board' },
     { href: '/properties', label: t('nav.properties'), icon: 'properties' },
     { href: '/tasks', label: t('nav.tasks'), icon: 'tasks' },
+    // Чат и сообщения встали после задач: ими пользуются в течение дня,
+    // а не заходят разбираться, как в аналитику. Порядок пяти прежних
+    // разделов, заданный владельцем, при этом сохранён.
+    { href: '/chat', label: t('nav.chat'), icon: 'chat' },
+    { href: '/messages', label: t('nav.messages'), icon: 'messages' },
     { href: '/dashboard', label: t('dashboard.title'), icon: 'dashboard' },
     { href: '/settings', label: t('nav.settings'), icon: 'settings' },
   ];
