@@ -129,7 +129,7 @@ export default async function TasksPage() {
  */
 function QuietState({ text }: { text: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-[var(--radius-card)] bg-[var(--color-surface)] px-4 py-6 shadow-[var(--shadow-card)] supports-[backdrop-filter]:bg-[var(--color-glass)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)]">
+    <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-6 shadow-[var(--shadow-card)]">
       <span
         aria-hidden
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-card)] bg-[var(--color-success-soft)] text-[var(--color-success)]"

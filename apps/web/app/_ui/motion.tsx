@@ -1,16 +1,20 @@
 'use client';
 
-import { motion, useInView, useMotionValue, useSpring } from 'motion/react';
-import { useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useInView, useMotionValue, useSpring } from 'motion/react';
+import { useEffect, useMemo, useRef } from 'react';
 
 /**
  * Движение интерфейса.
  *
- * ПОЧЕМУ ЗДЕСЬ БИБЛИОТЕКА, А НЕ CSS. Появление одной карточки CSS делает
- * лучше — `@starting-style` короче и не стоит ни килобайта (так сделан
- * `.reveal` в `globals.css`). Но две вещи ниже CSS не умеет: считать число
- * пружиной от старого значения к новому и запускать очередь появления,
- * когда блок доехал до экрана. Ради них и взята `motion`.
+ * ПОЧЕМУ ЗДЕСЬ БИБЛИОТЕКА. Ради одного: числа, доезжающего до значения
+ * пружиной, — этого CSS не умеет, потому что промежуточные значения нужно
+ * считать, а не интерполировать стиль.
+ *
+ * ОЧЕРЕДИ ПОЯВЛЕНИЯ ЗДЕСЬ БОЛЬШЕ НЕТ, и это не упрощение, а исправление.
+ * Плитки, въезжавшие друг за другом при каждом заходе на страницу, читались
+ * как мелькание: агент открывает сводку по десять раз в день, и каждый раз
+ * ждал, пока она соберётся. Движение в рабочем инструменте уместно там,
+ * где человек его вызвал сам, — на наведении и нажатии, а не на загрузке.
  *
  * ПРАВИЛА, КОТОРЫЕ ЗДЕСЬ НЕ НАРУШАЮТСЯ:
  *   — двигаются только `transform` и `opacity`, ничего, что заставляет
@@ -20,43 +24,6 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
  *   — кто выключил анимацию в системе, получает сразу конечное состояние,
  *     а не замедленное движение.
  */
-
-/** Кривая появления: быстрый старт, мягкая остановка. */
-const EASE_OUT = [0.23, 1, 0.32, 1] as const;
-
-/**
- * Очередь появления: дети выезжают снизу друг за другом.
- *
- * Задержка между соседями маленькая (55 мс). При большей очередь начинает
- * читаться как загрузка — будто интерфейс не успевает, — а не как движение.
- */
-export function Stagger({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <motion.div
-      className={className}
-      initial="hidden"
-      animate="shown"
-      variants={{ shown: { transition: { staggerChildren: 0.055 } } }}
-    >
-      {children}
-    </motion.div>
-  );
-}
-
-/** Один участник очереди. Вне `Stagger` появляется сам по себе. */
-export function StaggerItem({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <motion.div
-      className={className}
-      variants={{
-        hidden: { opacity: 0, y: 14 },
-        shown: { opacity: 1, y: 0, transition: { duration: 0.42, ease: EASE_OUT } },
-      }}
-    >
-      {children}
-    </motion.div>
-  );
-}
 
 /**
  * Число, доезжающее до значения пружиной.

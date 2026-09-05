@@ -119,25 +119,43 @@ export function Card({ className = '', ...rest }: ComponentPropsWithoutRef<'div'
     <div
       {...rest}
       /*
-       * Ни одной рамки: контур даёт первый слой тени (`0 0 0 1px`).
+       * КАРТОЧКА ЧЁТКАЯ, А НЕ МУТНАЯ.
        *
-       * Рамка и тень вместе обводят карточку дважды и делают экран
-       * решётчатым — это и есть тот «дешёвый админ-шаблон», которого
-       * велит избегать DESIGN §3. Тень-контур держит границу там, где она
-       * нужна, и исчезает там, где карточка лежит на своём же фоне.
+       * Прошлая версия была полупрозрачным стеклом с размытием. На экране,
+       * где карточек полтора десятка, это дало кашу: сквозь каждую
+       * просвечивал фон, границы расплылись, и лист перестал делиться
+       * на части. Стекло хорошо для одного слоя поверх содержимого —
+       * панели, всплывающего окна, — а не для каждого блока подряд.
+       *
+       * Поэтому здесь непрозрачный белый, настоящая граница в один пиксель
+       * и слоистая тень. Граница держит край там, где тень слаба; тень
+       * говорит, что карточка выше листа.
        */
-      /*
-       * Поверхность полупрозрачная и с размытием: сквозь неё просвечивает
-       * подсветка фона, и карточка перестаёт быть белой наклейкой на белом.
-       * `bg-[var(--color-surface)]` идёт первым как запасной цвет — там, где
-       * `backdrop-filter` не поддерживается, карточка просто непрозрачна.
-       */
-      className={`rounded-[var(--radius-card)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] supports-[backdrop-filter]:bg-[var(--color-glass)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)] ${className}`}
+      className={`rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] ${className}`}
     />
   );
 }
 
-/** Заголовок раздела: название, пояснение и место под действие справа. */
+/**
+ * Карточка, которая отзывается на курсор.
+ *
+ * Отдельно от `Card`, потому что подниматься должно только то, что можно
+ * нажать. Карточка, которая ездит под курсором и никуда не ведёт, обманывает.
+ *
+ * Отклик — сдвиг на два пикселя, рост тени и потемнение границы. Только
+ * `transform` и `box-shadow`: ничего, что заставит браузер пересчитывать
+ * раскладку. Проверка `hover: hover` отсекает касание — на телефоне
+ * «наведения» не бывает, и без неё состояние залипало бы после тапа.
+ */
+export function InteractiveCard({ className = '', ...rest }: ComponentPropsWithoutRef<'div'>) {
+  return (
+    <div
+      {...rest}
+      className={`rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-card)] transition-[transform,box-shadow,border-color] duration-[var(--duration-base)] ease-[var(--ease-out)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:border-[var(--color-border-strong)] [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)] ${className}`}
+    />
+  );
+}
+
 export function SectionHeader({
   title,
   hint,

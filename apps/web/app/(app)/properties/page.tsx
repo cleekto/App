@@ -140,12 +140,23 @@ export default async function PropertiesPage({
               <li key={item.id}>
                 <Link
                   href={`/properties/${item.id}`}
-                  className="grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
+                  /*
+                   * Отклик на наведение: подсветка строки, фирменная полоса
+                   * у левого края и лёгкий сдвиг содержимого. Полоса нужна
+                   * не для красоты — она отмечает, какая именно строка
+                   * под курсором, когда их два десятка и они одинаковой
+                   * высоты. Двигается только `transform`.
+                   */
+                  className="group relative grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-[var(--duration-fast)] before:absolute before:inset-y-1 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent before:transition-colors [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)] [@media(hover:hover)and(pointer:fine)]:hover:before:bg-[var(--color-brand)]"
                 >
                   {/* Недвижимость узнают по картинке, а не по строке
                       «Квартира · Продажа». Без неё двадцать строк подряд
                       неразличимы. */}
-                  <Photo src={item.photo} alt={t('property.photoAlt')} className="h-12 w-16" />
+                  <Photo
+                    src={item.photo}
+                    alt={t('property.photoAlt')}
+                    className="h-12 w-16 transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] group-hover:scale-[1.04]"
+                  />
 
                   <div className="min-w-0">
                     <p className="truncate text-[0.9375rem] leading-5 font-medium">
