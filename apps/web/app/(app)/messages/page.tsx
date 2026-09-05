@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { listChatMessages, listDirectConversations, listUsers } from '@kleekto/core';
+import { chatVersion, listChatMessages, listDirectConversations, listUsers } from '@kleekto/core';
 import { formatDateTime, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
@@ -35,6 +35,10 @@ export default async function MessagesPage({
 
   const requested = typeof params['with'] === 'string' ? params['with'] : undefined;
   const active = conversations.find((row) => row.id === requested) ?? conversations[0] ?? null;
+
+  // Отпечаток нужен клиенту, чтобы спрашивать «изменилось ли» и получать
+  // короткий ответ, когда нет.
+  const version = active === null ? '' : await chatVersion(ctx, { conversationId: active.id });
 
   const messages =
     active === null
@@ -102,6 +106,7 @@ export default async function MessagesPage({
                 messages={messages}
                 postTo={`/api/v1/chat/conversations/${active.id}/messages`}
                 currentUserId={ctx.userId}
+                version={version}
                 notice={t('chat.privateHint')}
                 labels={{
                   write: t('chat.write'),

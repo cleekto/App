@@ -45,16 +45,19 @@ export interface ChatLabels {
 }
 
 export function Conversation({
-  messages,
+  messages: initial,
   postTo,
   currentUserId,
+  version: initialVersion,
   labels,
   notice,
 }: {
   messages: ChatMessageItem[];
-  /** Адрес, куда уходит новое сообщение. Вся разница между комнатой и личной. */
+  /** Адрес ленты: и читаем оттуда, и пишем туда. */
   postTo: string;
   currentUserId: string;
+  /** Отпечаток состояния на момент отрисовки страницы. */
+  version: string;
   labels: ChatLabels;
   /** Пояснение над лентой — например, что переписка личная. */
   notice?: string;
@@ -63,6 +66,71 @@ export function Conversation({
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState('');
   const bottom = useRef<HTMLDivElement>(null);
+
+  /*
+   * ЖИВАЯ ДОСТАВКА.
+   *
+   * Браузер сам спрашивает ленту раз в три секунды и присылает отпечаток,
+   * который у него уже есть. Не изменилось — сервер отвечает `204` без тела,
+   * и это самый частый ответ.
+   *
+   * Почему не открытое соединение: приложение живёт на Vercel, функции там
+   * короткие, и поток на каждого агента занимал бы функцию целиком всё время,
+   * пока он сидит в чате.
+   *
+   * ОПРОС ИДЁТ, ТОЛЬКО ПОКА ВКЛАДКА ОТКРЫТА. Свёрнутая вкладка не должна
+   * ходить в сеть: агент держит CRM открытой весь день, и половина этого дня
+   * — другие окна. При возвращении лента обновляется сразу, не дожидаясь
+   * очередного тика.
+   */
+  const [live, setLive] = useState(initial);
+  const versionRef = useRef(initialVersion);
+
+  // Страница перерисовалась (сменили комнату) — начинаем с её данных.
+  const [seenVersion, setSeenVersion] = useState(initialVersion);
+  if (seenVersion !== initialVersion) {
+    setSeenVersion(initialVersion);
+    versionRef.current = initialVersion;
+    setLive(initial);
+  }
+
+  useEffect(() => {
+    let stopped = false;
+
+    const pull = async (): Promise<void> => {
+      if (document.visibilityState !== 'visible') return;
+
+      try {
+        const response = await fetch(`${postTo}?since=${encodeURIComponent(versionRef.current)}`, {
+          cache: 'no-store',
+        });
+        // 204 — «ничего не изменилось», самый частый ответ.
+        if (stopped || response.status === 204 || !response.ok) return;
+
+        // Подписи времени приходят готовыми: форматировать их здесь нельзя,
+        // у браузера может не быть данных грузинской локали.
+        const data = (await response.json()) as { version: string; messages: ChatMessageItem[] };
+
+        versionRef.current = data.version;
+        setLive(data.messages);
+      } catch {
+        // Сеть моргнула — следующий тик попробует снова. Показывать ошибку
+        // на каждый неудачный опрос значило бы мигать ею весь день.
+      }
+    };
+
+    const timer = setInterval(() => void pull(), 3000);
+    const onVisible = (): void => void pull();
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [postTo]);
+
+  const messages = live;
 
   // К последнему сообщению — сразу, без прокрутки на глазах: лента открылась
   // уже внизу, а не приехала туда, пока человек читает.
@@ -84,6 +152,9 @@ export function Conversation({
 
       if (response.ok) {
         setDraft('');
+        // Своё сообщение должно появиться немедленно, а не через три
+        // секунды: ждать собственных слов — худшее, что может делать чат.
+        versionRef.current = '';
         router.refresh();
       }
     } finally {
@@ -93,7 +164,10 @@ export function Conversation({
 
   const remove = async (id: string): Promise<void> => {
     const response = await fetch(`/api/v1/chat/messages/${id}`, { method: 'DELETE' });
-    if (response.ok) router.refresh();
+    if (response.ok) {
+      versionRef.current = '';
+      router.refresh();
+    }
   };
 
   return (

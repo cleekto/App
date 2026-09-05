@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { listChatMessages, listChatRooms, permissionScope } from '@kleekto/core';
+import { chatVersion, listChatMessages, listChatRooms, permissionScope } from '@kleekto/core';
 import { formatDateTime, translate } from '@kleekto/i18n';
 
 import { contextLocale, requireContext } from '../../_lib/session';
@@ -33,6 +33,10 @@ export default async function ChatPage({
 
   const requested = typeof params['room'] === 'string' ? params['room'] : undefined;
   const active = rooms.find((room) => room.id === requested) ?? rooms[0] ?? null;
+
+  // Отпечаток нужен клиенту, чтобы спрашивать «изменилось ли» и получать
+  // короткий ответ, когда нет.
+  const version = active === null ? '' : await chatVersion(ctx, { roomId: active.id });
 
   const messages =
     active === null
@@ -110,6 +114,7 @@ export default async function ChatPage({
                 messages={messages}
                 postTo={`/api/v1/chat/rooms/${active.id}/messages`}
                 currentUserId={ctx.userId}
+                version={version}
                 labels={{
                   write: t('chat.write'),
                   send: t('chat.send'),

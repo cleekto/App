@@ -301,6 +301,49 @@ async function assertTarget(
   return { roomId: null, conversationId: conversation.id };
 }
 
+/**
+ * Отпечаток состояния переписки — для живой доставки.
+ *
+ * ПОЧЕМУ ОТПЕЧАТОК, А НЕ ОТКРЫТОЕ СОЕДИНЕНИЕ. Приложение живёт на Vercel:
+ * функции там короткие, и держать поток на каждого агента значило бы
+ * занимать функцию целиком всё время, пока он сидит в чате. Десять агентов —
+ * десять постоянно работающих функций. Поэтому браузер спрашивает сам,
+ * а сервер отвечает коротко.
+ *
+ * Отпечаток — количество сообщений плюс самая поздняя из отметок времени:
+ * создания, правки и удаления. Он меняется от ЛЮБОГО события в переписке,
+ * включая правку старого сообщения, которая время создания не трогает.
+ * Одной даты последнего сообщения было бы мало: исправленное или удалённое
+ * сообщение до собеседника бы не доехало.
+ *
+ * Считается одним запросом-агрегатом, без выборки самих сообщений: ответ
+ * «ничего не изменилось» должен быть дешёвым, потому что он самый частый.
+ */
+export async function chatVersion(
+  ctx: AuthContext,
+  target: { roomId?: string | undefined; conversationId?: string | undefined },
+): Promise<string> {
+  requirePermission(ctx, 'chatMessage', 'read');
+  const where = await assertTarget(ctx, target);
+
+  const state = await prisma.chatMessage.aggregate({
+    where: {
+      companyId: ctx.companyId,
+      ...(where.roomId === null
+        ? { conversationId: where.conversationId }
+        : { roomId: where.roomId }),
+    },
+    _count: { _all: true },
+    _max: { createdAt: true, editedAt: true, deletedAt: true },
+  });
+
+  const latest = [state._max.createdAt, state._max.editedAt, state._max.deletedAt]
+    .filter((value): value is Date => value !== null)
+    .reduce<number>((max, value) => Math.max(max, value.getTime()), 0);
+
+  return `${String(state._count._all)}:${String(latest)}`;
+}
+
 export async function listChatMessages(
   ctx: AuthContext,
   target: { roomId?: string | undefined; conversationId?: string | undefined },
