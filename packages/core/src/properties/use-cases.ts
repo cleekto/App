@@ -9,6 +9,7 @@ import { ForbiddenError, NotFoundError, ValidationError } from '../errors';
 import { normalizeAddress } from '../normalize';
 import { normalizePhone } from '../phone';
 import { assertScope, requirePermission, scopeFilter } from '../rbac/guard';
+import { keepablePhotos, ownKeys } from './photos';
 
 /**
  * Объекты в CRM: список, карточка, движение по воронке.
@@ -63,6 +64,13 @@ export interface PropertyListItem {
   pipelineStatusNames: { ka: string | null; en: string | null; ru: string | null };
   assignedUserId: string | null;
   assignedUserName: string | null;
+  /**
+   * Ключ фотографии ответственного, не ссылка.
+   *
+   * Ссылка подписана и живёт час — из сценария она вышла бы уже просроченной
+   * к моменту показа. Подписывает тот, кто рисует страницу.
+   */
+  assignedUserAvatarKey: string | null;
   origin: PropertyOrigin;
   photo: string | null;
   updatedAt: string;
@@ -188,7 +196,9 @@ export async function listProperties(
       },
       assignedUserId: row.assignedUserId,
       assignedUserName:
-        row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),
+        row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.fullName ?? null),
+      assignedUserAvatarKey:
+        row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.avatarKey ?? null),
       origin: row.origin,
       photo: row.photos[0] ?? null,
       updatedAt: row.updatedAt.toISOString(),
@@ -290,7 +300,9 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
     },
     assignedUserId: row.assignedUserId,
     assignedUserName:
-      row.assignedUserId === null ? null : (assignees.get(row.assignedUserId) ?? null),
+      row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.fullName ?? null),
+    assignedUserAvatarKey:
+      row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.avatarKey ?? null),
     origin: row.origin,
     photo: row.photos[0] ?? null,
     photos: row.photos,
@@ -446,6 +458,8 @@ export interface PropertyEditInput {
   currency?: string | null | undefined;
   district?: string | null | undefined;
   addressRaw?: string | null | undefined;
+  /** Полный список фотографий после правки: и порядок, и состав. */
+  photos?: string[] | undefined;
 }
 
 export async function updateProperty(
@@ -467,6 +481,7 @@ export async function updateProperty(
       currency: true,
       district: true,
       addressRaw: true,
+      photos: true,
     },
   });
   if (property === null) throw new NotFoundError();
@@ -482,6 +497,7 @@ export async function updateProperty(
   if (input.currency !== undefined) data.currency = input.currency;
   if (input.district !== undefined) data.district = input.district;
   if (input.addressRaw !== undefined) data.addressRaw = input.addressRaw;
+  if (input.photos !== undefined) data.photos = keepablePhotos(ctx, input.photos, property.photos);
 
   if (Object.keys(data).length === 0) {
     throw new ValidationError('Менять нечего: не передано ни одного поля');
@@ -524,15 +540,19 @@ function digits(value: string): string {
   return value.replace(/\D/gu, '');
 }
 
-async function namesOf(ids: Array<string | null>): Promise<Map<string, string>> {
+async function namesOf(
+  ids: Array<string | null>,
+): Promise<Map<string, { fullName: string; avatarKey: string | null }>> {
   const unique = [...new Set(ids.filter((id): id is string => id !== null))];
   if (unique.length === 0) return new Map();
 
   const users = await prisma.user.findMany({
     where: { id: { in: unique } },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, avatarUrl: true },
   });
-  return new Map(users.map((user) => [user.id, user.fullName]));
+  return new Map(
+    users.map((user) => [user.id, { fullName: user.fullName, avatarKey: user.avatarUrl }]),
+  );
 }
 
 /**
@@ -627,18 +647,6 @@ export interface CreatePropertyResult {
  * не работают (см. `DedupInput`), а остальные — телефон, адрес, площадь,
  * комнатность — считаются как обычно.
  */
-/**
- * Отсеивает ключи, не принадлежащие компании.
- *
- * Ключ приходит от браузера, и без проверки объект можно было бы завести
- * с фотографией из хранилища другого агентства. Молча отсеиваем, а не
- * отказываем: чужой ключ — это не ошибка агента, а попытка, и терять из-за
- * неё весь объект незачем.
- */
-function ownKeys(ctx: AuthContext, keys: string[] | undefined): string[] {
-  if (keys === undefined) return [];
-  return keys.filter((key) => key.startsWith(`${ctx.companyId}/`)).slice(0, 20);
-}
 
 export async function createPropertyManually(
   ctx: AuthContext,

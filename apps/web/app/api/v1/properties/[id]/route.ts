@@ -20,6 +20,9 @@ const patchSchema = z
     currency: z.string().length(3).nullable().optional(),
     district: z.string().max(200).nullable().optional(),
     addressRaw: z.string().max(500).nullable().optional(),
+    // Полный список после правки: и состав, и порядок. Что из него уцелеет,
+    // решает сервер — чужие ключи он отсеивает сам.
+    photos: z.array(z.string().min(1).max(500)).max(20).optional(),
   })
   .strict();
 

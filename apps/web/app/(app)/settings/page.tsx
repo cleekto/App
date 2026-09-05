@@ -1,4 +1,4 @@
-import { fileUrl, listTeams, listUsers, permissionScope } from '@kleekto/core';
+import { fileUrl, fileUrls, listTeams, listUsers, permissionScope } from '@kleekto/core';
 import { LOCALES, translate } from '@kleekto/i18n';
 
 import { contextLocale, me, requireContext } from '../../_lib/session';
@@ -61,6 +61,29 @@ export default async function SettingsPage() {
    * ни импортировать, ни получить объект.
    */
   const unassigned = users.filter((user) => user.teamId === null);
+
+  /*
+   * Фотографии сотрудников подписываются один раз на всю страницу.
+   *
+   * Один и тот же человек встречается и в составе команды, и в общем списке,
+   * поэтому подписывается каждый УНИКАЛЬНЫЙ ключ, а карточки берут готовое
+   * из карты по ключу.
+   */
+  const faceKeys = [
+    ...new Set(
+      [...users, ...teams.flatMap((team) => team.members)]
+        .map((person) => person.avatarKey)
+        .filter((key) => key !== null),
+    ),
+  ];
+  const faceUrls = await fileUrls(ctx, faceKeys);
+  const faceOf = new Map(faceKeys.map((key, index) => [key, faceUrls[index] ?? null]));
+  const withFace = <T extends { avatarKey: string | null }>(
+    person: T,
+  ): T & { avatarUrl: string | null } => ({
+    ...person,
+    avatarUrl: person.avatarKey === null ? null : (faceOf.get(person.avatarKey) ?? null),
+  });
 
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
 
@@ -175,7 +198,7 @@ export default async function SettingsPage() {
               {teams.map((team) => (
                 <TeamCard
                   key={team.id}
-                  team={team}
+                  team={{ ...team, members: team.members.map(withFace) }}
                   currentUserId={ctx.userId}
                   canManage={canCreateUsers}
                   canDeleteTeam={canDeleteTeams}
@@ -238,7 +261,7 @@ export default async function SettingsPage() {
               {unassigned.map((user) => (
                 <UserRow
                   key={user.id}
-                  user={user}
+                  user={withFace(user)}
                   isSelf={user.id === ctx.userId}
                   canManage={canCreateUsers}
                   canChangeTeam={canChangeTeam}

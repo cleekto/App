@@ -6,6 +6,7 @@ import {
   listTasks,
   listUsers,
   fileUrls,
+  permissionScope,
   propertyActivity,
 } from '@kleekto/core';
 import { formatDateTime, translate } from '@kleekto/i18n';
@@ -20,11 +21,11 @@ import {
   statusLabel,
 } from '../../../_lib/format';
 import { contextLocale, requireContext } from '../../../_lib/session';
-import { Photo } from '../../../_ui/photo';
 import { ActivityList } from './activity-list';
 import { Characteristics } from './characteristics';
 import { CommentBox } from './comment-box';
 import { PropertyControls } from './controls';
+import { PhotoGallery } from './photo-gallery';
 import { PublicDescription } from './public-description';
 import { TaskBox } from './task-box';
 
@@ -60,9 +61,17 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
 
   // Ссылки на снимки подписываются на сервере: бак приватный. У объектов
   // с площадок в поле лежит внешний адрес — он отдаётся как есть.
-  const photos = (await fileUrls(ctx, property.photos)).filter(
-    (url): url is string => url !== null,
-  );
+  //
+  // Рядом со ссылкой едет и КЛЮЧ: ссылка живёт час и в базу не возвращается,
+  // а правка списка фотографий говорит серверу именно ключами.
+  const photoUrls = await fileUrls(ctx, property.photos);
+  const photos = property.photos
+    .map((key, index) => ({ key, url: photoUrls[index] ?? null }))
+    .filter((item): item is { key: string; url: string } => item.url !== null);
+
+  // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
+  // Отказать он может и по области — это его дело, не экрана.
+  const canEditPhotos = permissionScope(ctx.role, 'property', 'update') !== null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,27 +99,22 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           с первого импорта: агент открывал карточку и не видел того, чем
           недвижимость и опознают. Первая крупнее — она и есть «эта квартира»,
           остальные полосой рядом. */}
-      {photos.length === 0 ? null : (
-        <section className="flex flex-col gap-2">
-          {/* Крупный кадр и лента под ним, а не две колонки рядом: колонки
-              пришлось бы подгонять по высоте под произвольное число снимков,
-              и при трёх фотографиях справа оставалась белая дыра. Лента работает
-              с любым количеством. */}
-          <Photo
-            src={photos[0] ?? null}
-            alt={t('property.photoAlt')}
-            className="aspect-[16/10] w-full max-w-2xl"
-          />
-
-          {photos.length === 1 ? null : (
-            <div className="flex flex-wrap gap-2">
-              {photos.slice(1, 8).map((url) => (
-                <Photo key={url} src={url} alt={t('property.photoAlt')} className="h-16 w-24" />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
+      <PhotoGallery
+        propertyId={property.id}
+        initial={photos}
+        canEdit={canEditPhotos}
+        labels={{
+          photos: t('property.photos'),
+          alt: t('property.photoAlt'),
+          edit: t('property.photoEdit'),
+          done: t('property.photoDone'),
+          remove: t('property.photoRemove'),
+          choose: t('property.photoChoose'),
+          busy: t('property.photoBusy'),
+          uploadFailed: t('property.photoFailed'),
+          saveFailed: t('property.photoSaveFailed'),
+        }}
+      />
 
       <PropertyControls
         propertyId={property.id}

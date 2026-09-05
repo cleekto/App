@@ -13,6 +13,8 @@ export interface TeamMemberSummary {
   role: RoleCode;
   phone: string | null;
   isActive: boolean;
+  /** Ключ фотографии, не ссылка: подписывает тот, кто рисует страницу. */
+  avatarKey: string | null;
   /**
    * Команда у участника, разумеется, та же самая. Поле есть, потому что
    * карточка сотрудника одна и та же и в составе команды, и в списке тех,
@@ -109,6 +111,7 @@ export async function listTeams(ctx: AuthContext): Promise<TeamSummary[]> {
       role: membership.user.role.code,
       phone: membership.user.phone,
       isActive: membership.user.isActive,
+      avatarKey: membership.user.avatarUrl,
       teamId: team.id,
       teamName: team.name,
     }));

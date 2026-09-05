@@ -183,6 +183,10 @@ export const en = {
     photoChoose: 'Add photos',
     photoBusy: 'Uploading…',
     photoFailed: 'Upload failed',
+    photoEdit: 'Edit photos',
+    photoDone: 'Done',
+    photoRemove: 'Remove photo',
+    photoSaveFailed: 'Could not save',
 
     characteristics: 'Characteristics',
     bedrooms: 'Bedrooms',

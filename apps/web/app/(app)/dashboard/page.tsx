@@ -1,4 +1,4 @@
-import { dashboard } from '@kleekto/core';
+import { dashboard, fileUrls } from '@kleekto/core';
 import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
@@ -56,6 +56,19 @@ export default async function DashboardPage() {
   // Лучший результат недели — им меряются полосы рейтинга. Единица,
   // когда согласий нет ни у кого: делить на ноль нечем, а строки показать надо.
   const bestConsents = Math.max(...data.people.map((person) => person.consentsThisWeek), 1);
+
+  /*
+   * Фотографии людей подписываются здесь, на сервере: бак приватный,
+   * постоянного адреса у файла нет. Список короткий, ключи в нём не
+   * повторяются — по одному на человека.
+   */
+  const faceUrls = await fileUrls(
+    ctx,
+    data.people.map((person) => person.avatarKey ?? ''),
+  );
+  const faceOf = new Map(
+    data.people.map((person, index) => [person.userId, faceUrls[index] ?? null]),
+  );
 
   const quality = [
     {
@@ -190,7 +203,9 @@ export default async function DashboardPage() {
                 {data.people.map((person) => (
                   <PersonRow
                     key={person.userId}
-                    avatar={<Avatar name={person.fullName} />}
+                    avatar={
+                      <Avatar name={person.fullName} src={faceOf.get(person.userId) ?? null} />
+                    }
                     name={person.fullName}
                     value={n(person.consentsThisWeek)}
                     share={person.consentsThisWeek / bestConsents}

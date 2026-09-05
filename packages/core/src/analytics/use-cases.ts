@@ -46,6 +46,8 @@ export interface Dashboard {
   people: Array<{
     userId: string;
     fullName: string;
+    /** Ключ фотографии, не ссылка: подписывает тот, кто рисует страницу. */
+    avatarKey: string | null;
     /** Согласий за неделю — главная продуктовая метрика (§6.5). */
     consentsThisWeek: number;
     propertiesOwned: number;
@@ -208,7 +210,7 @@ async function peopleActivity(
 
   const users = await prisma.user.findMany({
     where: { id: { in: ids }, companyId: ctx.companyId },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, avatarUrl: true },
   });
 
   const ownedBy = new Map(owned.map((row) => [row.assignedUserId, row._count._all]));
@@ -218,6 +220,7 @@ async function peopleActivity(
     .map((user) => ({
       userId: user.id,
       fullName: user.fullName,
+      avatarKey: user.avatarUrl,
       consentsThisWeek: consentsBy.get(user.id) ?? 0,
       propertiesOwned: ownedBy.get(user.id) ?? 0,
     }))

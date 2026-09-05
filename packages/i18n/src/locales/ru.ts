@@ -191,6 +191,10 @@ export const ru: DeepPartial<Dictionary> = {
     photoChoose: 'Добавить фото',
     photoBusy: 'Загружаю…',
     photoFailed: 'Загрузить не вышло',
+    photoEdit: 'Изменить фото',
+    photoDone: 'Готово',
+    photoRemove: 'Убрать фотографию',
+    photoSaveFailed: 'Сохранить не вышло',
 
     // Характеристики из объявления. Показывается только то, что площадка
     // сказала: пустое поле означает «не сказано», а не «нет».

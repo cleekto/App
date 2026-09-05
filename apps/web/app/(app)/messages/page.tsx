@@ -2,6 +2,7 @@ import Link from 'next/link';
 
 import {
   chatVersion,
+  fileUrls,
   listChatMessages,
   listDirectConversations,
   listUsers,
@@ -58,8 +59,35 @@ export default async function MessagesPage({
           timeLabel: formatDateTime(locale, new Date(message.createdAt)),
         }));
 
+  /*
+   * Фотографии авторов подписываются одним махом.
+   *
+   * Ключей в ленте немного и они повторяются — один человек пишет подряд, —
+   * поэтому подписывается каждый УНИКАЛЬНЫЙ ключ по разу. Подпись дешёвая,
+   * но десять одинаковых подписей на десять реплик одного автора — работа
+   * впустую.
+   */
+  const avatarKeys = [
+    ...new Set(messages.map((message) => message.authorAvatarKey).filter((key) => key !== null)),
+  ];
+  const avatarUrls = await fileUrls(ctx, avatarKeys);
+  const avatarOf = new Map(avatarKeys.map((key, index) => [key, avatarUrls[index] ?? null]));
+
+  const withAvatars = messages.map((message) => ({
+    ...message,
+    authorAvatarUrl:
+      message.authorAvatarKey === null ? null : (avatarOf.get(message.authorAvatarKey) ?? null),
+  }));
+
   // Себя в списке собеседников нет: написать самому себе нельзя, и сервер
   // это отвергает — предлагать бессмысленный пункт незачем.
+  // Фотографии собеседников в списке слева.
+  const partnerKeys = [
+    ...new Set(conversations.map((row) => row.partnerAvatarKey).filter((key) => key !== null)),
+  ];
+  const partnerUrls = await fileUrls(ctx, partnerKeys);
+  const partnerAvatar = new Map(partnerKeys.map((key, index) => [key, partnerUrls[index] ?? null]));
+
   const candidates = people
     .filter((user) => user.isActive && user.id !== ctx.userId)
     .map((user) => ({ id: user.id, name: user.fullName }));
@@ -97,7 +125,15 @@ export default async function MessagesPage({
                           : 'hover:bg-[var(--color-surface-muted)]'
                       }`}
                     >
-                      <Avatar name={row.partnerName} size="sm" />
+                      <Avatar
+                        name={row.partnerName}
+                        src={
+                          row.partnerAvatarKey === null
+                            ? null
+                            : (partnerAvatar.get(row.partnerAvatarKey) ?? null)
+                        }
+                        size="sm"
+                      />
                       <span className="truncate text-sm font-medium">{row.partnerName}</span>
                     </Link>
                   </li>
@@ -113,7 +149,7 @@ export default async function MessagesPage({
               </p>
             ) : (
               <Conversation
-                messages={messages}
+                messages={withAvatars}
                 postTo={`/api/v1/chat/conversations/${active.id}/messages`}
                 currentUserId={ctx.userId}
                 version={version}

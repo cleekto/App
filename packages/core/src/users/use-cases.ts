@@ -13,6 +13,8 @@ export interface UserSummary {
   id: string;
   email: string;
   fullName: string;
+  /** Ключ фотографии в хранилище. Пусто — рисуются инициалы. */
+  avatarKey: string | null;
   role: RoleCode;
   isActive: boolean;
   teamId: string | null;
@@ -50,6 +52,7 @@ function toSummary(user: UserWithSummaryRelations): UserSummary {
     id: user.id,
     email: user.email,
     fullName: user.fullName,
+    avatarKey: user.avatarUrl,
     role: user.role.code,
     isActive: user.isActive,
     phone: user.phone,

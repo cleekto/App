@@ -27,6 +27,8 @@ export interface UserItem {
   phone: string | null;
   teamId: string | null;
   teamName: string | null;
+  /** Подписанная ссылка на фотографию. Подписывает сервер, страница показывает. */
+  avatarUrl: string | null;
 }
 
 export interface UserRowLabels {
@@ -190,7 +192,7 @@ export function UserRow({
           объектов и в задачах. Список сотрудников перестаёт быть колонкой
           одинаковых строк. Отключённый — приглушённый, чтобы состояние
           читалось не только зачёркнутым именем. */}
-      <Avatar name={user.fullName} />
+      <Avatar name={user.fullName} src={user.avatarUrl} />
 
       <div className="min-w-0 flex-1">
         <p className="flex items-center gap-2 truncate text-sm font-medium">

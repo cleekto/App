@@ -190,6 +190,10 @@ export const ka: DeepPartial<Dictionary> = {
     photoChoose: 'ფოტოს დამატება',
     photoBusy: 'იტვირთება…',
     photoFailed: 'ატვირთვა ვერ მოხერხდა',
+    photoEdit: 'ფოტოების შეცვლა',
+    photoDone: 'მზადაა',
+    photoRemove: 'ფოტოს წაშლა',
+    photoSaveFailed: 'შენახვა ვერ მოხერხდა',
 
     characteristics: 'მახასიათებლები',
     bedrooms: 'საძინებელი',

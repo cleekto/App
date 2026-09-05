@@ -69,6 +69,8 @@ export interface ChatMessageView {
   body: string | null;
   authorUserId: string;
   authorName: string;
+  /** Ключ фотографии автора. Подписывает её тот, кто показывает. */
+  authorAvatarKey: string | null;
   createdAt: string;
   editedAt: string | null;
   isDeleted: boolean;
@@ -105,6 +107,7 @@ export interface DirectConversationSummary {
   id: string;
   partnerUserId: string;
   partnerName: string;
+  partnerAvatarKey: string | null;
   lastMessageAt: string | null;
 }
 
@@ -463,9 +466,10 @@ export async function companyFeed(ctx: AuthContext, limit = 60): Promise<FeedIte
 
   const authors = await prisma.user.findMany({
     where: { id: { in: [...authorIds] } },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, avatarUrl: true },
   });
   const names = new Map(authors.map((user) => [user.id, user.fullName]));
+  const avatars = new Map(authors.map((user) => [user.id, user.avatarUrl]));
 
   const canDeleteAny = canDeleteOthers(ctx);
 
@@ -480,6 +484,7 @@ export async function companyFeed(ctx: AuthContext, limit = 60): Promise<FeedIte
       body: isDeleted ? null : message.body,
       authorUserId: message.authorUserId,
       authorName: names.get(message.authorUserId) ?? '',
+      authorAvatarKey: avatars.get(message.authorUserId) ?? null,
       createdAt: message.createdAt.toISOString(),
       editedAt: message.editedAt?.toISOString() ?? null,
       isDeleted,
@@ -564,9 +569,10 @@ export async function listDirectConversations(
 
   const partners = await prisma.user.findMany({
     where: { id: { in: partnerIds }, companyId: ctx.companyId },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, avatarUrl: true },
   });
   const names = new Map(partners.map((user) => [user.id, user.fullName]));
+  const partnerAvatars = new Map(partners.map((user) => [user.id, user.avatarUrl]));
 
   return conversations.map((row) => {
     const partnerUserId = row.userAId === ctx.userId ? row.userBId : row.userAId;
@@ -575,6 +581,7 @@ export async function listDirectConversations(
       id: row.id,
       partnerUserId,
       partnerName: names.get(partnerUserId) ?? '',
+      partnerAvatarKey: partnerAvatars.get(partnerUserId) ?? null,
       lastMessageAt: row.messages[0]?.createdAt.toISOString() ?? null,
     };
   });
@@ -719,9 +726,10 @@ export async function listChatMessages(
 
   const authors = await prisma.user.findMany({
     where: { id: { in: [...authorIds] } },
-    select: { id: true, fullName: true },
+    select: { id: true, fullName: true, avatarUrl: true },
   });
   const names = new Map(authors.map((user) => [user.id, user.fullName]));
+  const avatars = new Map(authors.map((user) => [user.id, user.avatarUrl]));
 
   return messages.map((message) => {
     const isDeleted = message.deletedAt !== null;
@@ -734,6 +742,7 @@ export async function listChatMessages(
       body: isDeleted ? null : message.body,
       authorUserId: message.authorUserId,
       authorName: names.get(message.authorUserId) ?? '',
+      authorAvatarKey: avatars.get(message.authorUserId) ?? null,
       createdAt: message.createdAt.toISOString(),
       editedAt: message.editedAt?.toISOString() ?? null,
       isDeleted,

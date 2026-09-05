@@ -22,6 +22,7 @@ export interface FeedRow {
   id: string;
   body: string | null;
   authorName: string;
+  authorAvatarUrl: string | null;
   timeLabel: string;
   isDeleted: boolean;
   roomId: string;
@@ -56,7 +57,7 @@ export function CompanyFeed({
                   href={`/chat?room=${item.roomId}`}
                   className="flex gap-3 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
                 >
-                  <Avatar name={item.authorName} size="sm" />
+                  <Avatar name={item.authorName} src={item.authorAvatarUrl} size="sm" />
 
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-baseline gap-2">

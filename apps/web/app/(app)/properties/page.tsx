@@ -80,6 +80,20 @@ export default async function PropertiesPage({
     items.map((item) => item.photo ?? ''),
   );
   const photoOf = new Map(items.map((item, index) => [item.id, photoUrls[index] ?? null]));
+
+  /*
+   * Фотографии ответственных — тем же способом, но по УНИКАЛЬНЫМ ключам:
+   * у одного агента в списке легко десять объектов, и десять одинаковых
+   * подписей были бы работой впустую.
+   */
+  const faceKeys = [
+    ...new Set(items.map((item) => item.assignedUserAvatarKey).filter((key) => key !== null)),
+  ];
+  const faceUrls = await fileUrls(ctx, faceKeys);
+  const faceOf = new Map(faceKeys.map((key, index) => [key, faceUrls[index] ?? null]));
+  const faceFor = (key: string | null): string | null =>
+    key === null ? null : (faceOf.get(key) ?? null);
+
   const foundLine = `${String(total)} ${t('property.found')}`;
 
   return (
@@ -190,7 +204,11 @@ export default async function PropertiesPage({
                   </span>
                 ) : (
                   <>
-                    <Avatar name={item.assignedUserName} size="sm" />
+                    <Avatar
+                      name={item.assignedUserName}
+                      src={faceFor(item.assignedUserAvatarKey)}
+                      size="sm"
+                    />
                     <span className="truncate text-[0.75rem] text-[var(--color-text-tertiary)]">
                       {item.assignedUserName}
                     </span>
@@ -262,7 +280,11 @@ export default async function PropertiesPage({
                           строк видно, чьи объекты, не читая имён. */}
                       <p className="mt-0.5 flex items-center justify-end gap-1.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
                         {item.assignedUserName === null ? null : (
-                          <Avatar name={item.assignedUserName} size="sm" />
+                          <Avatar
+                            name={item.assignedUserName}
+                            src={faceFor(item.assignedUserAvatarKey)}
+                            size="sm"
+                          />
                         )}
                         <span className="truncate">
                           {item.assignedUserName ?? t('property.unassigned')}

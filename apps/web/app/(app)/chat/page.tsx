@@ -3,6 +3,7 @@ import Link from 'next/link';
 import {
   chatVersion,
   companyFeed,
+  fileUrls,
   listChatMessages,
   listChatRooms,
   listChatTopics,
@@ -57,6 +58,20 @@ export default async function ChatPage({
 
   const feed = active === null ? await companyFeed(ctx) : [];
 
+  // Те же подписи для ленты: ключи повторяются, подписывается каждый по разу.
+  const feedKeys = [
+    ...new Set(feed.map((item) => item.authorAvatarKey).filter((key) => key !== null)),
+  ];
+  const feedUrls = await fileUrls(ctx, feedKeys);
+  const feedAvatar = new Map(feedKeys.map((key, index) => [key, feedUrls[index] ?? null]));
+
+  const feedRows = feed.map((item) => ({
+    ...item,
+    timeLabel: formatDateTime(locale, new Date(item.createdAt)),
+    authorAvatarUrl:
+      item.authorAvatarKey === null ? null : (feedAvatar.get(item.authorAvatarKey) ?? null),
+  }));
+
   // Отпечаток нужен клиенту, чтобы спрашивать «изменилось ли» и получать
   // короткий ответ, когда нет.
   const target =
@@ -79,6 +94,26 @@ export default async function ChatPage({
           // не быть данных грузинской локали.
           timeLabel: formatDateTime(locale, new Date(message.createdAt)),
         }));
+
+  /*
+   * Фотографии авторов подписываются одним махом.
+   *
+   * Ключей в ленте немного и они повторяются — один человек пишет подряд, —
+   * поэтому подписывается каждый УНИКАЛЬНЫЙ ключ по разу. Подпись дешёвая,
+   * но десять одинаковых подписей на десять реплик одного автора — работа
+   * впустую.
+   */
+  const avatarKeys = [
+    ...new Set(messages.map((message) => message.authorAvatarKey).filter((key) => key !== null)),
+  ];
+  const avatarUrls = await fileUrls(ctx, avatarKeys);
+  const avatarOf = new Map(avatarKeys.map((key, index) => [key, avatarUrls[index] ?? null]));
+
+  const withAvatars = messages.map((message) => ({
+    ...message,
+    authorAvatarUrl:
+      message.authorAvatarKey === null ? null : (avatarOf.get(message.authorAvatarKey) ?? null),
+  }));
 
   // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
   const canCreate = permissionScope(ctx.role, 'chatRoom', 'create') !== null;
@@ -169,10 +204,7 @@ export default async function ChatPage({
           <Card className="flex h-[calc(100vh-13rem)] min-h-96 flex-col overflow-hidden">
             {active === null ? (
               <CompanyFeed
-                items={feed.map((item) => ({
-                  ...item,
-                  timeLabel: formatDateTime(locale, new Date(item.createdAt)),
-                }))}
+                items={feedRows}
                 labels={{
                   title: t('chat.feed'),
                   hint: t('chat.feedHint'),
@@ -195,7 +227,7 @@ export default async function ChatPage({
                 />
 
                 <Conversation
-                  messages={messages}
+                  messages={withAvatars}
                   postTo={`/api/v1/chat/rooms/${active.id}/messages${topicId === undefined ? '' : `?topic=${topicId}`}`}
                   currentUserId={ctx.userId}
                   version={version}

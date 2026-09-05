@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { formatDateTime, type Locale } from '@kleekto/i18n';
 
-import { chatVersion, listChatMessages, postChatMessage } from '@kleekto/core';
+import { chatVersion, fileUrls, listChatMessages, postChatMessage } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../../../_lib/handler';
 
@@ -53,9 +53,25 @@ export async function GET(request: Request, { params }: Params) {
    * с серверным. Передать ему функцию форматирования тоже нельзя — сервер
    * не передаёт функции клиенту. Значит, лента уезжает уже с готовой строкой.
    */
+  /*
+   * Ссылки на фотографии подписываются и здесь.
+   *
+   * Иначе аватарки исчезали бы через три секунды: страница отрисовала бы
+   * их подписанными, а первый же тик живого опроса заменил бы ленту
+   * ответом без ссылок. Ключи повторяются — один человек пишет подряд, —
+   * поэтому подписывается каждый уникальный по разу.
+   */
+  const avatarKeys = [
+    ...new Set(raw.map((message) => message.authorAvatarKey).filter((key) => key !== null)),
+  ];
+  const avatarUrls = await fileUrls(ctx, avatarKeys);
+  const avatarOf = new Map(avatarKeys.map((key, index) => [key, avatarUrls[index] ?? null]));
+
   const messages = raw.map((message) => ({
     ...message,
     timeLabel: formatDateTime(ctx.locale as Locale, new Date(message.createdAt)),
+    authorAvatarUrl:
+      message.authorAvatarKey === null ? null : (avatarOf.get(message.authorAvatarKey) ?? null),
   }));
 
   return Response.json({ version, messages });

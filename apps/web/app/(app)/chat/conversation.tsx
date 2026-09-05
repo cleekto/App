@@ -29,6 +29,8 @@ export interface ChatMessageItem {
   body: string | null;
   authorUserId: string;
   authorName: string;
+  /** Готовая подписанная ссылка на фотографию автора. */
+  authorAvatarUrl: string | null;
   /** Готовая подпись времени: посчитана на сервере. */
   timeLabel: string;
   editedAt: string | null;
@@ -207,7 +209,7 @@ export function Conversation({
 
               return (
                 <li key={message.id} className={`flex gap-2.5 ${mine ? 'flex-row-reverse' : ''}`}>
-                  <Avatar name={message.authorName} size="sm" />
+                  <Avatar name={message.authorName} src={message.authorAvatarUrl} size="sm" />
 
                   <div className={`flex min-w-0 max-w-[min(34rem,80%)] flex-col gap-1`}>
                     <div
