@@ -55,7 +55,7 @@ export function NavLink({
        */
       className={`relative flex items-center gap-2.5 rounded-[var(--radius-control)] px-2.5 py-2 text-sm transition-colors duration-[var(--duration-fast)] before:absolute before:top-1.5 before:bottom-1.5 before:-left-2 before:w-[3px] before:rounded-full before:transition-colors ${
         active
-          ? 'bg-[var(--color-sidebar-active-bg)] font-medium text-[var(--color-sidebar-active-fg)] before:bg-[var(--color-brand)]'
+          ? 'bg-[linear-gradient(90deg,oklch(0.45_0.19_300_/_0.9),oklch(0.35_0.14_290_/_0.55))] font-medium text-[var(--color-sidebar-active-fg)] shadow-[0_8px_20px_-10px_oklch(0.52_0.24_300_/_0.9)] before:bg-[oklch(0.72_0.2_300)] before:shadow-[0_0_12px_oklch(0.72_0.2_300)]'
           : 'text-[var(--color-sidebar-fg-muted)] before:bg-transparent hover:bg-[var(--color-sidebar-hover-bg)] hover:text-[var(--color-sidebar-fg)]'
       }`}
     >

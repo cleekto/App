@@ -122,3 +122,16 @@ export function statusLabel(
   const own = status.names[locale];
   return own === null || own === '' ? status.name : own;
 }
+
+/**
+ * Разделитель разрядов для языка агента.
+ *
+ * Нужен клиентскому счётчику (`_ui/motion.tsx`): сам он `Intl` звать
+ * не имеет права — у браузера может не быть данных грузинской локали,
+ * и формат разошёлся бы с серверным, ломая гидратацию. Поэтому знание
+ * о локали добывается здесь, на сервере, и уезжает вниз одной строкой.
+ */
+export function groupSeparator(locale: Locale): string {
+  const parts = new Intl.NumberFormat(locale).formatToParts(1000);
+  return parts.find((part) => part.type === 'group')?.value ?? ' ';
+}

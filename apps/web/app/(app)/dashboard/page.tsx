@@ -2,8 +2,9 @@ import { dashboard } from '@kleekto/core';
 import { formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
-import { statusLabel } from '../../_lib/format';
-import { Avatar, accentOf, stageColors } from '../../_ui/accent';
+import { statusLabel, groupSeparator } from '../../_lib/format';
+import { Avatar, accentOf, gradientAt, stageColors } from '../../_ui/accent';
+import { AnimatedNumber, Stagger, StaggerItem } from '../../_ui/motion';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Card } from '../../_ui/primitives';
 import {
@@ -15,7 +16,6 @@ import {
   PersonRow,
   Rule,
   StatTile,
-  StatTiles,
 } from './parts';
 
 /**
@@ -35,6 +35,11 @@ export default async function DashboardPage() {
   const data = await dashboard(ctx);
 
   const t = (key: MessageKey): string => translate(locale, key);
+
+  // Разделитель разрядов считается здесь, на сервере: клиентскому счётчику
+  // звать `Intl` запрещено — у браузера может не быть грузинской локали,
+  // и формат разошёлся бы с серверным, ломая гидратацию.
+  const separator = groupSeparator(locale);
   const n = (value: number): string => formatNumber(locale, value);
   const percent = (value: number): string => `${formatNumber(locale, Math.round(value * 100))}%`;
 
@@ -88,41 +93,51 @@ export default async function DashboardPage() {
       {/* ── Главные числа ──────────────────────────────────────────────────
           Плитки со знаками, а не строка чисел на белом листе: это первое,
           что видит агент, открыв продукт. */}
-      <StatTiles>
-        <StatTile
-          label={t('dashboard.newToday')}
-          value={n(data.properties.createdToday)}
-          accent={accentOf('newToday')}
-          icon={
-            <>
-              <path d="M12 5v14M5 12h14" />
-            </>
-          }
-        />
-        <StatTile
-          label={t('dashboard.newThisWeek')}
-          value={n(data.properties.createdThisWeek)}
-          accent={accentOf('newThisWeek')}
-          icon={
-            <>
-              <rect x="3" y="5" width="18" height="16" rx="2" />
-              <path d="M3 10h18M8 3v4M16 3v4" />
-            </>
-          }
-        />
-        <StatTile
-          label={t('dashboard.totalProperties')}
-          value={n(data.properties.total)}
-          accent={accentOf('totalProperties')}
-          icon={
-            <>
-              <path d="M3 10.5 12 3l9 7.5" />
-              <path d="M5 9.5V20h14V9.5" />
-              <path d="M9.5 20v-6h5v6" />
-            </>
-          }
-        />
-      </StatTiles>
+      <Stagger className="grid gap-3 sm:grid-cols-3">
+        <StaggerItem>
+          <StatTile
+            label={t('dashboard.newToday')}
+            value={
+              <AnimatedNumber value={data.properties.createdToday} groupSeparator={separator} />
+            }
+            gradient={gradientAt(0)}
+            icon={
+              <>
+                <path d="M12 5v14M5 12h14" />
+              </>
+            }
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatTile
+            label={t('dashboard.newThisWeek')}
+            value={
+              <AnimatedNumber value={data.properties.createdThisWeek} groupSeparator={separator} />
+            }
+            gradient={gradientAt(1)}
+            icon={
+              <>
+                <rect x="3" y="5" width="18" height="16" rx="2" />
+                <path d="M3 10h18M8 3v4M16 3v4" />
+              </>
+            }
+          />
+        </StaggerItem>
+        <StaggerItem>
+          <StatTile
+            label={t('dashboard.totalProperties')}
+            value={<AnimatedNumber value={data.properties.total} groupSeparator={separator} />}
+            gradient={gradientAt(2)}
+            icon={
+              <>
+                <path d="M3 10.5 12 3l9 7.5" />
+                <path d="M5 9.5V20h14V9.5" />
+                <path d="M9.5 20v-6h5v6" />
+              </>
+            }
+          />
+        </StaggerItem>
+      </Stagger>
 
       {/*
         ДВЕ КОЛОНКИ НА ШИРОКОМ ЭКРАНЕ.

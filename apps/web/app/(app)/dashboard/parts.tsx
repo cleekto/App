@@ -97,19 +97,31 @@ export function FunnelRow({
   color: string;
 }) {
   return (
-    <li className="flex items-center gap-3 px-4 py-2.5">
-      <span className="w-40 shrink-0 truncate text-[0.8125rem]">{name}</span>
+    <li className="flex items-center gap-3 px-4 py-3 transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]">
+      <span className="w-40 shrink-0 truncate text-[0.8125rem] font-medium">{name}</span>
 
-      <span className="relative h-1.5 min-w-0 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--color-surface-muted)]">
+      <span className="relative h-2.5 min-w-0 flex-1 overflow-hidden rounded-[var(--radius-pill)] bg-[var(--color-surface-muted)]">
         <span
           className="absolute inset-y-0 left-0 rounded-[var(--radius-pill)] transition-[width] duration-[var(--duration-slow)] ease-[var(--ease-out)]"
           // Ширина — это данные, а не оформление: классом её не выразить,
-          // потому что доля произвольная.
-          style={{ width: `${String(Math.round(share * 100))}%`, backgroundColor: color }}
+          // потому что доля произвольная. Свечение того же цвета под полосой
+          // отрывает её от подложки.
+          style={{
+            width: `${String(Math.round(share * 100))}%`,
+            backgroundColor: color,
+            boxShadow: `0 0 12px -2px ${color}`,
+          }}
         />
       </span>
 
-      <span className="w-10 shrink-0 text-right text-[0.8125rem] font-medium">{count}</span>
+      {/* Число в таблетке цвета стадии: строка перестаёт заканчиваться
+          серой цифрой на белом. */}
+      <span
+        className="w-12 shrink-0 rounded-[var(--radius-pill)] py-0.5 text-center text-[0.8125rem] font-semibold tabular-nums"
+        style={{ color, backgroundColor: `color-mix(in oklch, ${color} 12%, transparent)` }}
+      >
+        {count}
+      </span>
     </li>
   );
 }
@@ -124,6 +136,12 @@ export function FunnelRow({
 export function Rule({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-3">
+      {/* Короткий фирменный штрих слева: заголовок перестаёт быть просто
+          жирной строкой и начинает читаться как начало раздела. */}
+      <span
+        aria-hidden
+        className="h-4 w-1 shrink-0 rounded-full bg-[linear-gradient(180deg,var(--color-brand),oklch(0.72_0.2_300))]"
+      />
       <h2 className="shrink-0 text-[0.9375rem] leading-6 font-semibold">{title}</h2>
       <span className="h-px min-w-0 flex-1 bg-[var(--color-border)]" />
     </div>
@@ -148,34 +166,42 @@ export function StatTile({
   label,
   value,
   icon,
-  accent,
+  gradient,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   icon: ReactNode;
-  /** Пара «текст / заливка» из палитры акцентов. */
-  accent: { fg: string; bg: string };
+  /** Градиент заливки — плитка окрашена целиком. */
+  gradient: string;
 }) {
   return (
-    <div className="group relative flex min-w-0 flex-col gap-4 overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-card)] transition-all duration-[var(--duration-base)] supports-[backdrop-filter]:bg-[var(--color-glass-strong)] supports-[backdrop-filter]:backdrop-blur-[var(--blur-glass)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]">
-      {/* Пятно цвета в углу: плитка окрашена, но текст по-прежнему лежит
-          на светлом — цвет даёт настроение, а не мешает читать. */}
+    <div
+      className="group relative flex min-w-0 flex-col justify-between gap-6 overflow-hidden rounded-[var(--radius-panel)] p-5 text-white shadow-[var(--shadow-card)] transition-all duration-[var(--duration-base)] [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-1 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
+      style={{ backgroundImage: gradient }}
+    >
+      {/*
+        Блик по диагонали — тонкая светлая плёнка поверх заливки. Без него
+        плитка выглядит куском цветной бумаги; с ним — поверхностью,
+        на которую падает свет. При наведении блик усиливается.
+      */}
       <span
         aria-hidden
-        className="pointer-events-none absolute -top-10 -right-10 size-28 rounded-full opacity-45 blur-2xl transition-opacity duration-[var(--duration-slow)] group-hover:opacity-70"
-        style={{ backgroundColor: accent.bg }}
+        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,oklch(1_0_0_/_0.22),transparent_45%)] opacity-70 transition-opacity duration-[var(--duration-slow)] group-hover:opacity-100"
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute -right-8 -bottom-10 size-32 rounded-full bg-[oklch(1_0_0_/_0.14)] blur-2xl"
       />
 
       <span
         aria-hidden
-        className="relative inline-flex size-11 items-center justify-center rounded-[var(--radius-card)] shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.5)]"
-        style={{ color: accent.fg, backgroundColor: accent.bg }}
+        className="relative inline-flex size-11 items-center justify-center rounded-[var(--radius-card)] bg-[oklch(1_0_0_/_0.2)] shadow-[inset_0_0_0_1px_oklch(1_0_0_/_0.28)]"
       >
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="1.6"
+          strokeWidth="1.7"
           strokeLinecap="round"
           strokeLinejoin="round"
           className="size-5"
@@ -185,20 +211,13 @@ export function StatTile({
       </span>
 
       <div className="relative min-w-0">
-        <p className="truncate text-[0.8125rem] leading-5 text-[var(--color-text-secondary)]">
-          {label}
-        </p>
-        <p className="mt-1 text-[2.5rem] leading-11 font-semibold tracking-tight tabular-nums">
+        <p className="truncate text-[0.8125rem] leading-5 text-white/80">{label}</p>
+        <p className="mt-1 text-[2.75rem] leading-12 font-semibold tracking-tight tabular-nums">
           {value}
         </p>
       </div>
     </div>
   );
-}
-
-/** Три плитки в ряд, на телефоне — в столбец. */
-export function StatTiles({ children }: { children: ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-3">{children}</div>;
 }
 
 /** Знак процента отдельной строкой: литералы в разметке запрещены линтером. */

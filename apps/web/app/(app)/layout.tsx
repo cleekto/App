@@ -89,6 +89,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen">
+      {/* Живая подсветка под всем содержимым. Лежит фоном, событий
+          не перехватывает, при выключенной анимации не двигается. */}
+      <div aria-hidden className="aurora">
+        <span />
+        <span />
+        <span />
+      </div>
+
       {/*
         Чекбокс не отрисовывает ничего сам — управляет панелью и подложкой
         через `peer-checked:` у обоих (DESIGN §11а, мобильная версия).
@@ -124,7 +132,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         и переключатель языка с кнопкой выхода становится не достать —
         именно это и случилось при первой проверке.
       */}
-      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] bg-[image:var(--gradient-sidebar)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
+      <aside className="fixed inset-y-0 left-0 z-40 flex h-screen w-64 max-w-[85vw] -translate-x-full flex-col justify-between border-r border-[var(--color-sidebar-border)] bg-[var(--color-sidebar-bg)] bg-[image:var(--gradient-sidebar)] shadow-[8px_0_32px_-16px_oklch(0.27_0.015_260_/_0.5)] text-[var(--color-sidebar-fg)] transition-transform duration-200 ease-out peer-checked:translate-x-0 md:sticky md:top-0 md:w-60 md:max-w-none md:translate-x-0">
         <div className="flex min-h-0 flex-col overflow-y-auto">
           <div className="flex items-center justify-between px-5 py-5">
             <Link href="/properties" className="flex items-center gap-2 text-base tracking-tight">
