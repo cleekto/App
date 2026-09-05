@@ -25,6 +25,8 @@ export interface CurrentUser {
   companyName: string;
   teamId: string | null;
   teamName: string | null;
+  /** Ключ файла аватарки в хранилище. Пусто — рисуются инициалы. */
+  avatarKey: string | null;
 }
 
 // ── Регистрация компании ─────────────────────────────────────────────────────
@@ -370,6 +372,7 @@ export async function currentUser(ctx: AuthContext): Promise<CurrentUser> {
     companyId: user.companyId,
     companyName: user.company.name,
     teamId: membership?.teamId ?? null,
+    avatarKey: user.avatarUrl,
     teamName: membership?.team.name ?? null,
   };
 }

@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { UploadButton, type UploadResult } from '../../_ui/upload';
+
 import { failureText } from '../../_ui/failure';
 import { Button, Field, Input, Notice, Select } from '../../_ui/primitives';
 import { notifyError } from '../../_ui/toast';
@@ -20,6 +22,10 @@ import { notifyError } from '../../_ui/toast';
 
 export interface NewPropertyLabels {
   trigger: string;
+  photos: string;
+  photoChoose: string;
+  photoBusy: string;
+  photoFailed: string;
   submit: string;
   cancel: string;
   saving: string;
@@ -82,12 +88,14 @@ export function NewProperty({
   const [failed, setFailed] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
   const [draft, setDraft] = useState<Record<string, unknown> | null>(null);
+  const [photos, setPhotos] = useState<UploadResult[]>([]);
 
   const close = (): void => {
     setOpen(false);
     setDuplicates(null);
     setDraft(null);
     setFailed(null);
+    setPhotos([]);
   };
 
   async function submit(body: Record<string, unknown>): Promise<void> {
@@ -98,7 +106,9 @@ export function NewProperty({
       const response = await fetch('/api/v1/properties', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(body),
+        // Ключи, а не сами файлы: файлы уже в хранилище, сюда едут только
+        // их адреса.
+        body: JSON.stringify({ ...body, photoKeys: photos.map((photo) => photo.key) }),
       });
 
       if (!response.ok) {
@@ -221,6 +231,39 @@ export function NewProperty({
       {/* Собственник стоит первым: без телефона объект не заводится,
           и узнать об этом в конце длинной формы — худшее из возможного. */}
       <div className="grid gap-4 sm:grid-cols-2">
+        {/* Фотографии: недвижимость узнают глазами, и объект без снимка
+            в списке неотличим от соседнего. Загружаются сразу, до отправки
+            формы, — так агент видит, что взялись нужные. */}
+        <div className="flex flex-col gap-2">
+          <span className="text-xs font-medium text-[var(--color-text-secondary)]">
+            {labels.photos}
+          </span>
+
+          {photos.length === 0 ? null : (
+            <div className="flex flex-wrap gap-2">
+              {photos.map((photo) => (
+                <img
+                  key={photo.key}
+                  src={photo.previewUrl}
+                  alt=""
+                  className="size-16 rounded-[var(--radius-sm)] object-cover"
+                />
+              ))}
+            </div>
+          )}
+
+          <UploadButton
+            kind="property"
+            multiple
+            labels={{
+              choose: labels.photoChoose,
+              busy: labels.photoBusy,
+              failed: labels.photoFailed,
+            }}
+            onUploaded={(results) => setPhotos((current) => [...current, ...results])}
+          />
+        </div>
+
         <Field label={labels.ownerPhone} hint={labels.ownerPhoneHint}>
           <Input name="ownerPhone" inputMode="tel" required autoFocus />
         </Field>

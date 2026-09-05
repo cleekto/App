@@ -152,6 +152,17 @@ export async function createUploadUrl(
 export async function fileUrl(ctx: AuthContext, key: string | null): Promise<string | null> {
   if (key === null || key === '') return null;
 
+  /*
+   * В поле фотографий лежат ДВА РАЗНЫХ ВИДА ЗНАЧЕНИЙ, и это не беспорядок,
+   * а история: у объектов, пришедших с площадок, там внешние адреса
+   * (правило «только URL», как было с первого дня), у заведённых вручную —
+   * ключи нашего хранилища.
+   *
+   * Внешний адрес отдаётся как есть: подписывать чужую ссылку нечем,
+   * да и незачем — она и так публична на самой площадке.
+   */
+  if (key.startsWith('http://') || key.startsWith('https://')) return key;
+
   const config = storage();
   if (config === null) return null;
 

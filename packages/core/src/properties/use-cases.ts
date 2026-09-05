@@ -579,6 +579,17 @@ export interface CreatePropertyInput {
   currency?: string | null | undefined;
   publicDescription?: string | null | undefined;
   /**
+   * Ключи загруженных фотографий в хранилище.
+   *
+   * Ключи, а не ссылки: бак приватный, ссылка подписана и живёт час — в базе
+   * от неё через час остался бы мусор. Показывая объект, сервер подписывает
+   * ключ заново.
+   *
+   * Чужие ключи отсеиваются: приходят они от браузера, а всё, что приходит
+   * снаружи, — заявка, а не факт.
+   */
+  photoKeys?: string[] | undefined;
+  /**
    * Дубли, которые агент увидел и всё равно настаивает.
    *
    * Тот же механизм, что у импорта: система предупреждает, но не запрещает.
@@ -616,6 +627,19 @@ export interface CreatePropertyResult {
  * не работают (см. `DedupInput`), а остальные — телефон, адрес, площадь,
  * комнатность — считаются как обычно.
  */
+/**
+ * Отсеивает ключи, не принадлежащие компании.
+ *
+ * Ключ приходит от браузера, и без проверки объект можно было бы завести
+ * с фотографией из хранилища другого агентства. Молча отсеиваем, а не
+ * отказываем: чужой ключ — это не ошибка агента, а попытка, и терять из-за
+ * неё весь объект незачем.
+ */
+function ownKeys(ctx: AuthContext, keys: string[] | undefined): string[] {
+  if (keys === undefined) return [];
+  return keys.filter((key) => key.startsWith(`${ctx.companyId}/`)).slice(0, 20);
+}
+
 export async function createPropertyManually(
   ctx: AuthContext,
   input: CreatePropertyInput,
@@ -659,7 +683,7 @@ export async function createPropertyManually(
       price: input.price ?? null,
       currency: input.currency ?? null,
       propertyType: input.propertyType,
-      photos: [],
+      photos: ownKeys(ctx, input.photoKeys),
       district: input.district ?? null,
     },
   });

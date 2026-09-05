@@ -186,6 +186,10 @@ export const ka: DeepPartial<Dictionary> = {
       'ობიექტი არ შექმნილა. გახსენით ნაპოვნი ან მაინც დაამატეთ — შეყვანილი არ დაიკარგება.',
     createAnyway: 'მაინც დამატება',
     photoAlt: 'ობიექტის ფოტო',
+    photos: 'ფოტოები',
+    photoChoose: 'ფოტოს დამატება',
+    photoBusy: 'იტვირთება…',
+    photoFailed: 'ატვირთვა ვერ მოხერხდა',
 
     characteristics: 'მახასიათებლები',
     bedrooms: 'საძინებელი',
@@ -351,6 +355,11 @@ export const ka: DeepPartial<Dictionary> = {
 
     addUser: 'ადამიანის დამატება',
     fullName: 'სახელი და გვარი',
+    avatar: 'ფოტო',
+    avatarChoose: 'ფოტოს არჩევა',
+    avatarBusy: 'იტვირთება…',
+    avatarFailed: 'ატვირთვა ვერ მოხერხდა',
+    avatarRemove: 'მოხსნა',
     password: 'პაროლი',
     passwordHint: 'მინიმუმ 12 სიმბოლო. პაროლის აღდგენა ჯერ არ არის — ჩაიწერეთ.',
     noTeam: 'გუნდის გარეშე',

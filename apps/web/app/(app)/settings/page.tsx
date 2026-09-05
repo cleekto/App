@@ -1,8 +1,9 @@
-import { listTeams, listUsers, permissionScope } from '@kleekto/core';
+import { fileUrl, listTeams, listUsers, permissionScope } from '@kleekto/core';
 import { LOCALES, translate } from '@kleekto/i18n';
 
-import { contextLocale, requireContext } from '../../_lib/session';
+import { contextLocale, me, requireContext } from '../../_lib/session';
 import { Card, EmptyState, PageHeader, SectionHeader } from '../../_ui/primitives';
+import { AvatarForm } from './avatar-form';
 import { ChangePasswordForm, NewTeamForm, NewUserForm } from './forms';
 import { TeamCard } from './team-card';
 import { UserRow } from './user-row';
@@ -29,6 +30,12 @@ export default async function SettingsPage() {
   //
   // `user.update` у агента есть, но со значением `self` — поэтому право
   // на раздел «Люди» проверяется по созданию, а не по изменению.
+  const user = await me(ctx);
+
+  // Ссылка подписывается на сервере: бак приватный, постоянного адреса
+  // у файла нет.
+  const avatarUrl = await fileUrl(ctx, user.avatarKey);
+
   const usersScope = permissionScope(ctx.role, 'user', 'create');
   const canCreateUsers = usersScope !== null;
   const canCreateTeams = permissionScope(ctx.role, 'team', 'create') !== null;
@@ -128,6 +135,21 @@ export default async function SettingsPage() {
             />
           }
         />
+
+        {/* Своя фотография. Стоит рядом со сменой пароля: и то и другое —
+            про себя, а не про агентство. */}
+        <Card className="p-4">
+          <AvatarForm
+            name={user.fullName}
+            currentUrl={avatarUrl}
+            labels={{
+              choose: t('settings.avatarChoose'),
+              busy: t('settings.avatarBusy'),
+              failed: t('settings.avatarFailed'),
+              remove: t('settings.avatarRemove'),
+            }}
+          />
+        </Card>
       </section>
 
       {/* ── Команды ──────────────────────────────────────────────────────── */}

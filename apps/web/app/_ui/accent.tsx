@@ -122,9 +122,18 @@ export function stageColors(token: string | null): { fg: string; bg: string } {
  */
 export function Avatar({
   name,
+  src = null,
   size = 'md',
 }: {
   name: string;
+  /**
+   * Готовая подписанная ссылка на фотографию. Пусто — рисуются инициалы,
+   * и это обычное состояние: половина сотрудников фотографию не поставит.
+   *
+   * Ссылка приходит готовой, а не собирается здесь: бак приватный, подпись
+   * делает сервер, и клиенту ключ хранилища знать незачем.
+   */
+  src?: string | null;
   /** `sm` — в плотных списках, `md` — в карточках, `lg` — в шапке профиля. */
   size?: 'sm' | 'md' | 'lg';
 }) {
@@ -143,6 +152,17 @@ export function Avatar({
       : size === 'lg'
         ? 'size-11 text-base'
         : 'size-8 text-xs';
+
+  if (src !== null && src !== '') {
+    return (
+      <img
+        src={src}
+        alt=""
+        className={`shrink-0 rounded-full object-cover ${box}`}
+        style={{ backgroundColor: accent.bg }}
+      />
+    );
+  }
 
   return (
     <span

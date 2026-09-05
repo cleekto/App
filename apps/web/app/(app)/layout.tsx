@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
+import { fileUrl } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
 import { contextLocale, me, requireContext } from '../_lib/session';
@@ -88,6 +89,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const ctx = await requireContext();
   const locale = contextLocale(ctx);
   const user = await me(ctx);
+
+  // Подписанная ссылка на свою фотографию. Пусто — рисуются инициалы.
+  const avatarUrl = await fileUrl(ctx, user.avatarKey);
 
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
 
@@ -204,7 +208,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             {/* Цвет кружка выведен из имени и потому одинаков везде:
                 в панели, в списке объектов, в задачах. Свой цвет узнаёшь
                 раньше, чем прочитаешь имя. */}
-            <Avatar name={user.fullName} />
+            <Avatar name={user.fullName} src={avatarUrl} />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.fullName}</p>
               <p className="truncate text-xs text-[var(--color-sidebar-fg-muted)]">

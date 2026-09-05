@@ -416,3 +416,31 @@ export async function updateUser(
 
   return toSummary(updated);
 }
+
+/**
+ * Своя аватарка.
+ *
+ * ОТДЕЛЬНЫЙ СЦЕНАРИЙ, А НЕ ПОЛЕ В `updateUser`. Правка сотрудника —
+ * действие администратора над другим человеком; своя фотография — действие
+ * над собой, и права у них разные. Слитые в одно, они дали бы администратору
+ * возможность поставить коллеге любую картинку, а это не его дело.
+ *
+ * Ключ проверяется на принадлежность компании: он приходит от браузера,
+ * а всё, что приходит снаружи, — это заявка, а не факт.
+ */
+export async function setOwnAvatar(
+  ctx: AuthContext,
+  avatarKey: string | null,
+): Promise<{ id: string }> {
+  if (avatarKey !== null && !avatarKey.startsWith(`${ctx.companyId}/`)) {
+    throw new ValidationError('Чужой файл', { fields: ['avatarKey'] });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: ctx.userId },
+    data: { avatarUrl: avatarKey },
+    select: { id: true },
+  });
+
+  return user;
+}

@@ -59,6 +59,8 @@ const createSchema = z
     price: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
     currency: z.string().length(3).nullable().optional(),
     publicDescription: z.string().max(10_000).nullable().optional(),
+    /** Ключи загруженных фотографий. Чужие отсеивает ядро. */
+    photoKeys: z.array(z.string().min(1).max(400)).max(20).optional(),
     acknowledgedDuplicateOf: z.array(z.string().uuid()).max(20).optional(),
   })
   .strict();

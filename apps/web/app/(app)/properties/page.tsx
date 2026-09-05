@@ -6,7 +6,7 @@ import { PropertyCard } from './property-card';
 import { ViewSwitch, type PropertyView } from './view-switch';
 import { Card, EmptyState, PageHeader } from '../../_ui/primitives';
 
-import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
+import { fileUrls, listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
 import {
@@ -67,6 +67,19 @@ export default async function PropertiesPage({
    * заново — значит показать одну стадию разного цвета в двух местах.
    */
   const stageColor = new Map(statuses.map((status) => [status.id, status.colorToken]));
+
+  /*
+   * Обложки подписываются на сервере, все сразу.
+   *
+   * Бак приватный, постоянного адреса у файла нет. Подпись — это HMAC
+   * без обращения к сети, поэтому подписать два десятка обложек дёшево;
+   * у объектов с площадок в поле лежит внешний адрес, и он отдаётся как есть.
+   */
+  const photoUrls = await fileUrls(
+    ctx,
+    items.map((item) => item.photo ?? ''),
+  );
+  const photoOf = new Map(items.map((item, index) => [item.id, photoUrls[index] ?? null]));
   const foundLine = `${String(total)} ${t('property.found')}`;
 
   return (
@@ -87,6 +100,10 @@ export default async function PropertiesPage({
                   ownerName: t('property.ownerName'),
                   ownerPhone: t('property.ownerPhone'),
                   ownerPhoneHint: t('property.ownerPhoneHint'),
+                  photos: t('property.photos'),
+                  photoChoose: t('property.photoChoose'),
+                  photoBusy: t('property.photoBusy'),
+                  photoFailed: t('property.photoFailed'),
                   transactionType: t('property.transactionLabel'),
                   propertyType: t('property.typeLabel'),
                   rooms: t('property.roomsLabel'),
@@ -151,7 +168,7 @@ export default async function PropertiesPage({
             <PropertyCard
               key={item.id}
               href={`/properties/${item.id}`}
-              photo={item.photo}
+              photo={photoOf.get(item.id) ?? null}
               photoAlt={t('property.photoAlt')}
               price={priceLine(locale, item)}
               kind={kindLine(locale, item)}
@@ -214,7 +231,7 @@ export default async function PropertiesPage({
                       «Квартира · Продажа». Без неё двадцать строк подряд
                       неразличимы. */}
                   <Photo
-                    src={item.photo}
+                    src={photoOf.get(item.id) ?? null}
                     alt={t('property.photoAlt')}
                     className="h-12 w-16 transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] group-hover:scale-[1.04]"
                   />

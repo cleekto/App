@@ -179,6 +179,10 @@ export const en = {
       'The property has not been created. Open what was found, or add it anyway — nothing typed is lost.',
     createAnyway: 'Add anyway',
     photoAlt: 'Listing photo',
+    photos: 'Photos',
+    photoChoose: 'Add photos',
+    photoBusy: 'Uploading…',
+    photoFailed: 'Upload failed',
 
     characteristics: 'Characteristics',
     bedrooms: 'Bedrooms',
@@ -360,6 +364,11 @@ export const en = {
 
     addUser: 'Add person',
     fullName: 'Full name',
+    avatar: 'Photo',
+    avatarChoose: 'Choose a photo',
+    avatarBusy: 'Uploading…',
+    avatarFailed: 'Upload failed',
+    avatarRemove: 'Remove',
     password: 'Password',
     passwordHint: 'At least 12 characters. There is no password recovery yet — write it down.',
     noTeam: 'No team',
