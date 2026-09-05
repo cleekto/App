@@ -69,6 +69,24 @@ async function refreshSessionCookie(
   }
 }
 
+/**
+ * Домен хранилища файлов — для политики безопасности.
+ *
+ * Пусто, если хранилище не настроено: в правиле не должно оказаться
+ * `undefined`, иначе браузер отбросит директиву целиком и заблокирует
+ * даже собственные запросы приложения.
+ */
+function storageOrigin(): string {
+  const endpoint = process.env['AWS_ENDPOINT_URL_S3'];
+  if (endpoint === undefined || endpoint === '') return '';
+
+  try {
+    return new URL(endpoint).origin;
+  } catch {
+    return '';
+  }
+}
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   const nonce = crypto.randomUUID();
 
@@ -82,11 +100,24 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     // Стили Next вставляет inline и числа им не проставляет. Инъекция стиля
     // опаснее нуля, но несоизмеримо безопаснее инъекции скрипта.
     "style-src 'self' 'unsafe-inline'",
-    // Фотографии объектов лежат на CDN площадок: в MVP хранятся URL,
-    // а не файлы (вопрос 11).
-    "img-src 'self' data: https:",
-    // В разработке сюда же ходит веб-сокет горячей перезагрузки.
-    `connect-src 'self'${process.env.NODE_ENV === 'development' ? ' ws:' : ''}`,
+    // Фотографии объектов лежат на CDN площадок, а загруженные нами —
+    // в хранилище файлов. И то и другое приходит с чужих доменов.
+    "img-src 'self' data: blob: https:",
+    /*
+     * ХРАНИЛИЩЕ ФАЙЛОВ ДОБАВЛЕНО СЮДА ЯВНО, и это не формальность.
+     *
+     * Файл уходит из браузера прямо в хранилище, минуя наш сервер, —
+     * то есть на другой домен. Пока его тут не было, загрузка обрывалась
+     * молча: в консоли `Refused to connect`, а в коде обычное «не вышло».
+     * Найдено проверкой в браузере; CORS у бака при этом был настроен верно,
+     * и я час искал не там.
+     *
+     * Адрес берётся из окружения, а не вписан: у боевой и тестовой ветки
+     * хранилища разные, и зашитый адрес сломал бы одну из них.
+     */
+    ['connect-src', "'self'", storageOrigin(), process.env.NODE_ENV === 'development' ? 'ws:' : '']
+      .filter((part) => part !== '')
+      .join(' '),
     "font-src 'self' data:",
     "object-src 'none'",
     "base-uri 'self'",
