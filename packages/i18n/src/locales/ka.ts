@@ -277,9 +277,9 @@ export const ka: DeepPartial<Dictionary> = {
   task: {
     title: 'დავალებები',
     mine: 'ჩემი დავალებები',
-    followUps: 'დროა დავურეკოთ',
+    followUps: 'დროა დაუკავშირდეთ',
     empty: 'ახლა გასაკეთებელი არაფერია',
-    noFollowUps: 'დღეს ზარები არ არის',
+    noFollowUps: 'დღეს დასაკავშირებელი არავინაა',
     add: 'ახალი დავალება',
     titleField: 'რა უნდა გაკეთდეს',
     dueField: 'ვადა',

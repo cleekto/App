@@ -45,10 +45,15 @@ export async function addComment(
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true, companyId: true, teamId: true },
+    select: { id: true, companyId: true, teamId: true, assignedUserId: true },
   });
   if (property === null) throw new NotFoundError();
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    // Область агента — свои объекты: обсуждают карточку, с которой работают.
+    ownerUserId: property.assignedUserId,
+  });
 
   const created = await prisma.$transaction(async (tx) => {
     const comment = await tx.comment.create({
@@ -80,8 +85,20 @@ export async function addComment(
 export async function listComments(ctx: AuthContext, propertyId: string): Promise<CommentItem[]> {
   const scope = requirePermission(ctx, 'comment', 'read');
 
+  /*
+   * «СВОЁ» У КОММЕНТАРИЯ — ЭТО ЧУЖОЙ ТЕКСТ НА МОЁМ ОБЪЕКТЕ, а не мои реплики.
+   *
+   * Обсуждение карточки принадлежит карточке. Отфильтруй по автору — и агент
+   * перестал бы видеть, что написал ему руководитель на его же объекте,
+   * то есть ровно то, ради чего обсуждение и заводят.
+   *
+   * Поэтому область идёт через связь с объектом, а не по колонке
+   * комментария: у него колонки «чей объект» нет.
+   */
   const where: Prisma.CommentWhereInput = {
-    ...(scopeFilter(ctx, scope) as Prisma.CommentWhereInput),
+    ...(scope === 'own'
+      ? { companyId: ctx.companyId, property: { assignedUserId: ctx.userId } }
+      : (scopeFilter(ctx, scope) as Prisma.CommentWhereInput)),
     propertyId,
   };
 

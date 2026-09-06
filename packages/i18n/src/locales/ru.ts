@@ -282,9 +282,9 @@ export const ru: DeepPartial<Dictionary> = {
   task: {
     title: 'Задачи',
     mine: 'Мои задачи',
-    followUps: 'Пора перезвонить',
+    followUps: 'Пора связаться',
     empty: 'Сейчас делать нечего',
-    noFollowUps: 'Перезвонов на сегодня нет',
+    noFollowUps: 'Связаться сегодня не с кем',
     add: 'Новая задача',
     titleField: 'Что сделать',
     dueField: 'Срок',

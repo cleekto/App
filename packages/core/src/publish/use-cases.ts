@@ -47,7 +47,12 @@ export async function createPublicationDraft(
 
   // Область права — не украшение: без этой проверки «команда» в матрице
   // ничего не значила бы, и агент собирал бы черновик на объект соседей.
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    // Область агента здесь «своё»: размещать можно только свой объект.
+    ownerUserId: property.assignedUserId,
+  });
 
   /**
    * Объявление выходит под именем и номером того, кто его публикует
@@ -171,7 +176,7 @@ export async function reportPublicationFilled(
       id: true,
       propertyId: true,
       status: true,
-      property: { select: { companyId: true, teamId: true } },
+      property: { select: { companyId: true, teamId: true, assignedUserId: true } },
     },
   });
 
@@ -187,6 +192,7 @@ export async function reportPublicationFilled(
   assertScope(ctx, scope, {
     companyId: publication.property.companyId,
     teamId: publication.property.teamId,
+    ownerUserId: publication.property.assignedUserId,
   });
 
   if (publication.status === PublicationStatus.published) {
@@ -269,7 +275,7 @@ export async function confirmPublication(
       propertyId: true,
       status: true,
       externalId: true,
-      property: { select: { companyId: true, teamId: true } },
+      property: { select: { companyId: true, teamId: true, assignedUserId: true } },
     },
   });
 
@@ -282,6 +288,7 @@ export async function confirmPublication(
   assertScope(ctx, scope, {
     companyId: publication.property.companyId,
     teamId: publication.property.teamId,
+    ownerUserId: publication.property.assignedUserId,
   });
 
   // Повторное подтверждение — конфликт, а не молчаливое обновление:
@@ -346,11 +353,15 @@ export async function listPublications(
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true, companyId: true, teamId: true },
+    select: { id: true, companyId: true, teamId: true, assignedUserId: true },
   });
   if (property === null) throw new NotFoundError();
 
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    ownerUserId: property.assignedUserId,
+  });
 
   const publications = await prisma.publication.findMany({
     where: { companyId: ctx.companyId, propertyId },
@@ -400,7 +411,7 @@ export async function publishCheck(
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true, propertyLinkId: true, companyId: true, teamId: true },
+    select: { id: true, propertyLinkId: true, companyId: true, teamId: true, assignedUserId: true },
   });
   if (property === null) throw new NotFoundError();
 
@@ -413,7 +424,11 @@ export async function publishCheck(
    * уже размещён — область компания». Иначе две команды разместили бы один
    * объект дважды, не увидев друг друга.
    */
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    ownerUserId: property.assignedUserId,
+  });
 
   // Связка нужна именно здесь: тот же объект может вести другая команда,
   // и её публикация — тоже публикация нашего агентства.

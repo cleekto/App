@@ -271,9 +271,9 @@ export const en = {
   task: {
     title: 'Tasks',
     mine: 'My tasks',
-    followUps: 'Call backs due',
+    followUps: 'Time to get in touch',
     empty: 'Nothing to do right now',
-    noFollowUps: 'No call backs due',
+    noFollowUps: 'Nobody to get in touch with today',
     add: 'New task',
     titleField: 'What to do',
     dueField: 'Due',

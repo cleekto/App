@@ -90,15 +90,17 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
      * человек). Объявление выходит под его именем и его номером, отдельного
      * «профиля публикации» больше нет — решение владельца 2026-09-03.
      *
-     * Область — КОМАНДА, а не компания: агент нигде не пишет шире своей
-     * команды, и публикация не исключение. Прежнее право было шире, и это
-     * был недосмотр — объявление соседней команды агент размещать не должен.
+     * ОБЛАСТЬ АГЕНТА — СВОИ ОБЪЕКТЫ (решение владельца 2026-09-06). Раньше
+     * была команда, и это открывало дыру: карточку чужого объекта агент
+     * не видел, а черновик публикации по ней получал вместе с адресом
+     * и ценой. Право на объект и право разместить его обязаны совпадать —
+     * иначе узкая дверь ничего не значит, пока рядом стоит широкая.
      *
      * Распознавание своих объявлений при обратном импорте от этого не
      * страдает: оно смотрит в базу напрямую по компании, а не через права.
      */
-    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
-    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
   },
 
   /**
@@ -124,16 +126,33 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
     assign: { ADMIN: 'company', MANAGER: 'team' },
   },
 
+  /**
+   * Задача.
+   *
+   * У АГЕНТА ЗАДАЧИ ЛИЧНЫЕ (решение владельца 2026-09-06). Он заводит их
+   * себе и на своих объектах; чужую задачу не видит и не создаёт.
+   *
+   * КОМАНДНУЮ ЗАДАЧУ СТАВИТ ТОЛЬКО РУКОВОДИТЕЛЬ. «Поставить задачу другому»
+   * — это `assign`, и его у агента нет: иначе личные задачи оставались бы
+   * личными только на словах, ведь завести задачу на коллегу — то же самое,
+   * что войти в его список.
+   */
   task: {
-    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
-    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    create: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
     update: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
     delete: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
-    assign: { MANAGER: 'team' },
+    // Администратор здесь был пропущен — недосмотр: он может всё, что может
+    // менеджер, и назначение не исключение.
+    assign: { ADMIN: 'company', MANAGER: 'team' },
   },
 
   /**
    * Комментарий.
+   *
+   * Область агента сужена до своих объектов вместе с самим объектом
+   * (решение владельца 2026-09-06): обсуждение карточки, которую он
+   * не видит, — та же дыра, что была у публикаций.
    *
    * ВНИМАНИЕ: по `rbac.md` §3 создавать комментарии может только `AGENT`.
    * Матрица повторяет документ буквально, потому что документ — источник
@@ -142,8 +161,8 @@ const MATRIX: Record<Resource, Partial<Record<Action, RoleScopes>>> = {
    * `Q56`, а не исправлено молча.
    */
   comment: {
-    create: { AGENT: 'team' },
-    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'team' },
+    create: { AGENT: 'own' },
+    read: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
     update: { AGENT: 'own' },
     delete: { ADMIN: 'company', MANAGER: 'team', AGENT: 'own' },
   },

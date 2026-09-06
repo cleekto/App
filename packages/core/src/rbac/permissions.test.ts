@@ -88,11 +88,34 @@ describe('матрица прав', () => {
       expect(permissionScope(role, 'publication', 'read'), role).not.toBeNull();
     }
 
-    // Но не шире своей команды: объявление соседней команды агент
-    // не размещает, и менеджер тоже.
-    expect(permissionScope(RoleCode.AGENT, 'publication', 'create')).toBe('team');
+    /*
+     * Но каждый в своей области, и у агента она СВОИ ОБЪЕКТЫ (решение
+     * владельца 2026-09-06). Прежде была команда, и это открывало дыру:
+     * карточку чужого объекта агент не видел, а черновик публикации по ней
+     * получал вместе с адресом и ценой. Право видеть объект и право
+     * разместить его обязаны совпадать.
+     */
+    expect(permissionScope(RoleCode.AGENT, 'publication', 'create')).toBe('own');
     expect(permissionScope(RoleCode.MANAGER, 'publication', 'create')).toBe('team');
     expect(permissionScope(RoleCode.ADMIN, 'publication', 'create')).toBe('company');
+  });
+
+  it('у агента личные задачи, а командную ставит только руководитель', () => {
+    // Решение владельца 2026-09-06. «Поставить задачу другому» — это
+    // `assign`: без отдельного права личные задачи оставались бы личными
+    // лишь на словах.
+    expect(permissionScope(RoleCode.AGENT, 'task', 'read')).toBe('own');
+    expect(permissionScope(RoleCode.AGENT, 'task', 'create')).toBe('own');
+    expect(permissionScope(RoleCode.AGENT, 'task', 'assign')).toBeNull();
+    expect(permissionScope(RoleCode.MANAGER, 'task', 'assign')).toBe('team');
+    expect(permissionScope(RoleCode.ADMIN, 'task', 'assign')).toBe('company');
+  });
+
+  it('обсуждение сужено вместе с объектом', () => {
+    // Комментарии на карточке, которую агент не видит, — та же дыра,
+    // что была у публикаций.
+    expect(permissionScope(RoleCode.AGENT, 'comment', 'read')).toBe('own');
+    expect(permissionScope(RoleCode.AGENT, 'comment', 'create')).toBe('own');
   });
 
   it('воронку настраивают руководители, агент её только читает', () => {

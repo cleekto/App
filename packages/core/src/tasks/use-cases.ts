@@ -49,10 +49,15 @@ export async function createTask(ctx: AuthContext, input: CreateTaskInput): Prom
   // смысла не имеет и превращает список в свалку.
   const property = await prisma.property.findFirst({
     where: { id: input.propertyId, companyId: ctx.companyId },
-    select: { id: true, companyId: true, teamId: true },
+    select: { id: true, companyId: true, teamId: true, assignedUserId: true },
   });
   if (property === null) throw new NotFoundError();
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    // Область агента — свои объекты: задача заводится там, где он работает.
+    ownerUserId: property.assignedUserId,
+  });
 
   const assignedUserId = await validAssignee(ctx, input.assignedUserId);
 
@@ -101,8 +106,26 @@ export async function listTasks(
 ): Promise<TaskItem[]> {
   const scope = requirePermission(ctx, 'task', 'read');
 
+  /*
+   * «СВОЁ» У ЗАДАЧИ — ЭТО ДВЕ КОЛОНКИ, а не одна: и назначенная мне,
+   * и заведённая мной. Одной не хватает: руководитель ставит задачу агенту
+   * (тогда своя она по `assignedUserId`), а агент заводит её себе сам —
+   * и тогда, если он же и назначен, обе совпадают, но задача без
+   * назначенного осталась бы ничьей и пропала бы из списка автора.
+   *
+   * Поэтому область складывается через `AND` с готовым `OR`, а не слиянием:
+   * при слиянии фильтр `mine` затёр бы условие области.
+   */
+  const own: Prisma.TaskWhereInput[] =
+    scope === 'own'
+      ? [
+          { companyId: ctx.companyId },
+          { OR: [{ assignedUserId: ctx.userId }, { createdByUserId: ctx.userId }] },
+        ]
+      : [scopeFilter(ctx, scope) as Prisma.TaskWhereInput];
+
   const where: Prisma.TaskWhereInput = {
-    ...(scopeFilter(ctx, scope) as Prisma.TaskWhereInput),
+    AND: own,
     ...(filters.propertyId === undefined ? {} : { propertyId: filters.propertyId }),
     ...(filters.status === undefined ? {} : { status: filters.status }),
     ...(filters.mine === true ? { assignedUserId: ctx.userId } : {}),
@@ -173,11 +196,23 @@ export async function setTaskStatus(
 
 // ── Вспомогательное ──────────────────────────────────────────────────────────
 
+/**
+ * Кому можно поставить задачу.
+ *
+ * СЕБЕ — ВСЕГДА, ДРУГОМУ — ТОЛЬКО ПО ПРАВУ `assign` (решение владельца
+ * 2026-09-06: командные задачи ставит руководитель). Без этой проверки
+ * «личные задачи» оставались бы личными лишь на словах: завести задачу
+ * на коллегу — то же самое, что войти в его список и добавить туда строку.
+ */
 async function validAssignee(
   ctx: AuthContext,
   assignedUserId: string | null | undefined,
 ): Promise<string | null> {
   if (assignedUserId === undefined || assignedUserId === null) return null;
+
+  if (assignedUserId !== ctx.userId) {
+    requirePermission(ctx, 'task', 'assign');
+  }
 
   const user = await prisma.user.findFirst({
     where: { id: assignedUserId, companyId: ctx.companyId },
