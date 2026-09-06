@@ -24,7 +24,9 @@ import { contextLocale, requireContext } from '../../../_lib/session';
 import { ActivityList } from './activity-list';
 import { Characteristics } from './characteristics';
 import { CommentBox } from './comment-box';
+import { editLabels, propertyTypeOptions, transactionOptions } from '../../../_lib/property-labels';
 import { PropertyControls } from './controls';
+import { EditProperty } from '../edit-property';
 import { PhotoGallery } from './photo-gallery';
 import { PublicDescription } from './public-description';
 import { TaskBox } from './task-box';
@@ -69,7 +71,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
     .map((key, index) => ({ key, url: photoUrls[index] ?? null }))
     .filter((item): item is { key: string; url: string } => item.url !== null);
 
-  // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
+  // Правило 6: кнопки правки прячутся у того, кому сервер всё равно откажет.
   // Отказать он может и по области — это его дело, не экрана.
   const canEditPhotos = permissionScope(ctx.role, 'property', 'update') !== null;
 
@@ -92,7 +94,17 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           ) : null}
         </div>
 
-        <p className="text-2xl font-semibold">{priceLine(locale, property)}</p>
+        <div className="flex flex-col items-end gap-2">
+          <p className="text-2xl font-semibold">{priceLine(locale, property)}</p>
+          {canEditPhotos ? (
+            <EditProperty
+              propertyId={property.id}
+              labels={editLabels(locale)}
+              types={propertyTypeOptions(locale)}
+              transactions={transactionOptions(locale)}
+            />
+          ) : null}
+        </div>
       </header>
 
       {/* ФОТОГРАФИИ ОБЪЕКТА. Их не было вовсе, хотя ссылки лежали в базе

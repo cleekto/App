@@ -12,6 +12,7 @@ export {
   PropertyType,
   PublicationStatus,
   RoleCode,
+  SellerKind,
   Source,
   TaskStatus,
   TransactionType,

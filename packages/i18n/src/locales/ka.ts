@@ -195,6 +195,12 @@ export const ka: DeepPartial<Dictionary> = {
     photoRemove: 'ფოტოს წაშლა',
     photoSaveFailed: 'შენახვა ვერ მოხერხდა',
 
+    // ობიექტის რედაქტირება — ბარათიდან, სიიდან და დაფიდან.
+    edit: 'რედაქტირება',
+    editTitle: 'ობიექტის რედაქტირება',
+    editFailed: 'შენახვა ვერ მოხერხდა',
+    notSpecified: 'მითითებული არაა',
+
     characteristics: 'მახასიათებლები',
     bedrooms: 'საძინებელი',
     bathrooms: 'სველი წერტილი',
@@ -227,6 +233,13 @@ export const ka: DeepPartial<Dictionary> = {
   board: {
     title: 'დაფა',
     empty: 'ამ სტატუსში ცარიელია',
+
+    // დაფის ფილტრები: ოცკაციან სააგენტოში სვეტში ორმოცი ბარათია,
+    // მათგან შენი — სამი.
+    allPeople: 'ყველა პასუხისმგებელი',
+    allTeams: 'ყველა გუნდი',
+    dateFrom: 'შექმნილია დან',
+    dateTo: 'შექმნილია მდე',
 
     manage: 'ეტაპის პარამეტრები',
     addStage: 'ეტაპის დამატება',

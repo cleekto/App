@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { propertyFactsShape, propertyKindShape } from '@kleekto/contracts';
+
 import { createPropertyManually, listProperties } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../_lib/handler';
@@ -48,16 +50,11 @@ const createSchema = z
     owner: z
       .object({ name: z.string().max(200).nullable().optional(), phone: z.string().min(1) })
       .strict(),
-    transactionType: z.enum(['SALE', 'RENT']),
-    propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']),
-    rooms: z.number().int().min(0).max(50).nullable().optional(),
-    areaTotal: z.number().positive().max(100_000).nullable().optional(),
-    floor: z.number().int().min(-5).max(200).nullable().optional(),
-    totalFloors: z.number().int().min(0).max(200).nullable().optional(),
-    district: z.string().max(200).nullable().optional(),
-    addressRaw: z.string().max(500).nullable().optional(),
-    price: z.number().nonnegative().max(1_000_000_000).nullable().optional(),
-    currency: z.string().length(3).nullable().optional(),
+    ...propertyKindShape,
+    // Тот же список, что и при правке, и тот же, что у разбора объявления:
+    // объект, заведённый руками, обязан годиться для публикации без
+    // дозаполнения (решение владельца 2026-09-06).
+    ...propertyFactsShape,
     publicDescription: z.string().max(10_000).nullable().optional(),
     /** Ключи загруженных фотографий. Чужие отсеивает ядро. */
     photoKeys: z.array(z.string().min(1).max(400)).max(20).optional(),

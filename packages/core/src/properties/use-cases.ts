@@ -1,5 +1,5 @@
 import { Prisma, prisma } from '@kleekto/db';
-import type { PropertyOrigin, PropertyType, TransactionType } from '@kleekto/db';
+import type { PropertyOrigin, PropertyType, SellerKind, TransactionType } from '@kleekto/db';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';
@@ -26,7 +26,19 @@ export interface PropertyListFilters {
   propertyType?: PropertyType | undefined;
   transactionType?: TransactionType | undefined;
   assignedUserId?: string | undefined;
+  /**
+   * Команда, ведущая объект.
+   *
+   * Сужает область, но никогда не расширяет: фильтр накладывается ПОВЕРХ
+   * области из матрицы прав, и менеджер, попросивший чужую команду, получит
+   * пусто, а не чужие объекты.
+   */
+  teamId?: string | undefined;
   origin?: PropertyOrigin | undefined;
+  /** Заведён не раньше этого момента. */
+  createdFrom?: Date | undefined;
+  /** Заведён не позже. */
+  createdTo?: Date | undefined;
   priceMin?: number | undefined;
   priceMax?: number | undefined;
   limit?: number | undefined;
@@ -88,9 +100,13 @@ const MAX_LIMIT = 100;
 /**
  * Список объектов.
  *
- * Область — из матрицы прав: агент и менеджер видят свою команду, админ —
- * всю компанию. Фильтр строится `scopeFilter`, а не руками: два разных
- * фильтра для одних данных рано или поздно разойдутся.
+ * Область — из матрицы прав: администратор видит всю компанию, менеджер —
+ * свою команду, агент — только свои объекты (решение владельца 2026-09-06).
+ * Фильтр строится `scopeFilter`, а не руками: два разных фильтра для одних
+ * данных рано или поздно разойдутся.
+ *
+ * «Свой» объект — тот, где агент НАЗНАЧЕННЫЙ, а не тот, кто его завёл:
+ * объект передают, и после передачи он свой для нового ответственного.
  */
 export async function listProperties(
   ctx: AuthContext,
@@ -98,15 +114,31 @@ export async function listProperties(
 ): Promise<PropertyList> {
   const scope = requirePermission(ctx, 'property', 'read');
 
+  /*
+   * ОБЛАСТЬ И ФИЛЬТРЫ СКЛАДЫВАЮТСЯ ЧЕРЕЗ `AND`, А НЕ СЛИЯНИЕМ ОБЪЕКТОВ.
+   *
+   * При слиянии одноимённое поле фильтра затирало бы поле области: менеджер,
+   * попросивший `teamId` соседней команды, получил бы её объекты — фильтр
+   * лёг бы поверх ограничения прав. С `AND` фильтр может только сузить.
+   */
   const where: Prisma.PropertyWhereInput = {
-    ...(scopeFilter(ctx, scope) as Prisma.PropertyWhereInput),
+    AND: [scopeFilter(ctx, scope, { ownerField: 'assignedUserId' }) as Prisma.PropertyWhereInput],
     ...(filters.pipelineStatusId === undefined
       ? {}
       : { pipelineStatusId: filters.pipelineStatusId }),
     ...(filters.propertyType === undefined ? {} : { propertyType: filters.propertyType }),
     ...(filters.transactionType === undefined ? {} : { transactionType: filters.transactionType }),
     ...(filters.assignedUserId === undefined ? {} : { assignedUserId: filters.assignedUserId }),
+    ...(filters.teamId === undefined ? {} : { teamId: filters.teamId }),
     ...(filters.origin === undefined ? {} : { origin: filters.origin }),
+    ...(filters.createdFrom === undefined && filters.createdTo === undefined
+      ? {}
+      : {
+          createdAt: {
+            ...(filters.createdFrom === undefined ? {} : { gte: filters.createdFrom }),
+            ...(filters.createdTo === undefined ? {} : { lte: filters.createdTo }),
+          },
+        }),
   };
 
   if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
@@ -448,18 +480,86 @@ export async function assignProperty(
 /**
  * Поля, редактируемые в карточке.
  *
- * `publicDescription` и цена публикации правятся ОТДЕЛЬНО от данных объекта
- * (§7): описание из объявления — чужой текст, и публиковать его от своего
- * имени странно и юридически, и стилистически.
+ * `publicDescription` правится ОТДЕЛЬНО от данных объекта (§7): описание
+ * из объявления — чужой текст, и публиковать его от своего имени странно
+ * и юридически, и стилистически.
+ *
+ * Остальное — те же факты, что и при заведении вручную: агент, дозвонившийся
+ * до собственника, узнаёт этаж и состояние ремонта уже после того, как завёл
+ * объект, и дописать это он должен там же, где смотрит.
  */
-export interface PropertyEditInput {
+export interface PropertyEditInput extends PropertyEditableFacts {
   publicDescription?: string | null | undefined;
-  price?: number | null | undefined;
-  currency?: string | null | undefined;
-  district?: string | null | undefined;
-  addressRaw?: string | null | undefined;
+  transactionType?: TransactionType | undefined;
+  propertyType?: PropertyType | undefined;
   /** Полный список фотографий после правки: и порядок, и состав. */
   photos?: string[] | undefined;
+}
+
+/**
+ * Факты об объекте, которые вводит человек.
+ *
+ * Один список на заведение и на правку. Пока их было два, они расходились:
+ * поле появлялось в форме заведения и не появлялось в форме правки — и
+ * исправить опечатку в кадастровом коде было негде.
+ */
+export interface PropertyEditableFacts {
+  rooms?: number | null | undefined;
+  bedrooms?: number | null | undefined;
+  areaTotal?: number | null | undefined;
+  floor?: number | null | undefined;
+  totalFloors?: number | null | undefined;
+  bathrooms?: string | null | undefined;
+  balconies?: number | null | undefined;
+  balconyArea?: number | null | undefined;
+  houseArea?: number | null | undefined;
+  yardArea?: number | null | undefined;
+  condition?: string | null | undefined;
+  buildingStatus?: string | null | undefined;
+  projectType?: string | null | undefined;
+  cadastralCode?: string | null | undefined;
+  sellerKind?: SellerKind | null | undefined;
+  district?: string | null | undefined;
+  addressRaw?: string | null | undefined;
+  price?: number | null | undefined;
+  currency?: string | null | undefined;
+}
+
+/**
+ * Имена полей фактов — одним списком, чтобы копировать их в запрос циклом.
+ *
+ * Девятнадцать `if` подряд читаются хуже и ломаются тише: добавил поле
+ * в тип, забыл строку — и правка молча не доезжает до базы.
+ */
+export const FACT_FIELDS = [
+  'rooms',
+  'bedrooms',
+  'areaTotal',
+  'floor',
+  'totalFloors',
+  'bathrooms',
+  'balconies',
+  'balconyArea',
+  'houseArea',
+  'yardArea',
+  'condition',
+  'buildingStatus',
+  'projectType',
+  'cadastralCode',
+  'sellerKind',
+  'district',
+  'addressRaw',
+  'price',
+  'currency',
+] as const satisfies ReadonlyArray<keyof PropertyEditableFacts>;
+
+/**
+ * Факты в том виде, в каком их принимает база: `undefined` превращается
+ * в `null`. У новой записи «не передано» и «пусто» — одно и то же, в отличие
+ * от правки, где не переданное поле трогать нельзя.
+ */
+function factsOf(input: PropertyEditableFacts): Record<string, unknown> {
+  return Object.fromEntries(FACT_FIELDS.map((field) => [field, input[field] ?? null]));
 }
 
 export async function updateProperty(
@@ -492,12 +592,32 @@ export async function updateProperty(
   });
 
   const data: Prisma.PropertyUpdateInput = {};
+
+  /*
+   * Копируется только то, что пришло. `undefined` означает «не трогай»,
+   * `null` — «очисти»: разница существенная, и потерять её значило бы
+   * стирать поля, которых форма даже не показывала.
+   */
+  const fields = data as Record<string, unknown>;
+  for (const field of FACT_FIELDS) {
+    if (input[field] !== undefined) fields[field] = input[field];
+  }
+
   if (input.publicDescription !== undefined) data.publicDescription = input.publicDescription;
-  if (input.price !== undefined) data.price = input.price;
-  if (input.currency !== undefined) data.currency = input.currency;
-  if (input.district !== undefined) data.district = input.district;
-  if (input.addressRaw !== undefined) data.addressRaw = input.addressRaw;
+  if (input.transactionType !== undefined) data.transactionType = input.transactionType;
+  if (input.propertyType !== undefined) data.propertyType = input.propertyType;
   if (input.photos !== undefined) data.photos = keepablePhotos(ctx, input.photos, property.photos);
+
+  /*
+   * ПРИВЕДЁННЫЙ АДРЕС ПЕРЕСЧИТЫВАЕТСЯ ВМЕСТЕ С ОБЫЧНЫМ.
+   *
+   * По нему идёт и поиск, и сравнение на дубли. Оставленный старым, он врал
+   * бы молча: объект нашёлся бы по прежнему адресу и не нашёлся бы по новому,
+   * а дедупликация сравнивала бы то, чего в карточке уже нет.
+   */
+  if (input.addressRaw !== undefined) {
+    data.addressNormalized = input.addressRaw === null ? null : normalizeAddress(input.addressRaw);
+  }
 
   if (Object.keys(data).length === 0) {
     throw new ValidationError('Менять нечего: не передано ни одного поля');
@@ -585,18 +705,10 @@ async function sharedLinks(
 
 // ── Ручное заведение объекта ─────────────────────────────────────────────────
 
-export interface CreatePropertyInput {
+export interface CreatePropertyInput extends PropertyEditableFacts {
   owner: { name?: string | null | undefined; phone: string };
   transactionType: TransactionType;
   propertyType: PropertyType;
-  rooms?: number | null | undefined;
-  areaTotal?: number | null | undefined;
-  floor?: number | null | undefined;
-  totalFloors?: number | null | undefined;
-  district?: string | null | undefined;
-  addressRaw?: string | null | undefined;
-  price?: number | null | undefined;
-  currency?: string | null | undefined;
   publicDescription?: string | null | undefined;
   /**
    * Ключи загруженных фотографий в хранилище.
@@ -772,17 +884,12 @@ export async function createPropertyManually(
         ownerContactId: ownerContact.id,
         transactionType: input.transactionType,
         propertyType: input.propertyType,
-        rooms: input.rooms ?? null,
-        areaTotal: input.areaTotal ?? null,
-        floor: input.floor ?? null,
-        totalFloors: input.totalFloors ?? null,
-        district: input.district ?? null,
-        addressRaw: input.addressRaw ?? null,
+        // Факты — тем же списком, что и при правке: иначе поле, добавленное
+        // в форму, доезжало бы до базы в одном сценарии и терялось в другом.
+        ...factsOf(input),
         addressNormalized,
-        price: input.price ?? null,
-        currency: input.currency ?? null,
         publicDescription: input.publicDescription ?? null,
-        photos: [],
+        photos: ownKeys(ctx, input.photoKeys),
       },
       select: { id: true },
     });

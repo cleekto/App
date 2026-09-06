@@ -11,6 +11,7 @@
 export * from './errors';
 export * from './health';
 export * from './listing';
+export * from './property-fields';
 export * from './publish';
 
 /** Версия API в пути. Инвариант 8: ломающее изменение — это `/api/v2`. */

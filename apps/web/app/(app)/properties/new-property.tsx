@@ -6,8 +6,9 @@ import { useState } from 'react';
 import { UploadButton, type UploadResult } from '../../_ui/upload';
 
 import { failureText } from '../../_ui/failure';
-import { Button, Field, Input, Notice, Select } from '../../_ui/primitives';
+import { Button, Field, Input, Notice } from '../../_ui/primitives';
 import { notifyError } from '../../_ui/toast';
+import { FactFields, optionalText, readFacts, type FactLabels } from './fact-fields';
 
 /**
  * Заведение объекта руками.
@@ -20,7 +21,7 @@ import { notifyError } from '../../_ui/toast';
  * Строк здесь нет — всё приходит пропсами из словаря (правило 18).
  */
 
-export interface NewPropertyLabels {
+export interface NewPropertyLabels extends FactLabels {
   trigger: string;
   photos: string;
   photoChoose: string;
@@ -35,17 +36,6 @@ export interface NewPropertyLabels {
   ownerPhone: string;
   ownerPhoneHint: string;
 
-  transactionType: string;
-  propertyType: string;
-  rooms: string;
-  area: string;
-  floor: string;
-  totalFloors: string;
-  district: string;
-  address: string;
-  price: string;
-  currency: string;
-
   duplicateTitle: string;
   duplicateHint: string;
   openExisting: string;
@@ -57,30 +47,14 @@ interface DuplicateMatch {
   preview: { address: string | null; area: number | null; rooms: number | null };
 }
 
-/** Число из формы: пустое поле — это «не указано», а не ноль. */
-function optionalNumber(value: FormDataEntryValue | null): number | null {
-  const text = String(value ?? '').trim();
-  if (text === '') return null;
-
-  const parsed = Number(text);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function optionalText(value: FormDataEntryValue | null): string | null {
-  const text = String(value ?? '').trim();
-  return text === '' ? null : text;
-}
-
 export function NewProperty({
   labels,
   types,
   transactions,
-  currencies,
 }: {
   labels: NewPropertyLabels;
   types: Array<{ value: string; label: string }>;
   transactions: Array<{ value: string; label: string }>;
-  currencies: readonly string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -213,16 +187,7 @@ export function NewProperty({
             name: optionalText(form.get('ownerName')),
             phone: String(form.get('ownerPhone') ?? ''),
           },
-          transactionType: String(form.get('transactionType') ?? ''),
-          propertyType: String(form.get('propertyType') ?? ''),
-          rooms: optionalNumber(form.get('rooms')),
-          areaTotal: optionalNumber(form.get('areaTotal')),
-          floor: optionalNumber(form.get('floor')),
-          totalFloors: optionalNumber(form.get('totalFloors')),
-          district: optionalText(form.get('district')),
-          addressRaw: optionalText(form.get('addressRaw')),
-          price: optionalNumber(form.get('price')),
-          currency: optionalText(form.get('currency')),
+          ...readFacts(form),
         });
       }}
     >
@@ -273,68 +238,7 @@ export function NewProperty({
         </Field>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={labels.transactionType}>
-          <Select name="transactionType" defaultValue="SALE">
-            {transactions.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-
-        <Field label={labels.propertyType}>
-          <Select name="propertyType" defaultValue="APARTMENT">
-            {types.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={labels.address}>
-          <Input name="addressRaw" autoComplete="off" />
-        </Field>
-
-        <Field label={labels.district}>
-          <Input name="district" autoComplete="off" />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-4">
-        <Field label={labels.rooms}>
-          <Input name="rooms" inputMode="numeric" />
-        </Field>
-        <Field label={labels.area}>
-          <Input name="areaTotal" inputMode="decimal" />
-        </Field>
-        <Field label={labels.floor}>
-          <Input name="floor" inputMode="numeric" />
-        </Field>
-        <Field label={labels.totalFloors}>
-          <Input name="totalFloors" inputMode="numeric" />
-        </Field>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label={labels.price}>
-          <Input name="price" inputMode="decimal" />
-        </Field>
-
-        <Field label={labels.currency}>
-          <Select name="currency" defaultValue={currencies[0]}>
-            {currencies.map((code) => (
-              <option key={code} value={code}>
-                {code}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      </div>
+      <FactFields labels={labels} types={types} transactions={transactions} />
 
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" disabled={busy}>

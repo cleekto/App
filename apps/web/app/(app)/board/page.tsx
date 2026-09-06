@@ -1,9 +1,18 @@
-import { listPipelineStatuses, listProperties, permissionScope } from '@kleekto/core';
+import {
+  fileUrls,
+  listPipelineStatuses,
+  listProperties,
+  listTeams,
+  listUsers,
+  permissionScope,
+} from '@kleekto/core';
 import { translate } from '@kleekto/i18n';
 
 import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
+import { editLabels, propertyTypeOptions, transactionOptions } from '../../_lib/property-labels';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Board } from './board';
+import { BoardFilters } from './filters';
 
 /**
  * Доска по воронке — DESIGN §16.
@@ -12,14 +21,75 @@ import { Board } from './board';
  * редактируется агентством (инвариант 4). Захардкодить их значило бы сломать
  * доску первому же агентству, которое добавит свой этап.
  */
-export default async function BoardPage() {
+export default async function BoardPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await requireContext();
   const locale = contextLocale(ctx);
+  const params = await searchParams;
 
-  const [statuses, { items }] = await Promise.all([
+  const single = (key: string): string | undefined => {
+    const value = params[key];
+    return typeof value === 'string' && value !== '' ? value : undefined;
+  };
+
+  /*
+   * Дата из адреса — `ГГГГ-ММ-ДД`, ровно то, что отдаёт поле `date`.
+   *
+   * Верхняя граница берётся концом дня: «по 6 сентября» человек понимает
+   * как «включая шестое», а `2026-09-06` без времени — это полночь, то есть
+   * весь день оказался бы за границей.
+   */
+  const dateFrom = (raw: string | undefined): Date | undefined => {
+    if (raw === undefined) return undefined;
+    const parsed = new Date(`${raw}T00:00:00`);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  };
+  const dateTo = (raw: string | undefined): Date | undefined => {
+    if (raw === undefined) return undefined;
+    const parsed = new Date(`${raw}T23:59:59.999`);
+    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+  };
+
+  // Правило 6: кнопка правки прячется у того, кому сервер откажет.
+  const canEdit = permissionScope(ctx.role, 'property', 'update') !== null;
+  // Списки для фильтров запрашиваются, только если человеку положено:
+  // обращение за списком без права вернуло бы отказ и уронило бы доску.
+  const canListPeople = permissionScope(ctx.role, 'user', 'read') !== null;
+  const canListTeams = permissionScope(ctx.role, 'team', 'read') !== null;
+
+  const [statuses, { items }, people, teams] = await Promise.all([
     listPipelineStatuses(ctx),
-    listProperties(ctx, { limit: 100 }),
+    listProperties(ctx, {
+      limit: 100,
+      query: single('query'),
+      assignedUserId: single('agent'),
+      teamId: single('team'),
+      createdFrom: dateFrom(single('from')),
+      createdTo: dateTo(single('to')),
+    }),
+    canListPeople ? listUsers(ctx) : Promise.resolve([]),
+    canListTeams ? listTeams(ctx) : Promise.resolve([]),
   ]);
+
+  /*
+   * Обложки и лица подписываются на сервере, все сразу: бак приватный,
+   * постоянного адреса у файла нет. Лица — по УНИКАЛЬНЫМ ключам: у одного
+   * агента на доске легко десять карточек.
+   */
+  const photoUrls = await fileUrls(
+    ctx,
+    items.map((item) => item.photo ?? ''),
+  );
+  const photoOf = new Map(items.map((item, index) => [item.id, photoUrls[index] ?? null]));
+
+  const faceKeys = [
+    ...new Set(items.map((item) => item.assignedUserAvatarKey).filter((key) => key !== null)),
+  ];
+  const faceUrls = await fileUrls(ctx, faceKeys);
+  const faceOf = new Map(faceKeys.map((key, index) => [key, faceUrls[index] ?? null]));
 
   // Настройка воронки — право руководителя. Проверяется по матрице, а не по
   // списку ролей: право отзовут в матрице, а выписанный здесь заново список
@@ -31,6 +101,21 @@ export default async function BoardPage() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t('board.title')}</h1>
+
+      <BoardFilters
+        labels={{
+          search: t('property.search'),
+          allPeople: t('board.allPeople'),
+          allTeams: t('board.allTeams'),
+          from: t('board.dateFrom'),
+          to: t('board.dateTo'),
+          reset: t('property.reset'),
+        }}
+        people={people
+          .filter((person) => person.isActive)
+          .map((person) => ({ id: person.id, name: person.fullName }))}
+        teams={teams.map((team) => ({ id: team.id, name: team.name }))}
+      />
 
       <Board
         canManage={canManage}
@@ -54,9 +139,26 @@ export default async function BoardPage() {
           kind: kindLine(locale, item),
           facts: factsLine(locale, item),
           place: placeLine(item),
+          photo: photoOf.get(item.id) ?? null,
+          agentName: item.assignedUserName,
+          agentAvatar:
+            item.assignedUserAvatarKey === null
+              ? null
+              : (faceOf.get(item.assignedUserAvatarKey) ?? null),
         }))}
+        edit={
+          canEdit
+            ? {
+                labels: editLabels(locale),
+                types: propertyTypeOptions(locale),
+                transactions: transactionOptions(locale),
+              }
+            : null
+        }
         labels={{
           empty: t('board.empty'),
+          photoAlt: t('property.photoAlt'),
+          unassigned: t('property.unassigned'),
           manage: t('board.manage'),
           addStage: t('board.addStage'),
           stageName: t('board.stageName'),

@@ -110,6 +110,22 @@ describe('матрица прав', () => {
       expect(permissionScope(role, 'pipelineStatus', 'read'), role).toBe('company');
     }
   });
+
+  it('объекты: администратор видит компанию, менеджер — команду, агент — только свои', () => {
+    // Решение владельца 2026-09-06. Прежде агент читал по команде — довод
+    // «чтобы не звонить дважды» снят: от повторного звонка защищает проверка
+    // дублей на сервере, а не показ чужой карточки.
+    expect(permissionScope(RoleCode.ADMIN, 'property', 'read')).toBe('company');
+    expect(permissionScope(RoleCode.MANAGER, 'property', 'read')).toBe('team');
+    expect(permissionScope(RoleCode.AGENT, 'property', 'read')).toBe('own');
+  });
+
+  it('заводит объект агент всё ещё в области команды', () => {
+    // Объект принадлежит команде, а не лично заведшему: назначенным может
+    // оказаться коллега, и сузить создание до «своего» значило бы запретить
+    // заводить объект на другого человека.
+    expect(permissionScope(RoleCode.AGENT, 'property', 'create')).toBe('team');
+  });
 });
 
 describe('requirePermission', () => {

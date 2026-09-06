@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Photo } from '../../_ui/photo';
+import { EditProperty } from './edit-property';
 import { NewProperty } from './new-property';
 import { Avatar, StagePill } from '../../_ui/accent';
 import { PropertyCard } from './property-card';
@@ -18,6 +19,12 @@ import {
   statusLabel,
 } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
+import {
+  editLabels,
+  factLabels,
+  propertyTypeOptions,
+  transactionOptions,
+} from '../../_lib/property-labels';
 import { PropertyFilters } from './filters';
 
 /**
@@ -96,6 +103,17 @@ export default async function PropertiesPage({
 
   const foundLine = `${String(total)} ${t('property.found')}`;
 
+  // Подписи полей — общие для заведения и правки: см. `property-labels`.
+  const facts = factLabels(locale);
+  const edit = editLabels(locale);
+  const types = propertyTypeOptions(locale);
+  const transactions = transactionOptions(locale);
+
+  // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
+  // Область у агента — свои объекты, и в отказе он убедился бы уже
+  // после того, как заполнил форму.
+  const canEdit = permissionScope(ctx.role, 'property', 'update') !== null;
+
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
@@ -118,32 +136,14 @@ export default async function PropertiesPage({
                   photoChoose: t('property.photoChoose'),
                   photoBusy: t('property.photoBusy'),
                   photoFailed: t('property.photoFailed'),
-                  transactionType: t('property.transactionLabel'),
-                  propertyType: t('property.typeLabel'),
-                  rooms: t('property.roomsLabel'),
-                  area: t('property.areaLabel'),
-                  floor: t('property.floorLabel'),
-                  totalFloors: t('property.totalFloorsLabel'),
-                  district: t('property.districtLabel'),
-                  address: t('property.addressLabel'),
-                  price: t('property.priceLabel'),
-                  currency: t('property.currencyLabel'),
+                  ...facts,
                   duplicateTitle: t('property.duplicateTitle'),
                   duplicateHint: t('property.duplicateHint'),
                   openExisting: t('property.publishCheckOpenExisting'),
                   createAnyway: t('property.createAnyway'),
                 }}
-                types={[
-                  { value: 'APARTMENT', label: t('property.type.APARTMENT') },
-                  { value: 'HOUSE', label: t('property.type.HOUSE') },
-                  { value: 'LAND', label: t('property.type.LAND') },
-                  { value: 'COMMERCIAL', label: t('property.type.COMMERCIAL') },
-                ]}
-                transactions={[
-                  { value: 'SALE', label: t('property.transaction.SALE') },
-                  { value: 'RENT', label: t('property.transaction.RENT') },
-                ]}
-                currencies={CURRENCIES}
+                types={types}
+                transactions={transactions}
               />
             ) : null}
           </div>
@@ -233,7 +233,7 @@ export default async function PropertiesPage({
         <Card className="overflow-hidden">
           <ul className="divide-y divide-[var(--color-border)]">
             {items.map((item) => (
-              <li key={item.id}>
+              <li key={item.id} className="flex items-center">
                 <Link
                   href={`/properties/${item.id}`}
                   /*
@@ -243,7 +243,7 @@ export default async function PropertiesPage({
                    * под курсором, когда их два десятка и они одинаковой
                    * высоты. Двигается только `transform`.
                    */
-                  className="group relative grid grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-[var(--duration-fast)] before:absolute before:inset-y-1 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent before:transition-colors [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)] [@media(hover:hover)and(pointer:fine)]:hover:before:bg-[var(--color-brand)]"
+                  className="group relative grid flex-1 grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-[var(--duration-fast)] before:absolute before:inset-y-1 before:left-0 before:w-[3px] before:rounded-full before:bg-transparent before:transition-colors [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)] [@media(hover:hover)and(pointer:fine)]:hover:before:bg-[var(--color-brand)]"
                 >
                   {/* Недвижимость узнают по картинке, а не по строке
                       «Квартира · Продажа». Без неё двадцать строк подряд
@@ -303,6 +303,25 @@ export default async function PropertiesPage({
                     </span>
                   </div>
                 </Link>
+
+                {/* Правка прямо из списка: заметил неверную цену — исправил,
+                    не открывая карточку и не теряя места, до которого
+                    долистал.
+
+                    Кнопка стоит РЯДОМ со ссылкой, а не внутри неё: кнопка
+                    внутри ссылки — недопустимая вложенность, и ведёт она
+                    себя по-разному в разных браузерах и с клавиатуры. */}
+                {canEdit ? (
+                  <span className="shrink-0 pr-4">
+                    <EditProperty
+                      propertyId={item.id}
+                      labels={edit}
+                      types={types}
+                      transactions={transactions}
+                      compact
+                    />
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
@@ -311,12 +330,3 @@ export default async function PropertiesPage({
     </div>
   );
 }
-
-/**
- * Валюты, в которых агентства ведут объекты в Грузии.
- *
- * Доллар первым: цены на недвижимость в Тбилиси называют в нём, а лари —
- * валюта расчётов. Список закрыт: свободное поле здесь дало бы «USD»,
- * «usd» и «долл.» в одной базе, и сравнивать цены стало бы нечем.
- */
-const CURRENCIES = ['USD', 'GEL', 'EUR'] as const;

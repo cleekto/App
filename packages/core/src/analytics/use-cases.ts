@@ -105,19 +105,28 @@ export interface Dashboard {
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Ограничение по команде из уже посчитанной области.
+ * Ограничение по области из уже посчитанного фильтра объектов.
  *
  * Область берётся из матрицы прав один раз и переиспользуется: считать её
  * заново в каждой метрике значило бы завести пять мест, где она может
  * разойтись.
+ *
+ * У ЖУРНАЛА ДЕЙСТВИЙ СВОИ КОЛОНКИ, поэтому фильтр объектов переводится:
+ * команда — в `teamId`, «только своё» — в `userId`. Без перевода агент,
+ * который видит лишь свои объекты, читал бы в аналитике действия всей
+ * компании: пустой фильтр — это не «моё», а «всё».
  */
-function teamOf(where: Prisma.PropertyWhereInput): { teamId?: string } {
-  return typeof where.teamId === 'string' ? { teamId: where.teamId } : {};
+function narrowOf(where: Prisma.PropertyWhereInput): { teamId?: string; userId?: string } {
+  if (typeof where.teamId === 'string') return { teamId: where.teamId };
+  if (typeof where.assignedUserId === 'string') return { userId: where.assignedUserId };
+  return {};
 }
 
 export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promise<Dashboard> {
   const scope = requirePermission(ctx, 'property', 'read');
-  const where = scopeFilter(ctx, scope) as Prisma.PropertyWhereInput;
+  const where = scopeFilter(ctx, scope, {
+    ownerField: 'assignedUserId',
+  }) as Prisma.PropertyWhereInput;
 
   const dayFrom = new Date(now.getTime() - DAY_MS);
   const weekFrom = new Date(now.getTime() - 7 * DAY_MS);
@@ -194,7 +203,7 @@ async function peopleActivity(
       companyId: ctx.companyId,
       action: ACTIVITY.OWNER_AGREED,
       createdAt: { gte: weekFrom },
-      ...teamOf(where),
+      ...narrowOf(where),
     },
     _count: true,
   });
@@ -232,7 +241,7 @@ async function quality(
   where: Prisma.PropertyWhereInput,
   weekFrom: Date,
 ): Promise<Dashboard['quality']> {
-  const teamFilter = teamOf(where);
+  const teamFilter = narrowOf(where);
 
   const [agreed, warned] = await Promise.all([
     prisma.activityLog.count({
@@ -286,7 +295,7 @@ async function publishing(
   weekFrom: Date,
   totalProperties: number,
 ): Promise<Dashboard['publishing']> {
-  const teamFilter = teamOf(where);
+  const teamFilter = narrowOf(where);
   const base = { companyId: ctx.companyId, ...teamFilter };
 
   const [filledToday, filledThisWeek, publishedThisWeek, publishedProperties, reports] =

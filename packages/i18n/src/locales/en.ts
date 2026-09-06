@@ -188,6 +188,12 @@ export const en = {
     photoRemove: 'Remove photo',
     photoSaveFailed: 'Could not save',
 
+    // Editing a property — from its card, from the list and from the board.
+    edit: 'Edit',
+    editTitle: 'Edit property',
+    editFailed: 'Could not save',
+    notSpecified: 'Not specified',
+
     characteristics: 'Characteristics',
     bedrooms: 'Bedrooms',
     bathrooms: 'Bathrooms',
@@ -220,6 +226,13 @@ export const en = {
   board: {
     title: 'Board',
     empty: 'Nothing in this status',
+
+    // Board filters: in an agency of twenty, a column holds forty cards
+    // and three of them are yours.
+    allPeople: 'All agents',
+    allTeams: 'All teams',
+    dateFrom: 'Added from',
+    dateTo: 'Added to',
 
     manage: 'Stage settings',
     addStage: 'Add stage',

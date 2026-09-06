@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { propertyFactsShape, propertyKindShape } from '@kleekto/contracts';
+
 import { getProperty, updateProperty } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
@@ -16,10 +18,11 @@ export const dynamic = 'force-dynamic';
 const patchSchema = z
   .object({
     publicDescription: z.string().max(10_000).nullable().optional(),
-    price: z.number().positive().nullable().optional(),
-    currency: z.string().length(3).nullable().optional(),
-    district: z.string().max(200).nullable().optional(),
-    addressRaw: z.string().max(500).nullable().optional(),
+    // Те же факты, что и при заведении: агент узнаёт этаж и состояние
+    // ремонта уже после того, как завёл объект.
+    ...propertyFactsShape,
+    transactionType: propertyKindShape.transactionType.optional(),
+    propertyType: propertyKindShape.propertyType.optional(),
     // Полный список после правки: и состав, и порядок. Что из него уцелеет,
     // решает сервер — чужие ключи он отсеивает сам.
     photos: z.array(z.string().min(1).max(500)).max(20).optional(),

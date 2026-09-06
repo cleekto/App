@@ -3,7 +3,10 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { Avatar } from '../../_ui/accent';
+import { Photo } from '../../_ui/photo';
 import { Button, Input } from '../../_ui/primitives';
+import { EditProperty, type EditPropertyLabels } from '../properties/edit-property';
 import { notifyError } from '../../_ui/toast';
 import { ColumnMenu, columnColor, type ColumnMenuLabels } from './column-menu';
 
@@ -29,6 +32,10 @@ interface CardLines {
 interface Card extends CardLines {
   id: string;
   pipelineStatusId: string;
+  /** Подписанная ссылка на обложку. Подписывает сервер, доска показывает. */
+  photo: string | null;
+  agentName: string | null;
+  agentAvatar: string | null;
 }
 
 interface Column {
@@ -44,6 +51,8 @@ interface Column {
 
 export interface BoardLabels extends ColumnMenuLabels {
   empty: string;
+  photoAlt: string;
+  unassigned: string;
   addStage: string;
   stageName: string;
   manage: string;
@@ -87,11 +96,23 @@ export function Board({
   columns,
   items,
   labels,
+  edit,
   canManage,
 }: {
   columns: Column[];
   items: Card[];
   labels: BoardLabels;
+  /**
+   * Подписи формы правки либо `null`, если правка человеку недоступна.
+   *
+   * Приходят готовыми с сервера: внутри `translate`, а собирать строки
+   * в браузере запрещено — у него может не быть данных грузинской локали.
+   */
+  edit: {
+    labels: EditPropertyLabels;
+    types: Array<{ value: string; label: string }>;
+    transactions: Array<{ value: string; label: string }>;
+  } | null;
   /**
    * Настройка воронки — право руководителя (админ и менеджер). Агент доску
    * читает и двигает по ней свои объекты, но состав стадий не меняет.
@@ -345,23 +366,72 @@ export function Board({
               </p>
             ) : (
               inColumn.map((card) => (
-                <a
-                  key={card.id}
-                  href={`/properties/${card.id}`}
-                  draggable
-                  onDragStart={() => setDragging({ kind: 'card', id: card.id })}
-                  onDragEnd={() => setDragging(null)}
-                  className="cursor-grab rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
-                >
-                  <p className="text-sm font-medium">{card.price}</p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">{card.kind}</p>
-                  <p className="text-xs text-[var(--color-text-secondary)]">{card.facts}</p>
-                  {card.place === '' ? null : (
-                    <p className="truncate text-xs text-[var(--color-text-secondary)]">
-                      {card.place}
-                    </p>
+                /*
+                 * Обёртка нужна, чтобы кнопка правки стояла РЯДОМ со ссылкой,
+                 * а не внутри неё: кнопка внутри ссылки — недопустимая
+                 * вложенность, и ведёт она себя по-разному в разных браузерах
+                 * и с клавиатуры.
+                 */
+                <div key={card.id} className="relative">
+                  <a
+                    href={`/properties/${card.id}`}
+                    draggable
+                    onDragStart={() => setDragging({ kind: 'card', id: card.id })}
+                    onDragEnd={() => setDragging(null)}
+                    className="cursor-grab rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
+                  >
+                    <div className="flex gap-2.5">
+                      {/* Обложка на карточке: доска — это взгляд сверху,
+                        и различать колонку из восьми карточек по трём
+                        строкам текста глазу нечем. */}
+                      <Photo
+                        src={card.photo}
+                        alt={labels.photoAlt}
+                        className="h-12 w-16 shrink-0"
+                      />
+
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">{card.price}</p>
+                        <p className="truncate text-xs text-[var(--color-text-secondary)]">
+                          {card.kind}
+                        </p>
+                        <p className="truncate text-xs text-[var(--color-text-secondary)]">
+                          {card.facts}
+                        </p>
+                      </div>
+                    </div>
+
+                    {card.place === '' ? null : (
+                      <p className="mt-1 truncate text-xs text-[var(--color-text-secondary)]">
+                        {card.place}
+                      </p>
+                    )}
+
+                    {/* Ответственный и правка — одной строкой внизу.
+                      Руководителю на доске нужно видеть не только где объект,
+                      но и у кого он. */}
+                    <div className="mt-2 flex min-w-0 items-center gap-1.5 pr-16">
+                      {card.agentName === null ? null : (
+                        <Avatar name={card.agentName} src={card.agentAvatar} size="sm" />
+                      )}
+                      <span className="truncate text-[0.6875rem] text-[var(--color-text-tertiary)]">
+                        {card.agentName ?? labels.unassigned}
+                      </span>
+                    </div>
+                  </a>
+
+                  {edit === null ? null : (
+                    <span className="absolute right-2 bottom-2">
+                      <EditProperty
+                        propertyId={card.id}
+                        labels={edit.labels}
+                        types={edit.types}
+                        transactions={edit.transactions}
+                        compact
+                      />
+                    </span>
                   )}
-                </a>
+                </div>
               ))
             )}
           </section>
