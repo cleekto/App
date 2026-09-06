@@ -161,7 +161,8 @@ describe('дашборд', () => {
     // оформленная как удобство.
     expect((await dashboard(actors.admin)).scope).toBe('company');
     expect((await dashboard(actors.manager)).scope).toBe('team');
-    expect((await dashboard(actors.agent)).scope).toBe('team');
+    // Агент видит своё, а не команду: сужено решением владельца 2026-09-06.
+    expect((await dashboard(actors.agent)).scope).toBe('own');
   });
 
   it('цифры администратора не меньше цифр одной команды', async () => {
@@ -210,10 +211,16 @@ describe('дашборд', () => {
   });
 
   it('агент не получает область компании ни при каком контексте', async () => {
-    // Подделанный контекст с ролью агента и чужой компанией не даёт ничего:
-    // область берётся из роли, а компания — из подписанного токена.
+    /*
+     * Подделанный контекст с ролью агента и чужой компанией не даёт ничего:
+     * область берётся из роли, а компания — из подписанного токена.
+     *
+     * Область агента — «своё», а не «команда»: сужена решением владельца
+     * 2026-09-06 после аудита, показавшего, что «видит только свои объекты»
+     * было показом, а не границей доступа.
+     */
     const forged: AuthContext = { ...actors.agent, role: RoleCode.AGENT };
-    expect((await dashboard(forged)).scope).toBe('team');
+    expect((await dashboard(forged)).scope).toBe('own');
   });
 });
 
