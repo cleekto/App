@@ -2,6 +2,8 @@
 
 import { useRef, useState } from 'react';
 
+import { failureText } from './failure';
+
 /**
  * Загрузка картинок в хранилище.
  *
@@ -22,24 +24,37 @@ export interface UploadResult {
   previewUrl: string;
 }
 
+/** Чем кончилась загрузка. Отказ несёт причину, а не просто «нет». */
+export type UploadOutcome =
+  { ok: true; file: UploadResult } | { ok: false; reason: string; where: 'ticket' | 'storage' };
+
 /**
- * Загружает один файл и возвращает его ключ.
+ * Загружает один файл.
  *
- * Ошибки не глотаются: `null` означает «не вышло», и вызывающий обязан
- * это показать. Молчаливый провал загрузки — худший вид: человек думает,
- * что фотография на месте.
+ * ПРИЧИНА ОТКАЗА ДОХОДИТ ДО ЧЕЛОВЕКА. Раньше функция возвращала `null` на
+ * любую беду, и кнопка показывала одно «загрузить не вышло» — что на не
+ * настроенное хранилище, что на слишком большой файл, что на отказ самого
+ * хранилища. Отличить их снаружи было нельзя, и каждое обращение
+ * «не грузятся фотографии» начиналось с догадок.
+ *
+ * Разделены и МЕСТА отказа: наш сервер (`ticket`) и хранилище (`storage`).
+ * Это разные неисправности с разным лечением — не заданные переменные
+ * окружения против недоступного бака.
  */
 export async function uploadFile(
   file: File,
   kind: 'avatar' | 'property',
-): Promise<UploadResult | null> {
+  fallback: string,
+): Promise<UploadOutcome> {
   const ticket = await fetch('/api/v1/uploads', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ kind, contentType: file.type, sizeBytes: file.size }),
   });
 
-  if (!ticket.ok) return null;
+  if (!ticket.ok) {
+    return { ok: false, where: 'ticket', reason: await failureText(ticket, {}, fallback) };
+  }
 
   const { uploadUrl, key } = (await ticket.json()) as { uploadUrl: string; key: string };
 
@@ -49,9 +64,14 @@ export async function uploadFile(
     body: file,
   });
 
-  if (!put.ok) return null;
+  if (!put.ok) {
+    // Тело ответа хранилища — чужой XML, и показывать его человеку незачем.
+    // Код состояния при этом говорит многое: 403 — подпись или доступ,
+    // 404 — нет бака.
+    return { ok: false, where: 'storage', reason: `${fallback} (${String(put.status)})` };
+  }
 
-  return { key, previewUrl: URL.createObjectURL(file) };
+  return { ok: true, file: { key, previewUrl: URL.createObjectURL(file) } };
 }
 
 /**
@@ -73,7 +93,7 @@ export function UploadButton({
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -88,12 +108,16 @@ export function UploadButton({
           if (files.length === 0) return;
 
           setBusy(true);
-          setFailed(false);
+          setFailed(null);
 
-          void Promise.all(files.map((file) => uploadFile(file, kind)))
+          void Promise.all(files.map((file) => uploadFile(file, kind, labels.failed)))
             .then((results) => {
-              const done = results.filter((item): item is UploadResult => item !== null);
-              if (done.length !== files.length) setFailed(true);
+              const done = results.filter((item) => item.ok).map((item) => item.file);
+              // Показывается ПЕРВАЯ причина, а не «часть файлов не взялась»:
+              // при отказе хранилища причина у всех одна, и повторять её
+              // столько раз, сколько файлов, незачем.
+              const failure = results.find((item) => !item.ok);
+              if (failure !== undefined && !failure.ok) setFailed(failure.reason);
               if (done.length > 0) onUploaded(done);
             })
             .finally(() => {
@@ -114,7 +138,9 @@ export function UploadButton({
         {busy ? labels.busy : labels.choose}
       </button>
 
-      {failed ? <span className="text-xs text-[var(--color-danger)]">{labels.failed}</span> : null}
+      {failed === null ? null : (
+        <span className="text-xs text-[var(--color-danger)]">{failed}</span>
+      )}
     </div>
   );
 }
