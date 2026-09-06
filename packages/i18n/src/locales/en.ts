@@ -123,6 +123,7 @@ export const en = {
   },
 
   nav: {
+    feed: 'Work feed',
     properties: 'My properties',
     board: 'My board',
     tasks: 'My tasks',
@@ -133,6 +134,25 @@ export const en = {
     menu: 'Menu',
     closeMenu: 'Close menu',
     unread: 'You have unread messages',
+  },
+  feed: {
+    title: 'Work feed',
+    subtitle: 'Owner listings from ss.ge and myhome.ge, newest first',
+    empty: 'Nothing here yet',
+    emptyHint:
+      'The feed fills up as you browse listing pages on ss.ge and myhome.ge with the extension on. Only listings posted by owners get in.',
+    photoAlt: 'Listing photo',
+    open: 'Open on the site',
+    seen: 'Last seen',
+    priceChanged: 'Price changed',
+    source: 'Source',
+    filterAll: 'All',
+    district: 'District',
+    priceMax: 'Price up to',
+    apply: 'Apply',
+    reset: 'Reset',
+    found: 'listings',
+    hint: 'Opens on the source site. Call, then use the extension to record the outcome.',
   },
   auth: {
     signIn: 'Sign in',

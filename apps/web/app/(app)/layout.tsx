@@ -40,6 +40,15 @@ const ICONS: Record<string, ReactNode> = {
       <path d="M9.5 20v-6h5v6" />
     </>
   ),
+  /* Лента: стопка карточек, приходящих сверху. */
+  feed: (
+    <>
+      <rect x="3" y="4" width="18" height="6" rx="1.5" />
+      <rect x="3" y="13" width="18" height="6" rx="1.5" />
+      <path d="M7 7h4" />
+      <path d="M7 16h4" />
+    </>
+  ),
   board: (
     <>
       <rect x="3" y="4" width="5" height="16" rx="1.5" />
@@ -103,6 +112,14 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
    * Порядок задан владельцем 2026-09-05.
    */
   const nav = [
+    /*
+     * Лента первой, и это решение о продукте, а не о порядке пунктов.
+     *
+     * Рабочий день агента начинается не с того, что у него в работе,
+     * а с поиска, кому позвонить: на этом агентство и зарабатывает.
+     * Доска показывает вчерашнее, лента — сегодняшнее.
+     */
+    { href: '/feed', label: t('nav.feed'), icon: 'feed' },
     { href: '/board', label: t('nav.board'), icon: 'board' },
     { href: '/properties', label: t('nav.properties'), icon: 'properties' },
     // Значок у задач — это напоминание: горит, когда срок наступил
