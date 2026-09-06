@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 
+import { compressImage } from './compress';
 import { failureText } from './failure';
 
 /**
@@ -58,10 +59,22 @@ export type UploadOutcome =
  * окружения против недоступного бака.
  */
 export async function uploadFile(
-  file: File,
+  original: File,
   kind: UploadKind,
   fallback: string,
 ): Promise<UploadOutcome> {
+  /*
+   * СЖАТИЕ ИДЁТ ДО ЗАПРОСА ССЫЛКИ, а не после.
+   *
+   * Сервер проверяет тип и размер именно того, что будет положено в бак,
+   * и подписывает ссылку под этот тип: подпись содержит `content-type`,
+   * и загрузка с другим заголовком будет отвергнута хранилищем.
+   *
+   * Побочный и приятный итог: снимок с телефона на восемь мегабайт больше
+   * не упирается в предел размера — до сервера доезжает уже сжатый.
+   */
+  const file = await compressImage(original, kind);
+
   const ticket = await fetch('/api/v1/uploads', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
