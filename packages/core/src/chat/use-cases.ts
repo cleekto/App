@@ -77,6 +77,13 @@ export interface ChatRoomSummary {
   isArchived: boolean;
   messageCount: number;
   lastMessageAt: string | null;
+  /**
+   * Слежу ли я за этой комнатой.
+   *
+   * Личное, а не свойство комнаты: комнаты открыты всем, но оповещать всех
+   * обо всём — верный способ добиться, чтобы значки перестали замечать.
+   */
+  isWatched: boolean;
 }
 
 export interface ChatMessageView {
@@ -188,8 +195,22 @@ export async function unreadCounts(
   );
 
   const [rooms, conversations] = await Promise.all([
+    /*
+     * СЧИТАЮТСЯ ТОЛЬКО ОТСЛЕЖИВАЕМЫЕ КОМНАТЫ (решение владельца 2026-09-06).
+     *
+     * Непомеченная комната не даёт ни числа, ни точки, ни звука — совсем.
+     * Это и есть смысл отметки: в агентстве два десятка комнат, и значок,
+     * который горит всегда, перестают замечать через неделю.
+     *
+     * Личная переписка считается ВСЕГДА и отметки не требует: написали
+     * лично — значит, обращаются к тебе.
+     */
     prisma.chatRoom.findMany({
-      where: { companyId: ctx.companyId, isArchived: false },
+      where: {
+        companyId: ctx.companyId,
+        isArchived: false,
+        watches: { some: { userId: ctx.userId } },
+      },
       select: { id: true },
     }),
     prisma.directConversation.findMany({
@@ -302,6 +323,9 @@ export async function listChatRooms(
         take: 1,
         select: { createdAt: true },
       },
+      // Отметки только СВОИ: чужие подписки — не наше дело, и возить их
+      // в браузер незачем.
+      watches: { where: { userId: ctx.userId }, select: { id: true } },
     },
   });
 
@@ -313,7 +337,44 @@ export async function listChatRooms(
     isArchived: room.isArchived,
     messageCount: room._count.messages,
     lastMessageAt: room.messages[0]?.createdAt.toISOString() ?? null,
+    isWatched: room.watches.length > 0,
   }));
+}
+
+/**
+ * Отметить комнату как отслеживаемую или снять отметку.
+ *
+ * Право спрашивается на ЧТЕНИЕ сообщений, а не на комнату: подписка — это
+ * не изменение комнаты, а личная настройка того, кто её читает. Требовать
+ * здесь права менять комнату значило бы разрешать слежение только
+ * руководителям.
+ */
+export async function watchChatRoom(
+  ctx: AuthContext,
+  roomId: string,
+  watched: boolean,
+): Promise<{ roomId: string; isWatched: boolean }> {
+  requirePermission(ctx, 'chatMessage', 'read');
+
+  const room = await prisma.chatRoom.findFirst({
+    where: { id: roomId, companyId: ctx.companyId },
+    select: { id: true },
+  });
+  if (room === null) throw new NotFoundError();
+
+  if (watched) {
+    await prisma.chatRoomWatch.upsert({
+      where: { roomId_userId: { roomId, userId: ctx.userId } },
+      create: { companyId: ctx.companyId, roomId, userId: ctx.userId },
+      update: {},
+    });
+  } else {
+    // `deleteMany`, а не `delete`: снять отметку, которой нет, — не ошибка,
+    // а обычный итог двойного нажатия.
+    await prisma.chatRoomWatch.deleteMany({ where: { roomId, userId: ctx.userId } });
+  }
+
+  return { roomId, isWatched: watched };
 }
 
 export async function createChatRoom(

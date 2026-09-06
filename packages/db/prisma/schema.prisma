@@ -59,6 +59,7 @@ model Company {
   chatReads           ChatRead[]
   directConversations DirectConversation[]
   chatMessages        ChatMessage[]
+  chatRoomWatches     ChatRoomWatch[]
   publications     Publication[]
   migrationBatches MigrationBatch[]
   mappingSchemas   ColumnMappingSchema[]
@@ -172,6 +173,7 @@ model User {
   @@index([companyId, phoneNormalized])
   @@map("users")
   chatReads ChatRead[]
+  chatRoomWatches ChatRoomWatch[]
 }
 
 /// Членство в команде.
@@ -1033,6 +1035,7 @@ model ChatRoom {
   company  Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   messages ChatMessage[]
   topics   ChatTopic[]
+  watches  ChatRoomWatch[]
 
   @@index([companyId, isArchived, updatedAt(sort: Desc)])
   @@map("chat_rooms")
@@ -1132,6 +1135,37 @@ model ChatAttachment {
 
   @@index([messageId])
   @@map("chat_attachments")
+}
+
+/// Кто следит за комнатой.
+///
+/// ОТМЕТКА ЛИЧНАЯ, А КОМНАТА ОБЩАЯ. Комнаты в компании открыты всем, но
+/// оповещать всех обо всём — верный способ добиться, чтобы значки перестали
+/// замечать вовсе. Поэтому агент сам отмечает те комнаты, за которыми
+/// следит: по ним приходят и значок, и звук, по остальным — тишина.
+///
+/// ОТДЕЛЬНАЯ ТАБЛИЦА, А НЕ ПОЛЕ У КОМНАТЫ: у одной комнаты столько отметок,
+/// сколько людей в компании, и хранить их в самой комнате нечем.
+///
+/// Отсутствие строки означает «не слежу». Так и задумано: подписка
+/// включается осознанно, а не достаётся по умолчанию вместе с двадцатью
+/// чужими комнатами.
+model ChatRoomWatch {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  companyId String @db.Uuid
+  roomId    String @db.Uuid
+  userId    String @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  company Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  room    ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Одна отметка на пару «комната × человек».
+  @@unique([roomId, userId])
+  @@index([userId])
+  @@map("chat_room_watches")
 }
 
 model ChatRead {

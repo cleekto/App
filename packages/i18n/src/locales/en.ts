@@ -90,6 +90,7 @@ export const en = {
     emptyMessages: 'Nothing here yet',
     emptyMessagesHint: 'Write the first message — the whole company will see it.',
     write: 'Write a message',
+    watch: 'Watch this room',
 
     // Attachments. Agencies pass contracts and extracts around, so not
     // images only.

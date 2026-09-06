@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 /**
  * Непрочитанное: одна выборка на всю оболочку.
@@ -35,9 +35,55 @@ const UnreadContext = createContext<Unread>(EMPTY);
 /** Больше девяноста девяти считать бессмысленно. */
 const OVERFLOW = '99+';
 
+/**
+ * Звуки оповещения.
+ *
+ * ДВА РАЗНЫХ, потому что это две разные новости. Личное сообщение адресовано
+ * тебе и требует ответа; сообщение в отслеживаемой комнате — это разговор,
+ * в который можно и не вступать. Один звук на оба случая заставлял бы
+ * проверять экран каждый раз.
+ */
+const SOUNDS = {
+  direct: '/sounds/direct-message.wav',
+  rooms: '/sounds/room-message.wav',
+} as const;
+
+/**
+ * Проиграть короткий звук.
+ *
+ * СОЗДАЁТСЯ КАЖДЫЙ РАЗ ЗАНОВО, а не переиспользуется один объект: два
+ * сообщения подряд с общим объектом дали бы один звук вместо двух —
+ * второй `play()` на ещё играющем звуке ничего не делает.
+ *
+ * ОТКАЗ ГЛОТАЕТСЯ НАМЕРЕННО, и это единственное место, где так можно.
+ * Браузер запрещает звук, пока человек ничего не нажал на странице, и это
+ * не поломка: он вернёт отказ на первом же оповещении после загрузки,
+ * а дальше начнёт играть. Показывать из-за этого ошибку значило бы пугать
+ * человека тем, чего он не делал и что само пройдёт.
+ */
+function play(url: string): void {
+  try {
+    const sound = new Audio(url);
+    sound.volume = 0.5;
+    void sound.play().catch(() => undefined);
+  } catch {
+    // Браузер без Audio. Значки при этом работают — звук здесь дополнение,
+    // а не единственный способ узнать о сообщении.
+  }
+}
+
 export function UnreadProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const [unread, setUnread] = useState<Unread>(EMPTY);
+
+  /*
+   * Прошлые числа — чтобы услышать РОСТ, а не наличие.
+   *
+   * `null` до первого ответа: иначе человек, открывший приложение с тремя
+   * непрочитанными, получал бы звук на пустом месте — ему ничего не пришло,
+   * он просто пришёл сам.
+   */
+  const previous = useRef<{ rooms: number; direct: number } | null>(null);
 
   useEffect(() => {
     let stopped = false;
@@ -49,7 +95,24 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
         const response = await fetch('/api/v1/chat/unread', { cache: 'no-store' });
         if (stopped || !response.ok) return;
 
-        setUnread((await response.json()) as Unread);
+        const next = (await response.json()) as Unread;
+        const before = previous.current;
+
+        /*
+         * Звук — только на прибавку. Уменьшение означает, что человек
+         * прочитал, и звучать тут нечему.
+         *
+         * Комнаты сервер уже отфильтровал: в этих числах есть только те,
+         * за которыми человек следит. Проверять подписку ещё и здесь
+         * значило бы держать одно правило в двух местах.
+         */
+        if (before !== null) {
+          if (next.direct > before.direct) play(SOUNDS.direct);
+          else if (next.rooms > before.rooms) play(SOUNDS.rooms);
+        }
+
+        previous.current = { rooms: next.rooms, direct: next.direct };
+        setUnread(next);
       } catch {
         // Сеть моргнула — следующий тик попробует снова. Гасить значки
         // из-за одного неудачного запроса значило бы терять новости.

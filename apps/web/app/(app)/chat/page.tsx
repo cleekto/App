@@ -16,6 +16,7 @@ import { contextLocale, requireContext } from '../../_lib/session';
 import { stageColors } from '../../_ui/accent';
 import { Card, EmptyState } from '../../_ui/primitives';
 import { RoomUnread } from '../unread';
+import { WatchToggle } from './watch-toggle';
 import { CompanyFeed } from './company-feed';
 import { Conversation } from './conversation';
 import { TopicBar } from './topic-bar';
@@ -138,11 +139,11 @@ export default async function ChatPage({
                 const selected = room.id === active?.id;
 
                 return (
-                  <li key={room.id}>
+                  <li key={room.id} className="flex items-center gap-1">
                     <Link
                       href={`/chat?room=${room.id}`}
                       aria-current={selected ? 'page' : undefined}
-                      className={`flex flex-col gap-0.5 rounded-[var(--radius-sm)] px-2.5 py-2 transition-colors duration-[var(--duration-fast)] ${
+                      className={`flex min-w-0 flex-1 flex-col gap-0.5 rounded-[var(--radius-sm)] px-2.5 py-2 transition-colors duration-[var(--duration-fast)] ${
                         selected
                           ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
                           : 'hover:bg-[var(--color-surface-muted)]'
@@ -170,6 +171,16 @@ export default async function ChatPage({
                         </span>
                       )}
                     </Link>
+
+                    {/* Флажок стоит РЯДОМ со ссылкой, а не внутри неё:
+                        управляющий элемент внутри ссылки — недопустимая
+                        вложенность, и ведёт он себя по-разному в разных
+                        браузерах и с клавиатуры. */}
+                    <WatchToggle
+                      roomId={room.id}
+                      watched={room.isWatched}
+                      label={t('chat.watch')}
+                    />
                   </li>
                 );
               })}
