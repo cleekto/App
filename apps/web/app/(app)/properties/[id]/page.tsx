@@ -125,6 +125,10 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           busy: t('property.photoBusy'),
           uploadFailed: t('property.photoFailed'),
           saveFailed: t('property.photoSaveFailed'),
+          open: t('property.photoOpen'),
+          close: t('property.photoClose'),
+          previous: t('property.photoPrevious'),
+          next: t('property.photoNext'),
         }}
       />
 

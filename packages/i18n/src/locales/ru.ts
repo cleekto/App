@@ -205,6 +205,10 @@ export const ru: DeepPartial<Dictionary> = {
     photoDone: 'Готово',
     photoRemove: 'Убрать фотографию',
     photoSaveFailed: 'Сохранить не вышло',
+    photoOpen: 'Открыть фотографию',
+    photoClose: 'Закрыть',
+    photoPrevious: 'Предыдущая',
+    photoNext: 'Следующая',
 
     // Правка объекта — из карточки, из списка и с доски.
     edit: 'Изменить',

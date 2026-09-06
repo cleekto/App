@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { Photo } from '../../../_ui/photo';
 import { UploadButton } from '../../../_ui/upload';
@@ -47,11 +47,18 @@ export function PhotoGallery({
     busy: string;
     uploadFailed: string;
     saveFailed: string;
+    open: string;
+    close: string;
+    previous: string;
+    next: string;
   };
 }) {
   const [items, setItems] = useState(initial);
   const [editing, setEditing] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  /** Какой снимок открыт во весь экран. `null` — просмотр закрыт. */
+  const [viewing, setViewing] = useState<number | null>(null);
 
   /**
    * Сохранение с ОТКАТОМ. Экран меняется сразу — ждать ответа, глядя
@@ -129,7 +136,9 @@ export function PhotoGallery({
           <Frame
             item={items[0] ?? null}
             alt={labels.alt}
+            openLabel={labels.open}
             className="aspect-[16/10] w-full max-w-2xl"
+            onOpen={() => setViewing(0)}
             removable={editing}
             removeLabel={labels.remove}
             onRemove={() => void save(items.slice(1))}
@@ -137,12 +146,16 @@ export function PhotoGallery({
 
           {items.length === 1 ? null : (
             <div className="flex flex-wrap gap-2">
-              {items.slice(1).map((item) => (
+              {items.slice(1).map((item, index) => (
                 <Frame
                   key={item.key}
                   item={item}
                   alt={labels.alt}
+                  openLabel={labels.open}
                   className="h-16 w-24"
+                  // Смещение на единицу: лента начинается со второго снимка,
+                  // а нумерация в просмотре — с первого.
+                  onOpen={() => setViewing(index + 1)}
                   removable={editing}
                   removeLabel={labels.remove}
                   onRemove={() => void save(items.filter((other) => other.key !== item.key))}
@@ -152,29 +165,55 @@ export function PhotoGallery({
           )}
         </>
       )}
+
+      <Lightbox
+        items={items}
+        index={viewing}
+        labels={labels}
+        onClose={() => setViewing(null)}
+        onMove={(next) => setViewing(next)}
+      />
     </section>
   );
 }
 
-/** Снимок и, в режиме правки, кнопка убрать его. */
+/**
+ * Снимок: открывается по нажатию, а в режиме правки ещё и убирается.
+ *
+ * САМ СНИМОК — КНОПКА, а не картинка с обработчиком. Кнопку видно
+ * с клавиатуры, она попадает в обход табуляцией и объявляет себя читалке;
+ * `div` с `onClick` не делает ничего из этого, а выглядит так же.
+ */
 function Frame({
   item,
   alt,
+  openLabel,
   className,
+  onOpen,
   removable,
   removeLabel,
   onRemove,
 }: {
   item: PhotoItem | null;
   alt: string;
+  openLabel: string;
   className: string;
+  onOpen: () => void;
   removable: boolean;
   removeLabel: string;
   onRemove: () => void;
 }) {
   return (
     <div className="relative w-fit">
-      <Photo src={item?.url ?? null} alt={alt} className={className} />
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={openLabel}
+        title={openLabel}
+        className="block cursor-zoom-in rounded-[var(--radius-control)] transition-transform duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.98]"
+      >
+        <Photo src={item?.url ?? null} alt={alt} className={className} />
+      </button>
 
       {removable ? (
         <button
@@ -200,5 +239,184 @@ function Frame({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Разделитель счётчика снимков.
+ *
+ * Вынесен константой, а не написан в разметке: строк в разметке в этом
+ * проекте не бывает вовсе (правило 18), и линтер это стережёт. Переводить
+ * его при этом нечего — «3 / 7» читается одинаково на всех трёх языках.
+ */
+const COUNTER_SEPARATOR = ' / ';
+
+/**
+ * Просмотр снимка во весь экран.
+ *
+ * ЗАЧЕМ. В ленте снимок шириной с ноготь: по нему не понять ни состояния
+ * ремонта, ни вида из окна — а именно за этим агент и открывает карточку
+ * перед звонком. Открывать файл в соседней вкладке — не решение: там
+ * подписанная ссылка, из которой не вернуться к объекту и не перейти
+ * к следующему снимку.
+ *
+ * ОКНО — НАСТОЯЩИЙ `dialog`. Оно само перехватывает фокус, само закрывается
+ * по Escape и само делает остальную страницу недоступной для чтения
+ * с экрана. Появление и затемнение ему дают общие правила из `globals.css`,
+ * те же, что у формы правки, — второй раз это описывать не нужно.
+ *
+ * СТРЕЛКИ РАБОТАЮТ И С КЛАВИАТУРЫ. Снимки листают подряд, и тянуться мышью
+ * к краю экрана после каждого — работа, которой можно не быть.
+ */
+function Lightbox({
+  items,
+  index,
+  labels,
+  onClose,
+  onMove,
+}: {
+  items: PhotoItem[];
+  index: number | null;
+  labels: {
+    alt: string;
+    close: string;
+    previous: string;
+    next: string;
+  };
+  onClose: () => void;
+  onMove: (index: number) => void;
+}) {
+  const dialog = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const node = dialog.current;
+    if (node === null) return;
+
+    if (index !== null && !node.open) node.showModal();
+    if (index === null && node.open) node.close();
+  }, [index]);
+
+  const current = index === null ? null : (items[index] ?? null);
+
+  /*
+   * Счётчик собирается здесь, а не в разметке. Заодно это снимает вопрос,
+   * откуда клиенту взять формат числа: звать `Intl` в браузере агента
+   * запрещено — у него может не быть данных грузинской локали.
+   */
+  const counter = String((index ?? 0) + 1) + COUNTER_SEPARATOR + String(items.length);
+
+  /*
+   * Переход по кругу: с последнего снимка вперёд — на первый.
+   *
+   * Упереться в край, листая шесть фотографий, — мелкая, но верная досада;
+   * кольцо избавляет от неё и ничего не стоит.
+   */
+  const step = (delta: number): void => {
+    if (index === null || items.length === 0) return;
+    onMove((index + delta + items.length) % items.length);
+  };
+
+  return (
+    <dialog
+      ref={dialog}
+      onClose={onClose}
+      onClick={(event) => {
+        // Нажатие мимо снимка закрывает: так ведут себя все просмотрщики.
+        if (event.target === dialog.current) onClose();
+      }}
+      onKeyDown={(event) => {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          step(-1);
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          step(1);
+        }
+      }}
+      className="m-auto max-h-[92vh] w-[min(64rem,94vw)] bg-transparent p-0 backdrop:bg-black/80"
+    >
+      {current === null ? null : (
+        <div className="flex flex-col items-center gap-3">
+          {/*
+            Размер задаёт сама картинка, а не обёртка: пропорции у снимков
+            разные, и коробка под них подгонялась бы вслепую. Пределы —
+            в единицах экрана, чтобы вертикальный снимок помещался целиком.
+          */}
+          <img
+            src={current.url}
+            alt={labels.alt}
+            decoding="async"
+            className="max-h-[80vh] max-w-full rounded-[var(--radius-card)] object-contain shadow-[var(--shadow-overlay)]"
+          />
+
+          <div className="flex items-center gap-3">
+            {items.length === 1 ? null : (
+              <>
+                <ViewerButton label={labels.previous} onClick={() => step(-1)}>
+                  <path d="M15 5l-7 7 7 7" />
+                </ViewerButton>
+
+                {/*
+                  Счётчик — просто цифры с чертой, и переводить его нечего:
+                  «3 / 7» читается одинаково на всех трёх языках. Заодно
+                  это снимает вопрос, откуда клиенту взять формат числа:
+                  звать `Intl` в браузере агента здесь запрещено.
+                */}
+                <span className="text-sm tabular-nums text-white/80">{counter}</span>
+
+                <ViewerButton label={labels.next} onClick={() => step(1)}>
+                  <path d="M9 5l7 7-7 7" />
+                </ViewerButton>
+              </>
+            )}
+
+            <ViewerButton label={labels.close} onClick={onClose}>
+              <path d="M6 6l12 12M18 6L6 18" />
+            </ViewerButton>
+          </div>
+        </div>
+      )}
+    </dialog>
+  );
+}
+
+/**
+ * Кнопка поверх затемнения.
+ *
+ * Белая на полупрозрачном, а не фирменная: на снимке любого цвета фирменный
+ * фиолетовый то теряется, то спорит с картинкой. Здесь фон — сама
+ * фотография, и единственный надёжный контраст даёт белое на затемнении.
+ */
+function ViewerButton({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      className="grid size-10 place-items-center rounded-full bg-white/15 text-white transition-[background-color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.94] [@media(hover:hover)and(pointer:fine)]:hover:bg-white/25"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+        className="size-5"
+      >
+        {children}
+      </svg>
+    </button>
   );
 }

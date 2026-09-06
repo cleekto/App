@@ -197,6 +197,10 @@ export const en = {
     photoDone: 'Done',
     photoRemove: 'Remove photo',
     photoSaveFailed: 'Could not save',
+    photoOpen: 'Open photo',
+    photoClose: 'Close',
+    photoPrevious: 'Previous',
+    photoNext: 'Next',
 
     // Editing a property — from its card, from the list and from the board.
     edit: 'Edit',

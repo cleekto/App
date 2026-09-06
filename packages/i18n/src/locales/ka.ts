@@ -204,6 +204,10 @@ export const ka: DeepPartial<Dictionary> = {
     photoDone: 'მზადაა',
     photoRemove: 'ფოტოს წაშლა',
     photoSaveFailed: 'შენახვა ვერ მოხერხდა',
+    photoOpen: 'ფოტოს გახსნა',
+    photoClose: 'დახურვა',
+    photoPrevious: 'წინა',
+    photoNext: 'შემდეგი',
 
     // ობიექტის რედაქტირება — ბარათიდან, სიიდან და დაფიდან.
     edit: 'რედაქტირება',
