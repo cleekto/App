@@ -21,8 +21,11 @@ const importSchema = z
     externalId: z.string().min(1).nullable().optional(),
 
     title: z.string().nullable().optional(),
-    propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']).nullable().optional(),
-    transactionType: z.enum(['SALE', 'RENT']).nullable().optional(),
+    propertyType: z
+      .enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'COUNTRY_HOUSE', 'HOTEL'])
+      .nullable()
+      .optional(),
+    transactionType: z.enum(['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT']).nullable().optional(),
 
     price: z.number().positive().nullable().optional(),
     currency: z.string().length(3).nullable().optional(),

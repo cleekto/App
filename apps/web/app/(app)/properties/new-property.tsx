@@ -8,7 +8,13 @@ import { UploadButton, type UploadResult } from '../../_ui/upload';
 import { failureText } from '../../_ui/failure';
 import { Button, Field, Input, Notice } from '../../_ui/primitives';
 import { notifyError } from '../../_ui/toast';
-import { FactFields, optionalText, readFacts, type FactLabels } from './fact-fields';
+import {
+  FactFields,
+  optionalText,
+  readFacts,
+  type FactDictionaries,
+  type FactLabels,
+} from './fact-fields';
 
 /**
  * Заведение объекта руками.
@@ -49,12 +55,10 @@ interface DuplicateMatch {
 
 export function NewProperty({
   labels,
-  types,
-  transactions,
+  dictionaries,
 }: {
   labels: NewPropertyLabels;
-  types: Array<{ value: string; label: string }>;
-  transactions: Array<{ value: string; label: string }>;
+  dictionaries: FactDictionaries;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -238,7 +242,7 @@ export function NewProperty({
         </Field>
       </div>
 
-      <FactFields labels={labels} types={types} transactions={transactions} />
+      <FactFields labels={labels} dictionaries={dictionaries} />
 
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" disabled={busy}>

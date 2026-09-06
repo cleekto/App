@@ -16,8 +16,8 @@ const filtersSchema = z
   .object({
     query: z.string().min(1).optional(),
     pipelineStatusId: z.string().uuid().optional(),
-    propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']).optional(),
-    transactionType: z.enum(['SALE', 'RENT']).optional(),
+    propertyType: propertyKindShape.propertyType.optional(),
+    transactionType: propertyKindShape.transactionType.optional(),
     assignedUserId: z.string().uuid().optional(),
     origin: z.enum(['consent', 'manual', 'legacy_import']).optional(),
     priceMin: z.coerce.number().nonnegative().optional(),

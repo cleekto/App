@@ -12,14 +12,20 @@
  * `docs/analysis/source-ss-ge.md` как незакрытое место.
  */
 
-export type PropertyTypeCode = 'APARTMENT' | 'HOUSE' | 'LAND' | 'COMMERCIAL';
-export type TransactionTypeCode = 'SALE' | 'RENT';
+export type PropertyTypeCode =
+  'APARTMENT' | 'HOUSE' | 'LAND' | 'COMMERCIAL' | 'COUNTRY_HOUSE' | 'HOTEL';
+export type TransactionTypeCode = 'SALE' | 'RENT' | 'PLEDGE' | 'DAILY_RENT';
 
 /**
  * Порядок важен: коммерция проверяется раньше квартиры, потому что
  * «საოფისე ფართი» (офисная площадь) не должно опознаться как жильё.
  */
 const PROPERTY_TYPES: ReadonlyArray<readonly [RegExp, PropertyTypeCode]> = [
+  // Гостиница и дача проверяются ПЕРЕД домом: «საოჯახო სასტუმრო» (семейная
+  // гостиница) содержит слово «дом» в русской версии, а дача — это «სახლი»
+  // за городом. Общее слово опознало бы их обеих как жильё.
+  [/სასტუმრო|hotel|guest\s*house|гостиниц|отел|хостел/iu, 'HOTEL'],
+  [/აგარაკი|summer\s*house|country\s*house|dacha|дач/iu, 'COUNTRY_HOUSE'],
   [/კომერციული|საოფისე|სავაჭრო|commercial|office|коммерч|офис/iu, 'COMMERCIAL'],
   [/მიწის\s*ნაკვეთი|მიწა|land|plot|участок|земл/iu, 'LAND'],
   [/კერძო\s*სახლი|სახლი|house|villa|cottage|дом|коттедж/iu, 'HOUSE'],
@@ -37,6 +43,10 @@ export function detectPropertyType(text: string | null): PropertyTypeCode | null
 }
 
 const TRANSACTION_TYPES: ReadonlyArray<readonly [RegExp, TransactionTypeCode]> = [
+  // Посуточная аренда проверяется ПЕРЕД обычной: «ქირავდება დღიურად»
+  // начинается с того же слова, и общий образец забрал бы её себе.
+  [/დღიურად|daily|per\s*day|посуточн|суточн/iu, 'DAILY_RENT'],
+  [/გირავდება|pledge|mortgage|залог/iu, 'PLEDGE'],
   [/ქირავდება|for\s*rent|rental|аренд|сдаётся|сдается/iu, 'RENT'],
   [/იყიდება|for\s*sale|продаётся|продается|продажа/iu, 'SALE'],
 ];

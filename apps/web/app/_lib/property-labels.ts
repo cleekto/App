@@ -1,7 +1,9 @@
+import { BUILDING_STATUSES, CONDITIONS, PROJECT_TYPES } from '@kleekto/contracts';
 import type { Locale, MessageKey } from '@kleekto/i18n';
 import { translate } from '@kleekto/i18n';
 
 import type { EditPropertyLabels } from '../(app)/properties/edit-property';
+import type { FactDictionaries } from '../(app)/properties/fact-fields';
 import type { FactLabels } from '../(app)/properties/fact-fields';
 
 /**
@@ -61,20 +63,76 @@ export function editLabels(locale: Locale): EditPropertyLabels {
   };
 }
 
-/** Типы недвижимости для выпадающего списка. */
+/**
+ * Типы недвижимости для выпадающего списка.
+ *
+ * Порядок — по частоте на рынке Тбилиси, а не по алфавиту: квартира стоит
+ * первой, потому что в девяти случаях из десяти выбирают её, и лишний взгляд
+ * на список — это лишний взгляд, повторённый сто раз за день.
+ */
 export function propertyTypeOptions(locale: Locale): Array<{ value: string; label: string }> {
   return [
     { value: 'APARTMENT', label: translate(locale, 'property.type.APARTMENT') },
     { value: 'HOUSE', label: translate(locale, 'property.type.HOUSE') },
+    { value: 'COUNTRY_HOUSE', label: translate(locale, 'property.type.COUNTRY_HOUSE') },
     { value: 'LAND', label: translate(locale, 'property.type.LAND') },
     { value: 'COMMERCIAL', label: translate(locale, 'property.type.COMMERCIAL') },
+    { value: 'HOTEL', label: translate(locale, 'property.type.HOTEL') },
   ];
 }
 
-/** Виды сделки. Их два, и третьего не предвидится. */
+/**
+ * Все справочники формы одним объектом.
+ *
+ * Собираются в одном месте: экранов, показывающих эти поля, четыре —
+ * заведение, правка в списке, правка на доске и карточка объекта, — и пока
+ * каждый собирал списки сам, добавленная категория появлялась в трёх местах
+ * из четырёх.
+ */
+export function factDictionaries(locale: Locale): FactDictionaries {
+  return {
+    types: propertyTypeOptions(locale),
+    transactions: transactionOptions(locale),
+    conditions: conditionOptions(locale),
+    buildingStatuses: buildingStatusOptions(locale),
+    projectTypes: projectTypeOptions(locale),
+  };
+}
+
+/**
+ * Справочники раскрывающихся полей.
+ *
+ * Коды берутся из `@kleekto/contracts` — одного списка на весь продукт, —
+ * а подписи из словаря. Порядок в коде и есть порядок на экране: он выбран
+ * владельцем и алфавиту не подчиняется.
+ */
+export function conditionOptions(locale: Locale): Array<{ value: string; label: string }> {
+  return CONDITIONS.map((code) => ({
+    value: code,
+    label: translate(locale, `property.conditionOptions.${code}` as MessageKey),
+  }));
+}
+
+export function buildingStatusOptions(locale: Locale): Array<{ value: string; label: string }> {
+  return BUILDING_STATUSES.map((code) => ({
+    value: code,
+    label: translate(locale, `property.buildingStatusOptions.${code}` as MessageKey),
+  }));
+}
+
+export function projectTypeOptions(locale: Locale): Array<{ value: string; label: string }> {
+  return PROJECT_TYPES.map((code) => ({
+    value: code,
+    label: translate(locale, `property.projectTypeOptions.${code}` as MessageKey),
+  }));
+}
+
+/** Виды сделки. Четыре: рынок Грузии знает залог и посуточную аренду. */
 export function transactionOptions(locale: Locale): Array<{ value: string; label: string }> {
   return [
     { value: 'SALE', label: translate(locale, 'property.transaction.SALE') },
     { value: 'RENT', label: translate(locale, 'property.transaction.RENT') },
+    { value: 'PLEDGE', label: translate(locale, 'property.transaction.PLEDGE') },
+    { value: 'DAILY_RENT', label: translate(locale, 'property.transaction.DAILY_RENT') },
   ];
 }

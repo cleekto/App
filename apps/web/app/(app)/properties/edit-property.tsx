@@ -6,7 +6,13 @@ import { useEffect, useRef, useState } from 'react';
 import { failureText } from '../../_ui/failure';
 import { Button, Notice } from '../../_ui/primitives';
 import { notifyError } from '../../_ui/toast';
-import { FactFields, readFacts, type FactLabels, type FactValues } from './fact-fields';
+import {
+  FactFields,
+  readFacts,
+  type FactDictionaries,
+  type FactLabels,
+  type FactValues,
+} from './fact-fields';
 
 /**
  * Правка объекта — из карточки, из списка и с доски.
@@ -44,14 +50,12 @@ export interface EditPropertyLabels extends FactLabels {
 export function EditProperty({
   propertyId,
   labels,
-  types,
-  transactions,
+  dictionaries,
   compact = false,
 }: {
   propertyId: string;
   labels: EditPropertyLabels;
-  types: Array<{ value: string; label: string }>;
-  transactions: Array<{ value: string; label: string }>;
+  dictionaries: FactDictionaries;
   /** Компактный вид — для строки списка и карточки на доске. */
   compact?: boolean;
 }) {
@@ -188,7 +192,7 @@ export function EditProperty({
 
             {failed === null ? null : <Notice tone="error">{failed}</Notice>}
 
-            <FactFields labels={labels} types={types} transactions={transactions} values={values} />
+            <FactFields labels={labels} dictionaries={dictionaries} values={values} />
 
             <div className="flex items-center gap-2">
               <Button type="submit" size="sm" disabled={busy}>

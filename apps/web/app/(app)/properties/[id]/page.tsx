@@ -24,7 +24,7 @@ import { contextLocale, requireContext } from '../../../_lib/session';
 import { ActivityList } from './activity-list';
 import { Characteristics } from './characteristics';
 import { CommentBox } from './comment-box';
-import { editLabels, propertyTypeOptions, transactionOptions } from '../../../_lib/property-labels';
+import { editLabels, factDictionaries } from '../../../_lib/property-labels';
 import { PropertyControls } from './controls';
 import { EditProperty } from '../edit-property';
 import { PhotoGallery } from './photo-gallery';
@@ -100,8 +100,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
             <EditProperty
               propertyId={property.id}
               labels={editLabels(locale)}
-              types={propertyTypeOptions(locale)}
-              transactions={transactionOptions(locale)}
+              dictionaries={factDictionaries(locale)}
             />
           ) : null}
         </div>

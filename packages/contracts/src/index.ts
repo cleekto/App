@@ -11,6 +11,7 @@
 export * from './errors';
 export * from './health';
 export * from './listing';
+export * from './property-dictionaries';
 export * from './property-fields';
 export * from './publish';
 

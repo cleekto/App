@@ -7,6 +7,7 @@ import { Avatar } from '../../_ui/accent';
 import { Photo } from '../../_ui/photo';
 import { Button, Input } from '../../_ui/primitives';
 import { EditProperty, type EditPropertyLabels } from '../properties/edit-property';
+import type { FactDictionaries } from '../properties/fact-fields';
 import { notifyError } from '../../_ui/toast';
 import { ColumnMenu, columnColor, type ColumnMenuLabels } from './column-menu';
 
@@ -110,8 +111,7 @@ export function Board({
    */
   edit: {
     labels: EditPropertyLabels;
-    types: Array<{ value: string; label: string }>;
-    transactions: Array<{ value: string; label: string }>;
+    dictionaries: FactDictionaries;
   } | null;
   /**
    * Настройка воронки — право руководителя (админ и менеджер). Агент доску
@@ -434,8 +434,7 @@ export function Board({
                       <EditProperty
                         propertyId={card.id}
                         labels={edit.labels}
-                        types={edit.types}
-                        transactions={edit.transactions}
+                        dictionaries={edit.dictionaries}
                         compact
                       />
                     </span>

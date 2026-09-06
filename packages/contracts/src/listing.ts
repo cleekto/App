@@ -17,8 +17,10 @@ export const listingImportPayloadSchema = z.object({
   externalId: z.string().min(1).nullable(),
 
   title: z.string().nullable(),
-  propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']).nullable(),
-  transactionType: z.enum(['SALE', 'RENT']).nullable(),
+  propertyType: z
+    .enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'COUNTRY_HOUSE', 'HOTEL'])
+    .nullable(),
+  transactionType: z.enum(['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT']).nullable(),
 
   price: z.number().positive().nullable(),
   currency: z.string().length(3).nullable(),

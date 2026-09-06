@@ -55,8 +55,8 @@ export const propertyFactsShape = {
 
 /** Вид сделки и тип недвижимости. На заведении обязательны, при правке — нет. */
 export const propertyKindShape = {
-  transactionType: z.enum(['SALE', 'RENT']),
-  propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']),
+  transactionType: z.enum(['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT']),
+  propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'COUNTRY_HOUSE', 'HOTEL']),
 } as const;
 
 /** Разобранные значения фактов — то, что уходит в сценарий. */

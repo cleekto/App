@@ -26,8 +26,10 @@ export const listingPublishDraftSchema = z.object({
   propertyId: z.string().uuid(),
   targetSource: sourceSchema,
 
-  propertyType: z.enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL']).nullable(),
-  transactionType: z.enum(['SALE', 'RENT']).nullable(),
+  propertyType: z
+    .enum(['APARTMENT', 'HOUSE', 'LAND', 'COMMERCIAL', 'COUNTRY_HOUSE', 'HOTEL'])
+    .nullable(),
+  transactionType: z.enum(['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT']).nullable(),
 
   price: z.number().nullable(),
   currency: z.string().nullable(),

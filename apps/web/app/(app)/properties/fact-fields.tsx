@@ -134,17 +134,56 @@ function text(value: string | number | null | undefined): string {
   return value === null || value === undefined ? '' : String(value);
 }
 
+/** Готовый список для раскрывающегося поля. */
+export interface Option {
+  value: string;
+  label: string;
+}
+
+/**
+ * Все справочники разом.
+ *
+ * Приходят готовыми с сервера: подписи берутся из словаря, а звать `translate`
+ * в браузере агента нельзя — у него может не быть данных грузинской локали.
+ */
+export interface FactDictionaries {
+  types: Option[];
+  transactions: Option[];
+  conditions: Option[];
+  buildingStatuses: Option[];
+  projectTypes: Option[];
+}
+
+/**
+ * Список с сохранением того, что пришло с площадки.
+ *
+ * ЧУЖОЕ ЗНАЧЕНИЕ НЕ ТЕРЯЕТСЯ. Поля состояния, статуса дома и типа проекта
+ * заполняет не только человек: с ss.ge и myhome.ge приходит то, что написано
+ * там, и их списки шире нашего. Если бы список показывал только известные
+ * коды, первое же сохранение формы стёрло бы пришедшее с объявления —
+ * молча и без следа.
+ *
+ * Поэтому незнакомое значение добавляется в список отдельной строкой и
+ * остаётся выбранным. Показывается как есть: перевести его нечем, да и врать
+ * о том, что написано на площадке, нельзя (правило 14).
+ */
+function withCurrent(options: Option[], current: string | null | undefined): Option[] {
+  if (current === null || current === undefined || current === '') return options;
+  if (options.some((option) => option.value === current)) return options;
+
+  return [...options, { value: current, label: current }];
+}
+
 export function FactFields({
   labels,
-  types,
-  transactions,
+  dictionaries,
   values = {},
 }: {
   labels: FactLabels;
-  types: Array<{ value: string; label: string }>;
-  transactions: Array<{ value: string; label: string }>;
+  dictionaries: FactDictionaries;
   values?: FactValues;
 }) {
+  const { types, transactions } = dictionaries;
   return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -232,14 +271,38 @@ export function FactFields({
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label={labels.condition}>
-          <Input name="condition" defaultValue={text(values.condition)} />
+          <Select name="condition" defaultValue={values.condition ?? ''}>
+            <option value="">{labels.notSpecified}</option>
+            {withCurrent(dictionaries.conditions, values.condition).map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
         </Field>
+
         <Field label={labels.buildingStatus}>
-          <Input name="buildingStatus" defaultValue={text(values.buildingStatus)} />
+          <Select name="buildingStatus" defaultValue={values.buildingStatus ?? ''}>
+            <option value="">{labels.notSpecified}</option>
+            {withCurrent(dictionaries.buildingStatuses, values.buildingStatus).map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
         </Field>
+
         <Field label={labels.projectType}>
-          <Input name="projectType" defaultValue={text(values.projectType)} />
+          <Select name="projectType" defaultValue={values.projectType ?? ''}>
+            <option value="">{labels.notSpecified}</option>
+            {withCurrent(dictionaries.projectTypes, values.projectType).map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
+              </option>
+            ))}
+          </Select>
         </Field>
+
         <Field label={labels.cadastralCode}>
           <Input name="cadastralCode" defaultValue={text(values.cadastralCode)} />
         </Field>

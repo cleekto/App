@@ -19,12 +19,7 @@ import {
   statusLabel,
 } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
-import {
-  editLabels,
-  factLabels,
-  propertyTypeOptions,
-  transactionOptions,
-} from '../../_lib/property-labels';
+import { editLabels, factDictionaries, factLabels } from '../../_lib/property-labels';
 import { PropertyFilters } from './filters';
 
 /**
@@ -106,8 +101,7 @@ export default async function PropertiesPage({
   // Подписи полей — общие для заведения и правки: см. `property-labels`.
   const facts = factLabels(locale);
   const edit = editLabels(locale);
-  const types = propertyTypeOptions(locale);
-  const transactions = transactionOptions(locale);
+  const dictionaries = factDictionaries(locale);
 
   // Правило 6: кнопка прячется у того, кому сервер всё равно откажет.
   // Область у агента — свои объекты, и в отказе он убедился бы уже
@@ -142,8 +136,7 @@ export default async function PropertiesPage({
                   openExisting: t('property.publishCheckOpenExisting'),
                   createAnyway: t('property.createAnyway'),
                 }}
-                types={types}
-                transactions={transactions}
+                dictionaries={dictionaries}
               />
             ) : null}
           </div>
@@ -316,8 +309,7 @@ export default async function PropertiesPage({
                     <EditProperty
                       propertyId={item.id}
                       labels={edit}
-                      types={types}
-                      transactions={transactions}
+                      dictionaries={dictionaries}
                       compact
                     />
                   </span>

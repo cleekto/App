@@ -66,7 +66,13 @@ describe.skipIf(!hasSs)('ss.ge на реальных страницах', () => 
       // Суффикс площадки в заголовок объекта попадать не должен.
       expect(payload.title).not.toContain('| ss.ge');
 
-      expect(payload.transactionType).toMatch(/^(SALE|RENT)$/u);
+      /*
+       * Четыре вида сделки, а не два. Посуточная аренда — не выдумка: среди
+       * фикстур есть «ქირავდება დღიურად 1 ოთახიანი ბინა ბათუმში», и до того,
+       * как её завели отдельной категорией, она разбиралась как обычная
+       * аренда — то есть объект с суточной ценой лежал рядом с месячными.
+       */
+      expect(payload.transactionType).toMatch(/^(SALE|RENT|PLEDGE|DAILY_RENT)$/u);
       expect(payload.propertyType).toBeTruthy();
       expect(payload.area).toBeGreaterThan(0);
 
