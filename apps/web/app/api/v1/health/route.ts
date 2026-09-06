@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 import { healthResponseSchema, type HealthResponse } from '@kleekto/contracts';
-import { storageConfigured } from '@kleekto/core';
+import { storageConfigured, storageMissing } from '@kleekto/core';
 import { checkDatabase } from '@kleekto/db';
 
 import { APP_VERSION } from '../../../version';
@@ -26,6 +26,7 @@ export async function GET(): Promise<NextResponse<HealthResponse>> {
     status: database.up ? 'ok' : 'degraded',
     database: database.up ? 'up' : 'down',
     storage: storageConfigured() ? 'ready' : 'unconfigured',
+    ...(storageConfigured() ? {} : { storageMissing: storageMissing() }),
     version: APP_VERSION,
     checkedAt: new Date().toISOString(),
     ...(database.up

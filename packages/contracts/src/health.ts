@@ -26,6 +26,13 @@ export const healthResponseSchema = z.object({
    * `ok`, а не становится `degraded`.
    */
   storage: z.enum(['ready', 'unconfigured']),
+  /**
+   * Имена незаданных переменных хранилища. Только при `unconfigured`.
+   *
+   * Имена, никогда значения — как и у ошибки базы. Иначе «не грузятся
+   * фотографии» на чужой машине решается перебором пяти переменных.
+   */
+  storageMissing: z.array(z.string()).optional(),
   /** Версия приложения из package.json — чтобы видеть, что развёрнуто. */
   version: z.string(),
   checkedAt: z.string().datetime(),
