@@ -51,5 +51,6 @@ export * from './properties/use-cases';
 export * from './tasks/use-cases';
 export * from './comments/use-cases';
 export * from './activity/feed';
+export * from './analytics/achievements';
 export * from './analytics/use-cases';
 export * from './rate-limit/use-cases';

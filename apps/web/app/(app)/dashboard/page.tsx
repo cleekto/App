@@ -1,5 +1,5 @@
-import { dashboard, fileUrls } from '@kleekto/core';
-import { formatNumber, translate } from '@kleekto/i18n';
+import { achievements, dashboard, fileUrls } from '@kleekto/core';
+import { formatMoney, formatNumber, translate } from '@kleekto/i18n';
 import type { MessageKey } from '@kleekto/i18n';
 
 import { statusLabel, groupSeparator } from '../../_lib/format';
@@ -7,6 +7,7 @@ import { Avatar, accentOf, stageColors } from '../../_ui/accent';
 import { AnimatedNumber } from '../../_ui/motion';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Card } from '../../_ui/primitives';
+import { Ranking } from './ranking';
 import {
   DistributionBar,
   DonutStat,
@@ -56,6 +57,40 @@ export default async function DashboardPage() {
   // Лучший результат недели — им меряются полосы рейтинга. Единица,
   // когда согласий нет ни у кого: делить на ноль нечем, а строки показать надо.
   const bestConsents = Math.max(...data.people.map((person) => person.consentsThisWeek), 1);
+
+  /*
+   * Рейтинги считаются рядом со сводкой, но отвечают на другой вопрос.
+   *
+   * Сводка говорит «что происходит», рейтинг — «как у меня по сравнению
+   * с остальными». Второе и просил владелец: агент видит своё место
+   * в команде, руководитель — место своих команд в компании.
+   */
+  const ranks = await achievements(ctx);
+
+  /*
+   * Суммы и числа форматируются ЗДЕСЬ, на сервере: внутри `Intl`, а
+   * у браузера агента может не быть данных грузинской локали.
+   *
+   * Валюта — доллар: в ней на рынке Тбилиси называют цены, и объекты
+   * в базе хранятся преимущественно в ней. Смешивать валюты в одной сумме
+   * рейтинга нельзя, а пересчитывать нечем — курса в продукте нет.
+   */
+  const rankRow = (row: (typeof ranks.people)[number]) => ({
+    id: row.id,
+    name: row.name,
+    place: row.place,
+    closedDeals: row.closedDeals,
+    closedAmount: formatMoney(locale, row.closedAmount, 'USD'),
+    propertiesInBase: formatNumber(locale, row.propertiesInBase),
+    isMine: row.isMine,
+  });
+
+  const rankLabels = {
+    deals: t('dashboard.rankDeals'),
+    amount: t('dashboard.rankAmount'),
+    inBase: t('dashboard.rankInBase'),
+    empty: t('dashboard.noData'),
+  };
 
   /*
    * Фотографии людей подписываются здесь, на сервере: бак приватный,
@@ -200,6 +235,27 @@ export default async function DashboardPage() {
             </ul>
           </Card>
         </section>
+
+        {/* ── Моё место ─────────────────────────────────────────────────────
+            Рейтинг стоит выше сводки по людям: агент приходит сюда за своим
+            местом, а не за чужими числами. */}
+        {ranks.people.length === 0 ? null : (
+          <section className="flex flex-col gap-3">
+            <Rule title={t('dashboard.myPlaceInTeam')} />
+            <Card className="overflow-hidden">
+              <Ranking items={ranks.people.map(rankRow)} labels={rankLabels} />
+            </Card>
+          </section>
+        )}
+
+        {ranks.teams.length === 0 ? null : (
+          <section className="flex flex-col gap-3">
+            <Rule title={t('dashboard.teamsInCompany')} />
+            <Card className="overflow-hidden">
+              <Ranking items={ranks.teams.map(rankRow)} labels={rankLabels} />
+            </Card>
+          </section>
+        )}
 
         {/* ── Люди ─────────────────────────────────────────────────────────── */}
         <section className="flex flex-col gap-3">

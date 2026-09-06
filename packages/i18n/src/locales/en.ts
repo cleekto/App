@@ -43,6 +43,11 @@ export const en = {
     scopeCompany: 'Whole agency',
     scopeTeam: 'Your team',
     scopeOwn: 'Your properties',
+    myPlaceInTeam: 'My place in the team',
+    teamsInCompany: 'Teams of the agency',
+    rankDeals: 'deals',
+    rankAmount: 'for',
+    rankInBase: 'in base',
     newToday: 'New today',
     newThisWeek: 'New this week',
     totalProperties: 'Properties in base',
@@ -91,6 +96,8 @@ export const en = {
     emptyMessagesHint: 'Write the first message — the whole company will see it.',
     write: 'Write a message',
     watch: 'Watch this room',
+    searchColleague: 'Name or phone',
+    nobodyFound: 'Nobody found',
 
     // Attachments. Agencies pass contracts and extracts around, so not
     // images only.

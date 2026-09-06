@@ -52,6 +52,11 @@ export const ka: DeepPartial<Dictionary> = {
     scopeCompany: 'მთელი სააგენტო',
     scopeTeam: 'თქვენი გუნდი',
     scopeOwn: 'თქვენი ობიექტები',
+    myPlaceInTeam: 'ჩემი ადგილი გუნდში',
+    teamsInCompany: 'სააგენტოს გუნდები',
+    rankDeals: 'გარიგება',
+    rankAmount: 'თანხა',
+    rankInBase: 'ბაზაში',
     newToday: 'ახალი დღეს',
     newThisWeek: 'ახალი კვირაში',
     totalProperties: 'ობიექტი ბაზაში',
@@ -98,6 +103,8 @@ export const ka: DeepPartial<Dictionary> = {
     emptyMessagesHint: 'დაწერეთ პირველი შეტყობინება — მას მთელი კომპანია ნახავს.',
     write: 'დაწერეთ შეტყობინება',
     watch: 'ოთახის თვალყური',
+    searchColleague: 'სახელი ან ტელეფონი',
+    nobodyFound: 'ვერავინ მოიძებნა',
 
     // დანართები. სააგენტოს მიმოწერაში დადის ხელშეკრულებები და ამონაწერები,
     // ამიტომ არა მხოლოდ სურათები.

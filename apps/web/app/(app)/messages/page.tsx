@@ -70,7 +70,8 @@ export default async function MessagesPage({
 
   const candidates = people
     .filter((user) => user.isActive && user.id !== ctx.userId)
-    .map((user) => ({ id: user.id, name: user.fullName }));
+    // Номер едет вместе с именем: по нему тоже ищут.
+    .map((user) => ({ id: user.id, name: user.fullName, phone: user.phone }));
 
   return (
     <div className="flex flex-col gap-4">
@@ -78,7 +79,12 @@ export default async function MessagesPage({
         <h1 className="text-2xl font-semibold tracking-tight">{t('nav.messages')}</h1>
         <StartConversation
           people={candidates}
-          labels={{ open: t('chat.newConversation'), cancel: t('common.cancel') }}
+          labels={{
+            open: t('chat.newConversation'),
+            cancel: t('common.cancel'),
+            search: t('chat.searchColleague'),
+            nothing: t('chat.nobodyFound'),
+          }}
         />
       </header>
 

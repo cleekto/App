@@ -48,6 +48,11 @@ export const ru: DeepPartial<Dictionary> = {
     scopeCompany: 'Всё агентство',
     scopeTeam: 'Ваша команда',
     scopeOwn: 'Ваши объекты',
+    myPlaceInTeam: 'Моё место в команде',
+    teamsInCompany: 'Команды агентства',
+    rankDeals: 'сделок',
+    rankAmount: 'на сумму',
+    rankInBase: 'в базе',
     newToday: 'Новых за день',
     newThisWeek: 'Новых за неделю',
     totalProperties: 'Объектов в базе',
@@ -97,6 +102,8 @@ export const ru: DeepPartial<Dictionary> = {
     emptyMessagesHint: 'Напишите первое сообщение — его увидит вся компания.',
     write: 'Написать сообщение',
     watch: 'Следить за комнатой',
+    searchColleague: 'Имя или телефон',
+    nobodyFound: 'Никого не нашлось',
 
     // Вложения. В переписке агентства ходят договоры и выписки, поэтому
     // не только картинки.
