@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { MessageKey } from './index';
 import {
   LOCALES,
+  MARKET_UTC_OFFSET,
   coverage,
   formatDate,
   formatMoney,
@@ -101,5 +102,33 @@ describe('форматтеры', () => {
     for (const locale of LOCALES) {
       expect(formatDate(locale, date)).toMatch(/2026/u);
     }
+  });
+});
+
+describe('часовой пояс рынка', () => {
+  /*
+   * Продукт сделан для Грузии, и день у него грузинский. Сервер в облаке
+   * живёт по UTC, разница ровно четыре часа и приходится на начало суток —
+   * значит, всё, что заведено ночью, без явного пояса уезжало бы во вчера.
+   */
+  it('полночь по Тбилиси показывается шестым числом, а не пятым', () => {
+    // 5 сентября 20:00 UTC = 6 сентября 00:00 в Тбилиси.
+    const midnightInTbilisi = new Date('2026-09-05T20:00:00Z');
+    expect(formatDate('ru', midnightInTbilisi)).toContain('6');
+    expect(formatDate('ru', midnightInTbilisi)).not.toContain('5 сент');
+  });
+
+  it('граница суток совпадает с той, что показана', () => {
+    // Тот же момент, собранный из даты и смещения, — так фильтр доски
+    // считает начало дня. Совпадение с показом здесь и проверяется:
+    // фильтр, расходящийся с датой на экране, хуже обоих по отдельности.
+    const boundary = new Date(`2026-09-06T00:00:00.000${MARKET_UTC_OFFSET}`);
+    expect(boundary.toISOString()).toBe('2026-09-05T20:00:00.000Z');
+  });
+
+  it('вечер по Тбилиси не уезжает в следующий день', () => {
+    // 6 сентября 23:00 Тбилиси = 6 сентября 19:00 UTC — то же число.
+    const evening = new Date('2026-09-06T19:00:00Z');
+    expect(formatDate('ru', evening)).toContain('6');
   });
 });

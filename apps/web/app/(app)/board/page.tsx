@@ -6,7 +6,7 @@ import {
   listUsers,
   permissionScope,
 } from '@kleekto/core';
-import { translate } from '@kleekto/i18n';
+import { MARKET_UTC_OFFSET, translate } from '@kleekto/i18n';
 
 import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
 import { editLabels, propertyTypeOptions, transactionOptions } from '../../_lib/property-labels';
@@ -38,20 +38,23 @@ export default async function BoardPage({
   /*
    * Дата из адреса — `ГГГГ-ММ-ДД`, ровно то, что отдаёт поле `date`.
    *
+   * ГРАНИЦА СУТОК — ГРУЗИНСКАЯ, А НЕ СЕРВЕРНАЯ. Приложение живёт в облаке
+   * по UTC, а агент — в Тбилиси, и разница ровно четыре часа приходится
+   * на начало суток. Без явного смещения «заведён с 6 сентября» отбрасывал
+   * бы всё, что завели шестого до четырёх утра, — и объект, который агент
+   * помнит как сегодняшний, в выборку не попадал бы.
+   *
    * Верхняя граница берётся концом дня: «по 6 сентября» человек понимает
    * как «включая шестое», а `2026-09-06` без времени — это полночь, то есть
    * весь день оказался бы за границей.
    */
-  const dateFrom = (raw: string | undefined): Date | undefined => {
+  const boundary = (raw: string | undefined, time: string): Date | undefined => {
     if (raw === undefined) return undefined;
-    const parsed = new Date(`${raw}T00:00:00`);
+    const parsed = new Date(`${raw}T${time}${MARKET_UTC_OFFSET}`);
     return Number.isNaN(parsed.getTime()) ? undefined : parsed;
   };
-  const dateTo = (raw: string | undefined): Date | undefined => {
-    if (raw === undefined) return undefined;
-    const parsed = new Date(`${raw}T23:59:59.999`);
-    return Number.isNaN(parsed.getTime()) ? undefined : parsed;
-  };
+  const dateFrom = (raw: string | undefined): Date | undefined => boundary(raw, '00:00:00.000');
+  const dateTo = (raw: string | undefined): Date | undefined => boundary(raw, '23:59:59.999');
 
   // Правило 6: кнопка правки прячется у того, кому сервер откажет.
   const canEdit = permissionScope(ctx.role, 'property', 'update') !== null;

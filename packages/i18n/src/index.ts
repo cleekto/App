@@ -120,13 +120,40 @@ export function formatMoney(locale: Locale, amount: number, currency: string): s
   }).format(amount);
 }
 
+/**
+ * Часовой пояс рынка. Продукт сделан для Грузии, и день у него грузинский.
+ *
+ * ЗАДАН ЯВНО, А НЕ ВЗЯТ У МАШИНЫ. Форматирование идёт на сервере — так
+ * решено потому, что у браузера агента может не быть данных грузинской
+ * локали, — а сервер в облаке живёт по UTC. Без этой строки объект,
+ * заведённый в Тбилиси в два часа ночи, показывался бы вчерашним: разница
+ * ровно четыре часа, и она приходится на начало суток.
+ *
+ * Замечено не глазами, а на фильтре по дате: «заведён с 6 сентября»
+ * отбрасывал первые четыре часа шестого сентября.
+ */
+export const MARKET_TIME_ZONE = 'Asia/Tbilisi';
+
+/**
+ * Смещение того же пояса — для случаев, где нужен не показ, а ГРАНИЦА суток.
+ *
+ * Постоянное, потому что Грузия не переводит часы с 2005 года. Если это
+ * когда-нибудь изменится, менять надо здесь и только здесь — и тогда
+ * постоянного смещения станет мало, понадобится считать его на дату.
+ */
+export const MARKET_UTC_OFFSET = '+04:00';
+
 export function formatDate(locale: Locale, value: Date): string {
-  return new Intl.DateTimeFormat(INTL_TAG[locale], { dateStyle: 'medium' }).format(value);
+  return new Intl.DateTimeFormat(INTL_TAG[locale], {
+    dateStyle: 'medium',
+    timeZone: MARKET_TIME_ZONE,
+  }).format(value);
 }
 
 export function formatDateTime(locale: Locale, value: Date): string {
   return new Intl.DateTimeFormat(INTL_TAG[locale], {
     dateStyle: 'medium',
     timeStyle: 'short',
+    timeZone: MARKET_TIME_ZONE,
   }).format(value);
 }
