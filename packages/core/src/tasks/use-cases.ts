@@ -59,7 +59,21 @@ export async function createTask(ctx: AuthContext, input: CreateTaskInput): Prom
     ownerUserId: property.assignedUserId,
   });
 
-  const assignedUserId = await validAssignee(ctx, input.assignedUserId);
+  /*
+   * НЕ НАЗВАЛ ИСПОЛНИТЕЛЯ — ЗНАЧИТ, СЕБЕ.
+   *
+   * Раньше такая задача оставалась ничьей: `assignedUserId` был `null`,
+   * и в «мои задачи» она не попадала, потому что список фильтрует
+   * по назначенному. Человек записывал себе «позвонить в четверг»
+   * и не находил этого нигде — ни в списке, ни в напоминании.
+   *
+   * Назначить другого по-прежнему можно только с правом `assign`: умолчание
+   * ничего не разрешает, оно лишь называет очевидное.
+   */
+  const assignedUserId =
+    input.assignedUserId === undefined || input.assignedUserId === null
+      ? ctx.userId
+      : await validAssignee(ctx, input.assignedUserId);
 
   const created = await prisma.$transaction(async (tx) => {
     const task = await tx.task.create({

@@ -1,10 +1,12 @@
 import Link from 'next/link';
 
-import { listFollowUps, listTasks } from '@kleekto/core';
-import { formatDateTime, translate } from '@kleekto/i18n';
+import { listFollowUps, listProperties, listTasks } from '@kleekto/core';
+import { formatDateTime, MARKET_TIME_ZONE, translate } from '@kleekto/i18n';
 
-import { dueLine } from '../../_lib/format';
+import { dueLine, kindLine, placeLine } from '../../_lib/format';
 import { contextLocale, requireContext } from '../../_lib/session';
+import { TaskCalendar, type CalendarDay } from './calendar';
+import { NewTask } from './new-task';
 import { TaskRow } from './task-row';
 
 /**
@@ -18,16 +20,95 @@ import { TaskRow } from './task-row';
  * Перезвоны идут первыми: у них наступил срок, и это то, ради чего агент
  * открыл страницу.
  */
-export default async function TasksPage() {
+export default async function TasksPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
   const ctx = await requireContext();
   const locale = contextLocale(ctx);
+  const params = await searchParams;
 
-  const [followUps, tasks] = await Promise.all([
+  const [followUps, tasks, { items: properties }] = await Promise.all([
     listFollowUps(ctx),
     listTasks(ctx, { mine: true, status: 'open' }),
+    listProperties(ctx, { limit: 100 }),
   ]);
 
   const t = (key: Parameters<typeof translate>[1]): string => translate(locale, key);
+
+  /*
+   * ДЕНЬ СЧИТАЕТСЯ ПО ТБИЛИСИ, а не по часам сервера. Приложение живёт
+   * в облаке по UTC, и разница в четыре часа приходится ровно на начало
+   * суток: задача, назначенная на два часа ночи, попадала бы во вчерашнюю
+   * клетку календаря.
+   */
+  const dayKey = (value: Date): string =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: MARKET_TIME_ZONE,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
+
+  const today = dayKey(new Date());
+  const activeDate = typeof params['date'] === 'string' ? params['date'] : null;
+
+  // Сколько задач приходится на каждый день и есть ли среди них просроченные.
+  const byDay = new Map<string, { count: number; hasOverdue: boolean }>();
+  for (const task of tasks) {
+    if (task.dueAt === null) continue;
+    const key = dayKey(new Date(task.dueAt));
+    const current = byDay.get(key) ?? { count: 0, hasOverdue: false };
+    byDay.set(key, { count: current.count + 1, hasOverdue: current.hasOverdue || task.overdue });
+  }
+
+  /*
+   * Сетка месяца. Неделя начинается с понедельника: так считают и в Грузии,
+   * и в России — воскресенье первым выглядело бы чужим календарём.
+   */
+  const anchor = activeDate === null ? new Date() : new Date(`${activeDate}T12:00:00`);
+  const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+  const shift = (first.getDay() + 6) % 7;
+  const gridStart = new Date(first.getFullYear(), first.getMonth(), 1 - shift);
+
+  const days: CalendarDay[] = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(
+      gridStart.getFullYear(),
+      gridStart.getMonth(),
+      gridStart.getDate() + index,
+    );
+    const key = dayKey(date);
+    const stats = byDay.get(key) ?? { count: 0, hasOverdue: false };
+
+    return {
+      date: key,
+      label: String(date.getDate()),
+      isOutside: date.getMonth() !== first.getMonth(),
+      isToday: key === today,
+      count: stats.count,
+      hasOverdue: stats.hasOverdue,
+    };
+  });
+
+  const weekdays = Array.from({ length: 7 }, (_, index) =>
+    new Intl.DateTimeFormat(locale === 'ka' ? 'ka-GE' : locale === 'en' ? 'en-GB' : 'ru-RU', {
+      weekday: 'short',
+      timeZone: MARKET_TIME_ZONE,
+      // 2026-01-05 — понедельник, дальше по порядку.
+    }).format(new Date(2026, 0, 5 + index)),
+  );
+
+  const monthLabel = new Intl.DateTimeFormat(
+    locale === 'ka' ? 'ka-GE' : locale === 'en' ? 'en-GB' : 'ru-RU',
+    { month: 'long', year: 'numeric', timeZone: MARKET_TIME_ZONE },
+  ).format(first);
+
+  // Показываются задачи выбранного дня, а без выбора — все открытые.
+  const shown =
+    activeDate === null
+      ? tasks
+      : tasks.filter((task) => task.dueAt !== null && dayKey(new Date(task.dueAt)) === activeDate);
 
   return (
     /*
@@ -37,7 +118,39 @@ export default async function TasksPage() {
      * а не как несработавшая загрузка.
      */
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('task.title')}</h1>
+      <header className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-semibold tracking-tight">{t('task.title')}</h1>
+
+        <NewTask
+          properties={properties.map((property) => ({
+            id: property.id,
+            // Объект называют тем же, чем он назван везде: тип, комнаты,
+            // площадь и место. Отдельного имени у объекта нет и не будет.
+            name: [kindLine(locale, property), placeLine(property)]
+              .filter((part) => part !== '')
+              .join(' · '),
+          }))}
+          labels={{
+            open: t('task.add'),
+            title: t('task.titleField'),
+            property: t('nav.properties'),
+            due: t('task.dueField'),
+            submit: t('common.save'),
+            cancel: t('common.cancel'),
+            saving: t('common.loading'),
+            failed: t('task.addFailed'),
+            noProperties: t('task.noProperties'),
+          }}
+        />
+      </header>
+
+      <TaskCalendar
+        title={t('task.calendar')}
+        monthLabel={monthLabel}
+        weekdays={weekdays}
+        days={days}
+        activeDate={activeDate}
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="flex flex-col gap-3">
@@ -86,11 +199,11 @@ export default async function TasksPage() {
         <section className="flex flex-col gap-3">
           <h2 className="text-sm font-semibold">{t('task.mine')}</h2>
 
-          {tasks.length === 0 ? (
+          {shown.length === 0 ? (
             <QuietState text={t('task.empty')} />
           ) : (
             <ul className="flex flex-col gap-2">
-              {tasks.map((task) => (
+              {shown.map((task) => (
                 <li
                   key={task.id}
                   className="flex items-center justify-between gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3"

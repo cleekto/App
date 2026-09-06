@@ -105,7 +105,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const nav = [
     { href: '/board', label: t('nav.board'), icon: 'board' },
     { href: '/properties', label: t('nav.properties'), icon: 'properties' },
-    { href: '/tasks', label: t('nav.tasks'), icon: 'tasks' },
+    // Значок у задач — это напоминание: горит, когда срок наступил
+    // или прошёл. Задача на будущей неделе не план мигать не заставляет.
+    { href: '/tasks', label: t('nav.tasks'), icon: 'tasks', unread: 'tasks' as const },
     // Чат и сообщения встали после задач: ими пользуются в течение дня,
     // а не заходят разбираться, как в аналитику. Порядок пяти прежних
     // разделов, заданный владельцем, при этом сохранён.

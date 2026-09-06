@@ -26,9 +26,13 @@ interface Unread {
   direct: number;
   /** Сколько непрочитанного в каждой комнате. Пусто — прочитано всё. */
   byRoom: Record<string, number>;
+  /** Задачи, у которых срок наступил или прошёл. */
+  tasksDue: number;
+  /** Из них просроченных — по ним значок краснее не станет, но счёт нужен. */
+  tasksOverdue: number;
 }
 
-const EMPTY: Unread = { rooms: 0, direct: 0, byRoom: {} };
+const EMPTY: Unread = { rooms: 0, direct: 0, byRoom: {}, tasksDue: 0, tasksOverdue: 0 };
 
 const UnreadContext = createContext<Unread>(EMPTY);
 
@@ -92,10 +96,23 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
       if (document.visibilityState !== 'visible') return;
 
       try {
-        const response = await fetch('/api/v1/chat/unread', { cache: 'no-store' });
-        if (stopped || !response.ok) return;
+        /*
+         * Оба счётчика одним тиком: у них один повод обновиться — прошло
+         * время, — и два таймера вместо одного дали бы вдвое больше
+         * запросов ради того же самого.
+         */
+        const [chat, tasks] = await Promise.all([
+          fetch('/api/v1/chat/unread', { cache: 'no-store' }),
+          fetch('/api/v1/tasks/due', { cache: 'no-store' }),
+        ]);
+        if (stopped || !chat.ok) return;
 
-        const next = (await response.json()) as Unread;
+        const counts = (await chat.json()) as Omit<Unread, 'tasksDue' | 'tasksOverdue'>;
+        const due = tasks.ok
+          ? ((await tasks.json()) as { due: number; overdue: number })
+          : { due: 0, overdue: 0 };
+
+        const next: Unread = { ...counts, tasksDue: due.due, tasksOverdue: due.overdue };
         const before = previous.current;
 
         /*
@@ -143,9 +160,16 @@ export function UnreadProvider({ children }: { children: ReactNode }) {
  * С ЧИСЛОМ, А НЕ ПРОСТО ТОЧКОЙ: «есть что-то новое» и «двадцать три новых» —
  * разные новости, и вторая заставляет открыть сразу.
  */
-export function UnreadBadge({ kind, label }: { kind: 'rooms' | 'direct'; label: string }) {
+export function UnreadBadge({
+  kind,
+  label,
+}: {
+  kind: 'rooms' | 'direct' | 'tasks';
+  label: string;
+}) {
   const unread = useContext(UnreadContext);
-  const count = kind === 'rooms' ? unread.rooms : unread.direct;
+  const count =
+    kind === 'rooms' ? unread.rooms : kind === 'direct' ? unread.direct : unread.tasksDue;
 
   if (count === 0) return null;
 
@@ -173,7 +197,9 @@ export function UnreadBadge({ kind, label }: { kind: 'rooms' | 'direct'; label: 
  */
 export function UnreadDot({ label }: { label: string }) {
   const unread = useContext(UnreadContext);
-  if (unread.rooms + unread.direct === 0) return null;
+  // Задачи считаются наравне с сообщениями: на телефоне панель спрятана,
+  // и наступивший срок иначе не увидеть вовсе.
+  if (unread.rooms + unread.direct + unread.tasksDue === 0) return null;
 
   return (
     <span
