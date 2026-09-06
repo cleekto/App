@@ -218,13 +218,21 @@ export default async function FeedPage({
                           ? formatNumber(locale, item.price)
                           : formatMoney(locale, item.price, item.currency)}
                     </p>
+                    {/*
+                      НА ТЕЛЕФОНЕ ДАТА УХОДИТ, ПЛОЩАДКА ОСТАЁТСЯ.
+
+                      «myhome.ge · 7 сен. 2026» занимает полтораста пикселей,
+                      и на экране в 375 средней колонке оставалось около ста:
+                      тип объекта обрезался до «Кварти…». Из двух подписей
+                      важнее площадка — по ней агент понимает, куда его сейчас
+                      уведут; лента и без того отсортирована по свежести.
+                    */}
                     <p className="mt-0.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
-                      {[
-                        SOURCE_NAME[item.source] ?? '',
-                        formatDate(locale, new Date(item.lastSeenAt)),
-                      ]
-                        .filter((part) => part !== '')
-                        .join(DOT)}
+                      {SOURCE_NAME[item.source] ?? ''}
+                      <span className="hidden sm:inline">
+                        {DOT}
+                        {formatDate(locale, new Date(item.lastSeenAt))}
+                      </span>
                     </p>
                   </div>
                 </a>
