@@ -15,6 +15,7 @@ import { formatDateTime, translate } from '@kleekto/i18n';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { stageColors } from '../../_ui/accent';
 import { Card, EmptyState } from '../../_ui/primitives';
+import { RoomUnread } from '../unread';
 import { CompanyFeed } from './company-feed';
 import { Conversation } from './conversation';
 import { TopicBar } from './topic-bar';
@@ -188,6 +189,12 @@ export default async function ChatPage({
                           style={{ backgroundColor: stageColors(room.colorToken).fg }}
                         />
                         <span className="truncate text-sm font-medium">{room.name}</span>
+
+                        {/* Сколько непрочитанного именно здесь. Без этого
+                            значок в панели говорил «есть новое», но не
+                            говорил где, и комнаты приходилось обходить
+                            по одной. */}
+                        <RoomUnread roomId={room.id} label={t('nav.unread')} />
                       </span>
                       {room.topic === null ? null : (
                         <span className="truncate text-xs text-[var(--color-text-tertiary)]">

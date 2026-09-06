@@ -115,6 +115,7 @@ export const en = {
     signOut: 'Sign out',
     menu: 'Menu',
     closeMenu: 'Close menu',
+    unread: 'You have unread messages',
   },
   auth: {
     signIn: 'Sign in',

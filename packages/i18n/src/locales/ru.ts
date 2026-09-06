@@ -123,6 +123,7 @@ export const ru: DeepPartial<Dictionary> = {
     signOut: 'Выйти',
     menu: 'Меню',
     closeMenu: 'Закрыть меню',
+    unread: 'Есть непрочитанные сообщения',
   },
   auth: {
     signIn: 'Войти',

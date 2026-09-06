@@ -122,6 +122,7 @@ export const ka: DeepPartial<Dictionary> = {
     signOut: 'გასვლა',
     menu: 'მენიუ',
     closeMenu: 'მენიუს დახურვა',
+    unread: 'გაქვთ წაუკითხავი შეტყობინებები',
   },
   auth: {
     signIn: 'შესვლა',
