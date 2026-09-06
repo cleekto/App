@@ -22,7 +22,23 @@ export interface UploadResult {
   key: string;
   /** Локальный адрес для мгновенного показа, пока страница не перечиталась. */
   previewUrl: string;
+  /**
+   * Имя, под которым файл выбрал человек.
+   *
+   * Ключ в хранилище — случайный набор букв, и для фотографии этого хватает:
+   * её видно. Для вложения в переписке имя и есть содержание: «договор
+   * аренды.pdf» и «IMG_4821.jpg» читаются по-разному.
+   */
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
 }
+
+/**
+ * Куда кладётся файл. От вида зависит и папка в хранилище, и что вообще
+ * принимается: к сообщению можно приложить PDF, аватаркой — нет.
+ */
+export type UploadKind = 'avatar' | 'property' | 'chat';
 
 /** Чем кончилась загрузка. Отказ несёт причину, а не просто «нет». */
 export type UploadOutcome =
@@ -43,7 +59,7 @@ export type UploadOutcome =
  */
 export async function uploadFile(
   file: File,
-  kind: 'avatar' | 'property',
+  kind: UploadKind,
   fallback: string,
 ): Promise<UploadOutcome> {
   const ticket = await fetch('/api/v1/uploads', {
@@ -71,7 +87,16 @@ export async function uploadFile(
     return { ok: false, where: 'storage', reason: `${fallback} (${String(put.status)})` };
   }
 
-  return { ok: true, file: { key, previewUrl: URL.createObjectURL(file) } };
+  return {
+    ok: true,
+    file: {
+      key,
+      previewUrl: URL.createObjectURL(file),
+      fileName: file.name,
+      contentType: file.type,
+      sizeBytes: file.size,
+    },
+  };
 }
 
 /**
@@ -86,7 +111,7 @@ export function UploadButton({
   multiple = false,
   onUploaded,
 }: {
-  kind: 'avatar' | 'property';
+  kind: UploadKind;
   labels: { choose: string; busy: string; failed: string };
   multiple?: boolean;
   onUploaded: (results: UploadResult[]) => void;
@@ -100,7 +125,11 @@ export function UploadButton({
       <input
         ref={input}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept={
+          kind === 'chat'
+            ? 'image/jpeg,image/png,image/webp,application/pdf'
+            : 'image/jpeg,image/png,image/webp'
+        }
         multiple={multiple}
         className="hidden"
         onChange={(event) => {

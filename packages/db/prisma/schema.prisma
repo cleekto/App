@@ -1093,6 +1093,36 @@ model DirectConversation {
 /// Хранится момент, а не список сообщений: непрочитанное считается как «всё,
 /// что пришло позже отметки». Список рос бы вместе с перепиской, а момент —
 /// это одна строка на человека и разговор.
+/// Файл, приложенный к сообщению.
+///
+/// ОТДЕЛЬНАЯ ТАБЛИЦА, А НЕ МАССИВ КЛЮЧЕЙ. У фотографий объекта массив
+/// оправдан: показывать их всё равно нечем, кроме картинки. У вложения
+/// в переписке главное — ИМЯ: «договор аренды.pdf» и «IMG_4821.jpg» читаются
+/// по-разному, а ключ в хранилище — это случайный набор букв, и по нему
+/// не понять ни что внутри, ни стоит ли открывать.
+model ChatAttachment {
+  id String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+
+  /// Компании у вложения СВОЕЙ НЕТ, и это намеренно: она есть у сообщения,
+  /// а две копии одного факта рано или поздно разойдутся. Вложение живёт
+  /// только через сообщение и вместе с ним удаляется.
+  messageId String @db.Uuid
+
+  /// Ключ в хранилище. Не ссылка: ссылка подписана и живёт час.
+  storageKey String
+  /// Имя, под которым файл выбрал человек. Показывается как есть.
+  fileName    String
+  contentType String
+  sizeBytes   Int
+
+  createdAt DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@map("chat_attachments")
+}
+
 model ChatRead {
   id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   companyId String @db.Uuid
@@ -1162,6 +1192,8 @@ model ChatMessage {
   /// исходное не должно утаскивать за собой ответы на него.
   replyTo   ChatMessage?  @relation("ChatReply", fields: [replyToId], references: [id], onDelete: SetNull)
   replies   ChatMessage[] @relation("ChatReply")
+
+  attachments ChatAttachment[]
 
   @@index([roomId, createdAt(sort: Desc)])
   @@index([topicId, createdAt(sort: Desc)])

@@ -8,8 +8,9 @@ import {
   listUsers,
   markChatRead,
 } from '@kleekto/core';
-import { formatDateTime, translate } from '@kleekto/i18n';
+import { translate } from '@kleekto/i18n';
 
+import { forView } from '../../_lib/chat-view';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Avatar } from '../../_ui/accent';
 import { Card, EmptyState } from '../../_ui/primitives';
@@ -51,33 +52,12 @@ export default async function MessagesPage({
   // с уехавшими часами пометил бы прочитанным то, что ещё не пришло.
   if (active !== null) await markChatRead(ctx, { conversationId: active.id });
 
-  const messages =
+  // Подпись ссылок и времени — та же, что у живого опроса (`_lib/chat-view`):
+  // иначе первый же тик заменил бы ленту ответом другого вида.
+  const withAvatars =
     active === null
       ? []
-      : (await listChatMessages(ctx, { conversationId: active.id })).map((message) => ({
-          ...message,
-          timeLabel: formatDateTime(locale, new Date(message.createdAt)),
-        }));
-
-  /*
-   * Фотографии авторов подписываются одним махом.
-   *
-   * Ключей в ленте немного и они повторяются — один человек пишет подряд, —
-   * поэтому подписывается каждый УНИКАЛЬНЫЙ ключ по разу. Подпись дешёвая,
-   * но десять одинаковых подписей на десять реплик одного автора — работа
-   * впустую.
-   */
-  const avatarKeys = [
-    ...new Set(messages.map((message) => message.authorAvatarKey).filter((key) => key !== null)),
-  ];
-  const avatarUrls = await fileUrls(ctx, avatarKeys);
-  const avatarOf = new Map(avatarKeys.map((key, index) => [key, avatarUrls[index] ?? null]));
-
-  const withAvatars = messages.map((message) => ({
-    ...message,
-    authorAvatarUrl:
-      message.authorAvatarKey === null ? null : (avatarOf.get(message.authorAvatarKey) ?? null),
-  }));
+      : await forView(ctx, locale, await listChatMessages(ctx, { conversationId: active.id }));
 
   // Себя в списке собеседников нет: написать самому себе нельзя, и сервер
   // это отвергает — предлагать бессмысленный пункт незачем.
@@ -155,6 +135,11 @@ export default async function MessagesPage({
                 version={version}
                 notice={t('chat.privateHint')}
                 labels={{
+                  attach: t('chat.attach'),
+                  attaching: t('chat.attaching'),
+                  attachFailed: t('chat.attachFailed'),
+                  removeAttachment: t('chat.removeAttachment'),
+                  openAttachment: t('chat.openAttachment'),
                   write: t('chat.write'),
                   send: t('chat.send'),
                   edited: t('chat.edited'),

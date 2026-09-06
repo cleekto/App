@@ -87,6 +87,34 @@ export interface ChatMessageView {
    * на месте, исчезает только цитата.
    */
   replyTo: { id: string; authorName: string; body: string | null } | null;
+  /** Приложенные файлы. Пусто — обычное сообщение. */
+  attachments: ChatAttachmentView[];
+}
+
+/**
+ * Вложение в том виде, в каком его показывают.
+ *
+ * КЛЮЧ, А НЕ ССЫЛКА: ссылка подписана и живёт час, а список сообщений живёт
+ * на экране весь день. Подписывает тот, кто рисует страницу, — и делает это
+ * заново на каждый показ.
+ */
+export interface ChatAttachmentView {
+  id: string;
+  key: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/** Что можно приложить к одному сообщению. */
+const MAX_ATTACHMENTS = 10;
+
+/** Вложение, каким его прислал браузер. */
+export interface ChatAttachmentInput {
+  key: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
 }
 
 export interface ChatTopicSummary {
@@ -456,6 +484,10 @@ export async function companyFeed(ctx: AuthContext, limit = 60): Promise<FeedIte
     include: {
       room: { select: { id: true, name: true, colorToken: true } },
       replyTo: { select: { id: true, body: true, deletedAt: true, authorUserId: true } },
+      attachments: {
+        select: { id: true, storageKey: true, fileName: true, contentType: true, sizeBytes: true },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   });
 
@@ -498,6 +530,15 @@ export async function companyFeed(ctx: AuthContext, limit = 60): Promise<FeedIte
               authorName: names.get(message.replyTo.authorUserId) ?? '',
               body: message.replyTo.deletedAt === null ? message.replyTo.body : null,
             },
+      attachments: isDeleted
+        ? []
+        : message.attachments.map((file) => ({
+            id: file.id,
+            key: file.storageKey,
+            fileName: file.fileName,
+            contentType: file.contentType,
+            sizeBytes: file.sizeBytes,
+          })),
       roomId: message.room?.id ?? '',
       roomName: message.room?.name ?? '',
       roomColorToken: message.room?.colorToken ?? null,
@@ -716,6 +757,10 @@ export async function listChatMessages(
     take: Math.min(options.limit ?? 200, 500),
     include: {
       replyTo: { select: { id: true, body: true, deletedAt: true, authorUserId: true } },
+      attachments: {
+        select: { id: true, storageKey: true, fileName: true, contentType: true, sizeBytes: true },
+        orderBy: { createdAt: 'asc' },
+      },
     },
   });
 
@@ -758,6 +803,18 @@ export async function listChatMessages(
               // уехало бы в браузер.
               body: message.replyTo.deletedAt === null ? message.replyTo.body : null,
             },
+      // У удалённого сообщения вложений не показываем: файл — такая же
+      // часть сказанного, как текст, и оставить его после удаления значило бы
+      // удалить наполовину.
+      attachments: isDeleted
+        ? []
+        : message.attachments.map((file) => ({
+            id: file.id,
+            key: file.storageKey,
+            fileName: file.fileName,
+            contentType: file.contentType,
+            sizeBytes: file.sizeBytes,
+          })),
     };
   });
 }
@@ -766,12 +823,35 @@ export async function postChatMessage(
   ctx: AuthContext,
   target: ChatTarget,
   body: string,
-  options: { replyToId?: string | undefined } = {},
+  options: {
+    replyToId?: string | undefined;
+    attachments?: readonly ChatAttachmentInput[] | undefined;
+  } = {},
 ): Promise<{ id: string }> {
   requirePermission(ctx, 'chatMessage', 'create');
 
+  /*
+   * ЧУЖИЕ КЛЮЧИ ОТСЕИВАЮТСЯ ЗДЕСЬ. Ключ приходит от браузера, и без проверки
+   * к сообщению можно было бы приложить файл из хранилища другого агентства:
+   * показывая вложение, сервер подписал бы его как своё.
+   *
+   * Молча, а не отказом: чужой ключ — не ошибка агента, а попытка, и терять
+   * из-за неё написанное сообщение незачем.
+   */
+  const files = (options.attachments ?? [])
+    .filter((file) => file.key.startsWith(`${ctx.companyId}/`))
+    .slice(0, MAX_ATTACHMENTS);
+
   const text = body.trim();
-  if (text === '') throw new ValidationError('Пустое сообщение', { fields: ['body'] });
+
+  /*
+   * ПУСТОЙ ТЕКСТ ДОПУСТИМ, ЕСЛИ ЕСТЬ ФАЙЛ. Прислать фотографию без подписи —
+   * обычное дело, и требовать к ней слово значило бы заставлять человека
+   * писать «вот» ради проверки.
+   */
+  if (text === '' && files.length === 0) {
+    throw new ValidationError('Пустое сообщение', { fields: ['body'] });
+  }
   if (text.length > MAX_BODY) {
     throw new ValidationError('Слишком длинное сообщение', { fields: ['body'] });
   }
@@ -798,6 +878,16 @@ export async function postChatMessage(
         replyToId: replyTo,
         authorUserId: ctx.userId,
         body: text,
+        // Вложения создаются той же транзакцией: сообщение без своих файлов
+        // и файлы без сообщения одинаково бессмысленны.
+        attachments: {
+          create: files.map((file) => ({
+            storageKey: file.key,
+            fileName: file.fileName.trim().slice(0, 255),
+            contentType: file.contentType,
+            sizeBytes: file.sizeBytes,
+          })),
+        },
       },
       select: { id: true },
     });

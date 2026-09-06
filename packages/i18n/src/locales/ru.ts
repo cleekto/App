@@ -95,6 +95,14 @@ export const ru: DeepPartial<Dictionary> = {
     emptyMessages: 'Здесь пока пусто',
     emptyMessagesHint: 'Напишите первое сообщение — его увидит вся компания.',
     write: 'Написать сообщение',
+
+    // Вложения. В переписке агентства ходят договоры и выписки, поэтому
+    // не только картинки.
+    attach: 'Файл',
+    attaching: 'Загружаю…',
+    attachFailed: 'Файл не загрузился',
+    removeAttachment: 'Убрать файл',
+    openAttachment: 'Открыть файл',
     send: 'Отправить',
     edited: 'изменено',
     deleted: 'Сообщение удалено',

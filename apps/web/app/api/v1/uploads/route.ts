@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  */
 const schema = z
   .object({
-    kind: z.enum(['avatar', 'property']),
+    kind: z.enum(['avatar', 'property', 'chat']),
     contentType: z.string().min(1).max(100),
     sizeBytes: z.number().int().positive(),
   })

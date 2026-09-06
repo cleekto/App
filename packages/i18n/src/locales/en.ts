@@ -89,6 +89,14 @@ export const en = {
     emptyMessages: 'Nothing here yet',
     emptyMessagesHint: 'Write the first message — the whole company will see it.',
     write: 'Write a message',
+
+    // Attachments. Agencies pass contracts and extracts around, so not
+    // images only.
+    attach: 'File',
+    attaching: 'Uploading…',
+    attachFailed: 'File did not upload',
+    removeAttachment: 'Remove file',
+    openAttachment: 'Open file',
     send: 'Send',
     edited: 'edited',
     deleted: 'Message deleted',

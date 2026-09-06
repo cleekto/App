@@ -25,7 +25,30 @@ import { ValidationError } from '../errors';
  */
 
 /** Что разрешено загружать. Список закрыт: `image/*` пропустил бы SVG. */
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+const IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
+
+/**
+ * К сообщению прикладывают не только картинки.
+ *
+ * PDF добавлен потому, что в переписке агентства ходят договоры и выписки,
+ * и заставлять человека фотографировать документ экраном — не решение.
+ * Список всё равно ЗАКРЫТ: ни архивов, ни офисных документов с макросами,
+ * ни тем более исполняемых файлов. Открыть его шире — отдельное решение,
+ * а не побочный эффект слова «файл» в задании.
+ */
+const CHAT_TYPES = [...IMAGE_TYPES, 'application/pdf'] as const;
+
+export function allowedTypes(kind: UploadKind): readonly string[] {
+  return kind === 'chat' ? CHAT_TYPES : IMAGE_TYPES;
+}
+
+/** Расширение по типу. Тип пришёл снаружи, поэтому берётся из таблицы. */
+const EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+  'application/pdf': 'pdf',
+};
 
 /**
  * SVG здесь нет намеренно: это не картинка, а документ со скриптами внутри,
@@ -39,7 +62,7 @@ const UPLOAD_TTL_SECONDS = 300;
 /** Ссылка на чтение живёт час: страницу успевают посмотреть, не дольше. */
 const DOWNLOAD_TTL_SECONDS = 3600;
 
-export type UploadKind = 'avatar' | 'property';
+export type UploadKind = 'avatar' | 'property' | 'chat';
 
 interface StorageConfig {
   client: S3Client;
@@ -140,7 +163,7 @@ export async function createUploadUrl(
     throw new ValidationError('Хранилище файлов не настроено');
   }
 
-  if (!(ALLOWED_TYPES as readonly string[]).includes(input.contentType)) {
+  if (!allowedTypes(input.kind).includes(input.contentType)) {
     throw new ValidationError('Такой тип файла не принимается', { fields: ['contentType'] });
   }
 
@@ -148,8 +171,7 @@ export async function createUploadUrl(
     throw new ValidationError('Файл слишком большой', { fields: ['sizeBytes'] });
   }
 
-  const extension =
-    input.contentType === 'image/png' ? 'png' : input.contentType === 'image/webp' ? 'webp' : 'jpg';
+  const extension = EXTENSIONS[input.contentType] ?? 'bin';
   const key = `${ctx.companyId}/${input.kind}/${randomUUID()}.${extension}`;
 
   const uploadUrl = await getSignedUrl(

@@ -18,6 +18,9 @@ import { Avatar, stageColors } from '../../_ui/accent';
  * Личной переписки в ленте нет: её видят только двое.
  */
 
+/** Разделитель между именами файлов. Тот же, что в остальных перечислениях. */
+const SEPARATOR = ' · ';
+
 export interface FeedRow {
   id: string;
   body: string | null;
@@ -25,6 +28,8 @@ export interface FeedRow {
   authorAvatarUrl: string | null;
   timeLabel: string;
   isDeleted: boolean;
+  /** Приложенные файлы. В ленте — только упоминание: читают её, а не открывают. */
+  attachments: Array<{ id: string; fileName: string }>;
   roomId: string;
   roomName: string;
   roomColorToken: string | null;
@@ -89,6 +94,29 @@ export function CompanyFeed({
                     >
                       {item.body}
                     </p>
+
+                    {/* Файлы в ленте только УПОМИНАЮТСЯ: лента отвечает
+                        на вопрос «что происходит», а открывают файл
+                        в самой комнате, куда эта строка и ведёт. */}
+                    {item.attachments.length === 0 ? null : (
+                      <p className="mt-0.5 flex items-center gap-1 text-xs text-[var(--color-text-tertiary)]">
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.6"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden
+                          className="size-3.5 shrink-0"
+                        >
+                          <path d="M21.4 11.05 12.25 20.2a5.5 5.5 0 0 1-7.78-7.78l9.2-9.2a3.67 3.67 0 0 1 5.18 5.18l-9.2 9.2a1.83 1.83 0 1 1-2.6-2.6l8.5-8.48" />
+                        </svg>
+                        <span className="truncate">
+                          {item.attachments.map((file) => file.fileName).join(SEPARATOR)}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 </Link>
               </li>

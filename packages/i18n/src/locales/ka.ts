@@ -96,6 +96,14 @@ export const ka: DeepPartial<Dictionary> = {
     emptyMessages: 'აქ ჯერ ცარიელია',
     emptyMessagesHint: 'დაწერეთ პირველი შეტყობინება — მას მთელი კომპანია ნახავს.',
     write: 'დაწერეთ შეტყობინება',
+
+    // დანართები. სააგენტოს მიმოწერაში დადის ხელშეკრულებები და ამონაწერები,
+    // ამიტომ არა მხოლოდ სურათები.
+    attach: 'ფაილი',
+    attaching: 'იტვირთება…',
+    attachFailed: 'ფაილი ვერ აიტვირთა',
+    removeAttachment: 'ფაილის მოხსნა',
+    openAttachment: 'ფაილის გახსნა',
     send: 'გაგზავნა',
     edited: 'შესწორდა',
     deleted: 'შეტყობინება წაიშალა',

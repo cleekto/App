@@ -1,18 +1,40 @@
 import { z } from 'zod';
 
-import { formatDateTime, type Locale } from '@kleekto/i18n';
+import { type Locale } from '@kleekto/i18n';
 
-import { chatVersion, fileUrls, listChatMessages, postChatMessage } from '@kleekto/core';
+import { chatVersion, listChatMessages, postChatMessage } from '@kleekto/core';
 
+import { forView } from '../../../../../../_lib/chat-view';
 import { handle, parseBody, requireAuth } from '../../../../../_lib/handler';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Вложение, каким его прислал браузер.
+ *
+ * Ключ выдал наш же сервер при загрузке, но принимается он как ЗАЯВКА:
+ * чужой ключ ядро отсеет само. Имя и тип берутся у файла на машине человека
+ * и показываются как есть — по ключу не понять ни что внутри, ни стоит ли
+ * открывать.
+ */
+const attachmentSchema = z
+  .object({
+    key: z.string().min(1).max(400),
+    fileName: z.string().min(1).max(255),
+    contentType: z.string().min(1).max(100),
+    sizeBytes: z.number().int().positive(),
+  })
+  .strict();
+
 const postSchema = z
   .object({
-    body: z.string().min(1).max(4000),
+    // Без `min(1)`: сообщение может быть одним файлом без подписи.
+    // Что пустым может быть либо текст, либо вложения, но не оба сразу,
+    // решает ядро — там же, где остальные правила сообщения.
+    body: z.string().max(4000),
     /** На какое сообщение это ответ. Принадлежность проверяет ядро. */
     replyToId: z.string().uuid().optional(),
+    attachments: z.array(attachmentSchema).max(10).optional(),
   })
   .strict();
 
@@ -63,34 +85,11 @@ export async function GET(request: Request, { params }: Params) {
   }
 
   const raw = await listChatMessages(ctx, target);
-  /*
-   * Подпись времени считается ЗДЕСЬ, на сервере.
-   *
-   * Клиентскому компоненту звать `Intl` в этом проекте запрещено: у браузера
-   * агента может не быть данных грузинской локали, и формат разошёлся бы
-   * с серверным. Передать ему функцию форматирования тоже нельзя — сервер
-   * не передаёт функции клиенту. Значит, лента уезжает уже с готовой строкой.
-   */
-  /*
-   * Ссылки на фотографии подписываются и здесь.
-   *
-   * Иначе аватарки исчезали бы через три секунды: страница отрисовала бы
-   * их подписанными, а первый же тик живого опроса заменил бы ленту
-   * ответом без ссылок. Ключи повторяются — один человек пишет подряд, —
-   * поэтому подписывается каждый уникальный по разу.
-   */
-  const avatarKeys = [
-    ...new Set(raw.map((message) => message.authorAvatarKey).filter((key) => key !== null)),
-  ];
-  const avatarUrls = await fileUrls(ctx, avatarKeys);
-  const avatarOf = new Map(avatarKeys.map((key, index) => [key, avatarUrls[index] ?? null]));
 
-  const messages = raw.map((message) => ({
-    ...message,
-    timeLabel: formatDateTime(ctx.locale as Locale, new Date(message.createdAt)),
-    authorAvatarUrl:
-      message.authorAvatarKey === null ? null : (avatarOf.get(message.authorAvatarKey) ?? null),
-  }));
+  // Подпись ссылок и времени — общая со страницами (`_lib/chat-view`).
+  // Пока каждое место готовило ленту само, они разъезжались: страница
+  // рисовала аватарки, а первый же тик опроса присылал ленту без них.
+  const messages = await forView(ctx, ctx.locale as Locale, raw);
 
   return Response.json({ version, messages });
 }
@@ -106,7 +105,10 @@ export async function POST(request: Request, { params }: Params) {
       ctx,
       { roomId: id, ...(topicId === undefined ? {} : { topicId }) },
       payload.body,
-      payload.replyToId === undefined ? {} : { replyToId: payload.replyToId },
+      {
+        ...(payload.replyToId === undefined ? {} : { replyToId: payload.replyToId }),
+        ...(payload.attachments === undefined ? {} : { attachments: payload.attachments }),
+      },
     );
   });
 }
