@@ -13,6 +13,7 @@ export {
   PublicationStatus,
   RoleCode,
   SellerKind,
+  SellerResolution,
   Source,
   TaskStatus,
   TransactionType,

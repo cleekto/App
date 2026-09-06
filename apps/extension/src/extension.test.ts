@@ -270,6 +270,7 @@ describe('тело запроса', () => {
       projectType: null,
       cadastralCode: null,
       sellerKind: null,
+      sellerExternalId: null,
       owner: { name: null, phones: ['555000111'] },
     },
     missingFields: ['address', 'district'],

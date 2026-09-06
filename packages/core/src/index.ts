@@ -52,5 +52,7 @@ export * from './tasks/use-cases';
 export * from './comments/use-cases';
 export * from './activity/feed';
 export * from './analytics/achievements';
+export * from './feed/use-cases';
+export * from './feed/harvest';
 export * from './analytics/use-cases';
 export * from './rate-limit/use-cases';

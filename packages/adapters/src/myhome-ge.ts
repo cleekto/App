@@ -123,6 +123,9 @@ export class MyhomeAdapter implements ListingSourceAdapter {
       projectType: track('projectType', facts?.projectType ?? null),
       cadastralCode: track('cadastralCode', facts?.cadastralCode ?? null),
       sellerKind: track('sellerKind', facts?.sellerKind ?? null),
+      // Не в `missingFields`: это служебный ключ, а не поле объекта, и агенту
+      // его отсутствие ни о чём не говорит.
+      sellerExternalId: facts?.sellerExternalId ?? null,
 
       owner: { name: facts?.ownerName ?? null, phones },
     };

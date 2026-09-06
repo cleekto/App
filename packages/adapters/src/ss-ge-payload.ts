@@ -91,6 +91,16 @@ export function ssGePayloadFacts(
     projectType: text(app['project']),
     cadastralCode: text(app['cadastralCode']),
     sellerKind: sellerKind(app),
+    /*
+     * `userId` — идентификатор подавшего в системе ss.ge, не контакт.
+     *
+     * Ключевое поле для рабочей ленты: в СПИСКЕ объявлений ss.ge тип
+     * продавца не виден (частный маклер там неотличим от собственника),
+     * а здесь виден. Узнав его один раз со страницы, которую агент открыл
+     * сам, мы помечаем все объявления этого продавца — не обращаясь
+     * к площадке ни разу.
+     */
+    sellerExternalId: text(app['userId']),
 
     ownerName: text(app['contactPerson']),
   };

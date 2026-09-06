@@ -61,6 +61,9 @@ export interface ImportRequestBody {
   projectType?: string | null;
   cadastralCode?: string | null;
   sellerKind?: 'owner' | 'agency' | null;
+  /** Идентификатор подавшего на площадке. Не контакт: по нему рабочая лента
+   *  узнаёт тип продавца и распространяет его на все его объявления. */
+  sellerExternalId?: string | null;
 
   owner: { name?: string | null; phone: string };
 
@@ -214,6 +217,7 @@ export function toRequestBody(
     projectType: payload.projectType,
     cadastralCode: payload.cadastralCode,
     sellerKind: payload.sellerKind,
+    sellerExternalId: payload.sellerExternalId,
 
     owner: { name: payload.owner.name, phone },
     parserVersion: extraction.parserVersion,

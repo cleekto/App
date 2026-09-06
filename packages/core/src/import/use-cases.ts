@@ -14,6 +14,7 @@ import type { AuthContext } from '../auth/context';
 import { analyze, type DedupMatch, type DedupOutcome } from '../dedup/engine';
 import type { Facts, Verdict } from '../dedup/scoring';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors';
+import { resolveSellerFromListing } from '../feed/harvest';
 import { canonicalizeUrl, normalizeAddress } from '../normalize';
 import { normalizePhone } from '../phone';
 
@@ -66,6 +67,17 @@ export interface ImportPayload {
   projectType?: string | null | undefined;
   cadastralCode?: string | null | undefined;
   sellerKind?: 'owner' | 'agency' | null | undefined;
+
+  /**
+   * Идентификатор подавшего НА САМОЙ ПЛОЩАДКЕ — не контакт и не имя.
+   *
+   * Ради него всё и заведено. У ss.ge в списке объявлений тип продавца
+   * не виден: частный маклер там неотличим от собственника. Зато он виден
+   * ЗДЕСЬ, на странице объявления, которую агент открыл сам, — и, узнав
+   * его один раз, мы распространяем ответ на все объявления этого продавца,
+   * не обращаясь к площадке ни разу.
+   */
+  sellerExternalId?: string | null | undefined;
 
   owner: { name?: string | null | undefined; phone: string };
 
@@ -225,6 +237,21 @@ async function upsertObservation(
   canonicalUrl: string,
   phoneNormalized: string,
 ): Promise<{ id: string }> {
+  /*
+   * ОДНО ОТКРЫТИЕ ОБЪЯВЛЕНИЯ ОПОЗНАЁТ ПРОДАВЦА ЦЕЛИКОМ.
+   *
+   * Здесь агент открыл страницу сам, и площадка на ней говорит, кто подал
+   * объявление. В СПИСКЕ ss.ge этого не говорит — частный маклер там
+   * неотличим от собственника. Поэтому знание записывается на продавца,
+   * и все его объявления, прошлые и будущие, получают тип без единого
+   * обращения к площадке. Без этого рабочая лента по ss.ge была бы пуста.
+   */
+  const seller = await resolveSellerFromListing(
+    input.source,
+    input.sellerExternalId,
+    input.sellerKind,
+  );
+
   const data = {
     source: input.source,
     externalId: input.externalId ?? null,
@@ -241,6 +268,16 @@ async function upsertObservation(
     ownerName: input.owner.name ?? null,
     ownerPhone: input.owner.phone,
     phoneNormalized,
+    // Кто подал объявление — по данным площадки. Рабочая лента показывает
+    // только объявления собственников, и без этого поля она пуста.
+    sellerKind: input.sellerKind ?? null,
+    /*
+     * Связь с продавцом ставится, только когда она известна: `undefined`
+     * означает для Prisma «не трогать». Записав здесь `null`, мы разорвали бы
+     * связь, установленную при сборе выдачи, — и объявление выпало бы
+     * из ленты без всякой видимой причины.
+     */
+    ...(seller === null ? {} : { sellerId: seller }),
   };
 
   const existing = await prisma.listingObservation.findFirst({

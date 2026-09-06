@@ -83,6 +83,11 @@ export function myhomePayloadFacts(document: Document): PayloadFacts | null {
     projectType: fromDictionary(dict['project_types'], listing['project_type_id']),
     cadastralCode: text(listing['rs_code']),
     sellerKind: sellerKind(listing),
+    // Идентификатор подавшего у myhome — число; храним строкой, это чужой ключ.
+    sellerExternalId:
+      listing['user_id'] === undefined || listing['user_id'] === null
+        ? null
+        : String(listing['user_id']),
 
     ownerName: text(listing['owner_name']),
   };

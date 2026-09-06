@@ -53,6 +53,9 @@ const importSchema = z
     projectType: z.string().nullable().optional(),
     cadastralCode: z.string().nullable().optional(),
     sellerKind: z.enum(['owner', 'agency']).nullable().optional(),
+    // Идентификатор подавшего на площадке. Не контакт: по нему тип продавца
+    // распространяется на все его объявления без обращения к площадке.
+    sellerExternalId: z.string().max(64).nullable().optional(),
 
     owner: z.object({
       name: z.string().nullable().optional(),
