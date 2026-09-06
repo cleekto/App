@@ -304,7 +304,13 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
   });
 
   if (row === null) throw new NotFoundError();
-  assertScope(ctx, scope, { companyId: row.companyId, teamId: row.teamId });
+  assertScope(ctx, scope, {
+    companyId: row.companyId,
+    teamId: row.teamId,
+    // Владелец назван обязательно: у области «своё» без него не открывалась
+    // ни одна карточка, включая собственные.
+    ownerUserId: row.assignedUserId,
+  });
 
   const assignees = await namesOf([row.assignedUserId]);
   const shared = await sharedLinks(ctx, [row.propertyLinkId], [row.teamId]);

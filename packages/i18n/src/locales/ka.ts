@@ -51,6 +51,7 @@ export const ka: DeepPartial<Dictionary> = {
     title: 'ანალიტიკა',
     scopeCompany: 'მთელი სააგენტო',
     scopeTeam: 'თქვენი გუნდი',
+    scopeOwn: 'თქვენი ობიექტები',
     newToday: 'ახალი დღეს',
     newThisWeek: 'ახალი კვირაში',
     totalProperties: 'ობიექტი ბაზაში',

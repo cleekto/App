@@ -42,6 +42,7 @@ export const en = {
     title: 'Analytics',
     scopeCompany: 'Whole agency',
     scopeTeam: 'Your team',
+    scopeOwn: 'Your properties',
     newToday: 'New today',
     newThisWeek: 'New this week',
     totalProperties: 'Properties in base',

@@ -99,7 +99,13 @@ export default async function DashboardPage() {
           {t('dashboard.title')}
         </h1>
         <p className="mt-0.5 text-[0.8125rem] text-[var(--color-text-secondary)]">
-          {data.scope === 'company' ? t('dashboard.scopeCompany') : t('dashboard.scopeTeam')}
+          {/* Подпись обязана совпадать с тем, что посчитано: агенту,
+              который видит только свои объекты, «ваша команда» — неправда. */}
+          {data.scope === 'company'
+            ? t('dashboard.scopeCompany')
+            : data.scope === 'team'
+              ? t('dashboard.scopeTeam')
+              : t('dashboard.scopeOwn')}
         </p>
       </header>
 

@@ -56,6 +56,7 @@ export function assertScope(
     }
 
     case 'own': {
+      requireOwnerNamed(resource);
       if (resource.ownerUserId !== ctx.userId) {
         throw new ForbiddenError('Изменять можно только свои записи');
       }
@@ -63,6 +64,7 @@ export function assertScope(
     }
 
     case 'self': {
+      requireOwnerNamed(resource);
       if (resource.ownerUserId !== ctx.userId) {
         throw new ForbiddenError('Изменять можно только собственную учётную запись');
       }
@@ -108,5 +110,25 @@ export function scopeFilter(
       base[field] = ctx.userId;
       return base;
     }
+  }
+}
+
+/**
+ * Не названный владелец — ошибка в коде, а не отказ в доступе.
+ *
+ * ЗАЧЕМ ОТДЕЛЬНАЯ ПРОВЕРКА. `undefined !== userId` — истина, поэтому забытое
+ * поле молча превращалось в «это не ваше» и выглядело как настроенные права.
+ * Стоило области агента впервые стать «своё», и половина экранов ответила
+ * отказом на СОБСТВЕННЫЕ записи человека, причём сообщение уводило в сторону:
+ * оно говорило про чужие записи там, где просто не передали поле.
+ *
+ * `null` при этом остаётся обычным отказом: у объекта может не быть
+ * ответственного, и это не ошибка кода, а реальное «ничьё».
+ */
+function requireOwnerNamed(resource: { ownerUserId?: string | null }): void {
+  if (resource.ownerUserId === undefined) {
+    throw new Error(
+      'Область «своё» применена к ресурсу без владельца: сценарий обязан передать ownerUserId',
+    );
   }
 }

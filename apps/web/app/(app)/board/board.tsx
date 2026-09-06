@@ -378,7 +378,16 @@ export function Board({
                     draggable
                     onDragStart={() => setDragging({ kind: 'card', id: card.id })}
                     onDragEnd={() => setDragging(null)}
-                    className="cursor-grab rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
+                    /*
+                     * `block` ОБЯЗАТЕЛЕН. Раньше карточка была прямым
+                     * ребёнком колонки-флекса и блочной становилась сама
+                     * собой. Обёртка, добавленная ради кнопки правки, это
+                     * отменила: ссылка вернулась к строчному боксу, где
+                     * вертикальные отступы не раздвигают соседей, а фон
+                     * и скругление рисуются по строкам текста, — карточки
+                     * налезали друг на друга.
+                     */
+                    className="block cursor-grab rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
                   >
                     <div className="flex gap-2.5">
                       {/* Обложка на карточке: доска — это взгляд сверху,

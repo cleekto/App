@@ -47,6 +47,7 @@ export const ru: DeepPartial<Dictionary> = {
     title: 'Аналитика',
     scopeCompany: 'Всё агентство',
     scopeTeam: 'Ваша команда',
+    scopeOwn: 'Ваши объекты',
     newToday: 'Новых за день',
     newThisWeek: 'Новых за неделю',
     totalProperties: 'Объектов в базе',

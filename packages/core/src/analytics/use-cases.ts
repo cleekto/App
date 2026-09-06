@@ -17,7 +17,11 @@ import { requirePermission, scopeFilter } from '../rbac/guard';
  */
 
 export interface Dashboard {
-  scope: 'company' | 'team';
+  /**
+   * За что посчитаны числа. Показывается подписью над сводкой: без неё
+   * «12 объектов» одинаково выглядит и как «у агентства», и как «у меня».
+   */
+  scope: 'company' | 'team' | 'own';
   period: { dayFrom: string; weekFrom: string };
 
   properties: {
@@ -111,15 +115,36 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * заново в каждой метрике значило бы завести пять мест, где она может
  * разойтись.
  *
- * У ЖУРНАЛА ДЕЙСТВИЙ СВОИ КОЛОНКИ, поэтому фильтр объектов переводится:
- * команда — в `teamId`, «только своё» — в `userId`. Без перевода агент,
- * который видит лишь свои объекты, читал бы в аналитике действия всей
- * компании: пустой фильтр — это не «моё», а «всё».
+ * Отдаётся в виде, НЕ ПРИВЯЗАННОМ К ТАБЛИЦЕ: у журнала действий «своё»
+ * лежит в `userId`, у объявления — в `importedByUserId`, у публикации —
+ * в `createdByUserId`. Готовый фрагмент `where` подошёл бы одной таблице
+ * из трёх, а в двух других дал бы запрос по несуществующей колонке —
+ * то есть падение всей аналитики. Ровно это и случилось, когда область
+ * агента впервые стала «своё».
  */
-function narrowOf(where: Prisma.PropertyWhereInput): { teamId?: string; userId?: string } {
-  if (typeof where.teamId === 'string') return { teamId: where.teamId };
-  if (typeof where.assignedUserId === 'string') return { userId: where.assignedUserId };
-  return {};
+type Narrow = { kind: 'all' } | { kind: 'team'; teamId: string } | { kind: 'own'; userId: string };
+
+function narrowOf(where: Prisma.PropertyWhereInput): Narrow {
+  if (typeof where.teamId === 'string') return { kind: 'team', teamId: where.teamId };
+  if (typeof where.assignedUserId === 'string') {
+    return { kind: 'own', userId: where.assignedUserId };
+  }
+  return { kind: 'all' };
+}
+
+/**
+ * Тот же признак для конкретной таблицы: колонку «чьё» называет вызывающий,
+ * потому что знает её только он.
+ */
+function narrowWhere(narrow: Narrow, ownColumn: string): Record<string, string> {
+  switch (narrow.kind) {
+    case 'all':
+      return {};
+    case 'team':
+      return { teamId: narrow.teamId };
+    case 'own':
+      return { [ownColumn]: narrow.userId };
+  }
 }
 
 export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promise<Dashboard> {
@@ -161,7 +186,7 @@ export async function dashboard(ctx: AuthContext, now: Date = new Date()): Promi
   const counts = new Map(byStatusRaw.map((row) => [row.pipelineStatusId, row._count._all]));
 
   return {
-    scope: scope === 'company' ? 'company' : 'team',
+    scope: scope === 'own' ? 'own' : scope === 'company' ? 'company' : 'team',
     period: { dayFrom: dayFrom.toISOString(), weekFrom: weekFrom.toISOString() },
 
     properties: {
@@ -203,7 +228,7 @@ async function peopleActivity(
       companyId: ctx.companyId,
       action: ACTIVITY.OWNER_AGREED,
       createdAt: { gte: weekFrom },
-      ...narrowOf(where),
+      ...narrowWhere(narrowOf(where), 'userId'),
     },
     _count: true,
   });
@@ -241,7 +266,8 @@ async function quality(
   where: Prisma.PropertyWhereInput,
   weekFrom: Date,
 ): Promise<Dashboard['quality']> {
-  const teamFilter = narrowOf(where);
+  const narrow = narrowOf(where);
+  const logFilter = narrowWhere(narrow, 'userId');
 
   const [agreed, warned] = await Promise.all([
     prisma.activityLog.count({
@@ -249,7 +275,7 @@ async function quality(
         companyId: ctx.companyId,
         action: ACTIVITY.OWNER_AGREED,
         createdAt: { gte: weekFrom },
-        ...teamFilter,
+        ...logFilter,
       },
     }),
     prisma.activityLog.count({
@@ -257,7 +283,7 @@ async function quality(
         companyId: ctx.companyId,
         action: ACTIVITY.IMPORT_DUPLICATE_WARNED,
         createdAt: { gte: weekFrom },
-        ...teamFilter,
+        ...logFilter,
       },
     }),
   ]);
@@ -265,7 +291,8 @@ async function quality(
   const attempts = agreed + warned;
 
   const listings = await prisma.sourceListing.findMany({
-    where: { companyId: ctx.companyId, ...teamFilter },
+    // У объявления «своё» — это «мною импортированное».
+    where: { companyId: ctx.companyId, ...narrowWhere(narrow, 'importedByUserId') },
     select: { missingFields: true },
     take: 2000,
   });
@@ -295,8 +322,8 @@ async function publishing(
   weekFrom: Date,
   totalProperties: number,
 ): Promise<Dashboard['publishing']> {
-  const teamFilter = narrowOf(where);
-  const base = { companyId: ctx.companyId, ...teamFilter };
+  // У публикации «своё» — это «мною созданная».
+  const base = { companyId: ctx.companyId, ...narrowWhere(narrowOf(where), 'createdByUserId') };
 
   const [filledToday, filledThisWeek, publishedThisWeek, publishedProperties, reports] =
     await Promise.all([

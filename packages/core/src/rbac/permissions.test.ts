@@ -179,6 +179,26 @@ describe('assertScope', () => {
     ).toThrow(ForbiddenError);
   });
 
+  it('не названный владелец — ошибка кода, а не отказ в доступе', () => {
+    /*
+     * Забытое поле раньше молча читалось как «это не ваше»: `undefined`
+     * не равен идентификатору. Из-за этого агент, у которого область стала
+     * «своё», получал отказ на СОБСТВЕННЫХ объектах, а сообщение уводило
+     * в сторону — говорило про чужие записи.
+     */
+    expect(() => assertScope(ctx(RoleCode.AGENT), 'own', { companyId: 'company-1' })).toThrow(
+      /ownerUserId/,
+    );
+  });
+
+  it('ничей ресурс — обычный отказ, а не ошибка кода', () => {
+    // У объекта может не быть ответственного. Это реальное «ничьё»,
+    // и отвечать на него надо отказом, а не падением.
+    expect(() =>
+      assertScope(ctx(RoleCode.AGENT), 'own', { companyId: 'company-1', ownerUserId: null }),
+    ).toThrow(ForbiddenError);
+  });
+
   it('own пропускает только свои записи', () => {
     expect(() =>
       assertScope(ctx(RoleCode.AGENT), 'own', { companyId: 'company-1', ownerUserId: 'user-1' }),

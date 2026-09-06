@@ -43,10 +43,21 @@ export async function propertyActivity(
 
   const property = await prisma.property.findFirst({
     where: { id: propertyId, companyId: ctx.companyId },
-    select: { id: true, companyId: true, teamId: true },
+    select: { id: true, companyId: true, teamId: true, assignedUserId: true },
   });
   if (property === null) throw new NotFoundError();
-  assertScope(ctx, scope, { companyId: property.companyId, teamId: property.teamId });
+  /*
+   * ВЛАДЕЛЕЦ НАЗВАН ОБЯЗАТЕЛЬНО. У области «своё» проверка сравнивает его
+   * с текущим человеком, и не переданный владелец — это не «пропустить»,
+   * а `undefined`, не равный никому: агент переставал открывать карточку
+   * любого объекта, включая собственные. Появилось это ровно тогда, когда
+   * область агента сузилась до своих объектов.
+   */
+  assertScope(ctx, scope, {
+    companyId: property.companyId,
+    teamId: property.teamId,
+    ownerUserId: property.assignedUserId,
+  });
 
   // Связанные записи: задачи и комментарии этого объекта попадают в ленту
   // наравне со сменами статуса — иначе история распадается на три ленты,
@@ -110,8 +121,22 @@ export interface FollowUp {
 export async function listFollowUps(ctx: AuthContext, limit = 50): Promise<FollowUp[]> {
   const scope = requirePermission(ctx, 'property', 'read');
 
+  /*
+   * ОБЛАСТЬ ЗДЕСЬ — КОМАНДА, ДАЖЕ У ТОГО, КТО ВИДИТ ТОЛЬКО СВОИ ОБЪЕКТЫ.
+   *
+   * Состояние обзвона живёт не на объекте, а на объявлении, и привязано
+   * к команде: `@@unique([observationId, teamId])`, колонки «чьё» у него
+   * нет вовсе. «Перезвонить» помечает лид для всей команды — чтобы двое
+   * не звонили одному собственнику, — и это тот же довод, по которому
+   * дубли проверяются в области команды.
+   *
+   * Без этой строки область «своё» подставляла бы `userId` в таблицу, где
+   * такой колонки нет, и страница задач падала целиком.
+   */
+  const area = scope === 'own' ? 'team' : scope;
+
   const where: Prisma.ObservationStateWhereInput = {
-    ...(scopeFilter(ctx, scope) as Prisma.ObservationStateWhereInput),
+    ...(scopeFilter(ctx, area) as Prisma.ObservationStateWhereInput),
     state: ObservationStateValue.callback,
     callbackAt: { lte: new Date() },
   };
