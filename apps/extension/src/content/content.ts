@@ -2,6 +2,7 @@ import { adapterFor } from '@kleekto/adapters';
 import { isLocale, type Locale } from '@kleekto/i18n';
 
 import { APP_URL } from '../core/config';
+import { startFeedCollector } from './feed';
 import type { CallOutcome, ImportRequestBody, ImportResponse } from '../core/import-manager';
 import { runImport } from '../core/import-manager';
 import type { ContentToWorker, WorkerReply, WorkerToContent } from '../core/messages';
@@ -61,8 +62,15 @@ async function signedIn(): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  // Страница не объявление — расширение молчит. Не ошибка: агент просто
-  // открыл что-то другое.
+  /*
+   * Сбор рабочей ленты идёт на ЛЮБОЙ странице площадки и раньше всего
+   * остального: агент может открыть выдачу и уйти с неё за секунду,
+   * а данные там уже есть. Интерфейса у сбора нет — он молчит и не мешает.
+   */
+  startFeedCollector();
+
+  // Дальше — только страница объявления. Не ошибка: агент просто открыл
+  // что-то другое, и расширение об этом молчит.
   if (adapterFor(location.href) === null) return;
 
   const ui = new Ui(await currentLocale(), (action) => {

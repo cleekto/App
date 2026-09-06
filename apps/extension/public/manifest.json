@@ -30,6 +30,18 @@
         "https://www.myhome.ge/*",
         "https://myhome.ge/*"
       ],
+      "js": ["listen.js"],
+      "run_at": "document_start",
+      "world": "MAIN",
+      "all_frames": false
+    },
+    {
+      "matches": [
+        "https://home.ss.ge/*",
+        "https://ss.ge/*",
+        "https://www.myhome.ge/*",
+        "https://myhome.ge/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }

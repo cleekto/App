@@ -1,3 +1,4 @@
+import type { SearchCard } from '@kleekto/adapters';
 import type { FillResult, PublishedRef } from '@kleekto/contracts';
 import { isLocale, type Locale } from '@kleekto/i18n';
 
@@ -195,6 +196,21 @@ export class ApiClient {
    */
   async importListing(body: ImportRequestBody): Promise<ImportResponse> {
     return this.send<ImportResponse>('/api/v1/import/listing', body);
+  }
+
+  /**
+   * Карточки выдачи в общий индекс объявлений.
+   *
+   * Отдельный путь от `importListing`, и это не дублирование: импорт создаёт
+   * объект по «Согласен» и требует раскрытого телефона (правило 11), а здесь
+   * ни объекта, ни телефона нет и быть не может — только то, что площадка
+   * показала любому посетителю в списке.
+   */
+  async postObservations(
+    source: 'SS_GE' | 'MYHOME_GE',
+    cards: readonly SearchCard[],
+  ): Promise<{ accepted: number }> {
+    return this.send<{ accepted: number }>('/api/v1/observations/batch', { source, cards });
   }
 
   /**

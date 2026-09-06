@@ -1,3 +1,5 @@
+import type { SearchCard } from '@kleekto/adapters';
+
 import type { CallOutcome, ImportRequestBody, ImportResponse } from './import-manager';
 
 /**
@@ -15,6 +17,12 @@ import type { CallOutcome, ImportRequestBody, ImportResponse } from './import-ma
 export type ContentToWorker =
   /** Отправить готовое тело импорта. Единственный путь расширения в сеть. */
   | { type: 'import'; body: ImportRequestBody }
+  /**
+   * Карточки выдачи, увиденные агентом. Уходят в общий индекс объявлений
+   * и никогда не создают объект: он появляется только по «Согласен»
+   * (правило 0). Телефонов здесь нет — в выдаче их не отдают.
+   */
+  | { type: 'observations'; source: 'SS_GE' | 'MYHOME_GE'; cards: SearchCard[] }
   | { type: 'session' }
   | { type: 'login'; email: string; password: string }
   | { type: 'logout' };
@@ -29,6 +37,7 @@ export type WorkerToContent =
 
 export type WorkerReply =
   | { ok: true; response: ImportResponse }
+  | { ok: true; accepted: number }
   | { ok: true; session: { email: string; locale: string } | null }
   | { ok: false; error: 'network' | 'session' | 'unknown'; message: string };
 

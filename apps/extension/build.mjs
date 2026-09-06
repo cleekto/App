@@ -99,7 +99,15 @@ await esbuild.build({
  */
 await esbuild.build({
   ...shared,
-  entryPoints: { content: resolve(root, 'src/content/content.ts') },
+  entryPoints: {
+    content: resolve(root, 'src/content/content.ts'),
+    /*
+     * Слушатель ответов страницы. Собирается тем же IIFE и по той же причине,
+     * но живёт в MAIN-мире площадки — значит, всё, что в него попадёт, видно
+     * и площадке. Поэтому в нём нет ни адреса нашего сервера, ни токена.
+     */
+    listen: resolve(root, 'src/content/listen.ts'),
+  },
   outdir,
   format: 'iife',
 });

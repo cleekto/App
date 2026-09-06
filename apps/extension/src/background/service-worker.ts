@@ -111,6 +111,10 @@ async function handle(message: ContentToWorker): Promise<WorkerReply> {
         const response = await api.importListing(message.body);
         return { ok: true, response };
       }
+      case 'observations': {
+        const { accepted } = await api.postObservations(message.source, message.cards);
+        return { ok: true, accepted };
+      }
       case 'session': {
         const session = await readSession(chromeStorage());
         return {
