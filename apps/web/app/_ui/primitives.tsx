@@ -32,7 +32,7 @@ const BUTTON_TONE: Record<ButtonTone, string> = {
   primary:
     'bg-[image:var(--gradient-primary)] bg-[length:180%_100%] bg-[position:0%_0%] text-white shadow-[var(--shadow-card)] transition-[background-position,box-shadow,transform] hover:bg-[position:100%_0%] hover:shadow-[var(--shadow-hover)] disabled:bg-none disabled:bg-[var(--color-border-strong)] disabled:shadow-none',
   secondary:
-    'bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-strong)] hover:bg-[var(--color-surface-muted)]',
+    'bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border-field)] hover:bg-[var(--color-surface-muted)]',
   ghost:
     'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text-primary)]',
   danger: 'bg-[var(--color-danger)] text-white hover:brightness-95',
@@ -80,7 +80,7 @@ export function Button({
  * и фильтры на списке объектов встали в столбец вместо строки.
  */
 const FIELD_BASE =
-  'rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] transition-[border-color,box-shadow] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:border-[var(--color-text-tertiary)] focus:border-[var(--color-brand)] disabled:bg-[var(--color-surface-muted)]';
+  'rounded-[var(--radius-control)] border border-[var(--color-border-field)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-tertiary)] transition-[border-color,box-shadow] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:border-[var(--color-text-tertiary)] focus:border-[var(--color-brand)] disabled:bg-[var(--color-surface-muted)]';
 
 export function Input({ className = '', ...rest }: ComponentPropsWithoutRef<'input'>) {
   return <input {...rest} className={`${FIELD_BASE} h-10 ${className}`} />;

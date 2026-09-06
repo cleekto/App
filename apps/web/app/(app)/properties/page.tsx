@@ -251,7 +251,7 @@ export default async function PropertiesPage({
                   <Photo
                     src={photoOf.get(item.id) ?? null}
                     alt={t('property.photoAlt')}
-                    className="h-12 w-16 transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] group-hover:scale-[1.04]"
+                    className="h-12 w-16 transition-transform duration-[var(--duration-base)] ease-[var(--ease-out)] [@media(hover:hover)and(pointer:fine)]:group-hover:scale-[1.04]"
                   />
 
                   <div className="min-w-0">

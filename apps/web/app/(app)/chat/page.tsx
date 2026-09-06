@@ -105,11 +105,15 @@ export default async function ChatPage({
         <EmptyState title={t('chat.emptyRooms')} hint={t('chat.emptyRoomsHint')} />
       ) : (
         <div className="grid min-h-0 gap-4 lg:grid-cols-[16rem_1fr]">
-          <Card className="h-fit overflow-hidden">
+          {/* Предел высоты со своей прокруткой. Без него на узком экране,
+              где две колонки схлопываются в одну, список из двух десятков
+              комнат уводил саму переписку за пределы экрана: чтобы дойти
+              до неё, приходилось пролистать все комнаты. */}
+          <Card className="flex max-h-[22rem] flex-col overflow-hidden lg:max-h-[calc(100vh-13rem)]">
             <p className="px-4 pt-3 pb-1 text-xs font-semibold text-[var(--color-text-tertiary)]">
               {t('chat.rooms')}
             </p>
-            <ul className="flex flex-col p-1.5">
+            <ul className="flex min-h-0 flex-1 flex-col overflow-y-auto p-1.5">
               {/* Общая лента — первый пункт и место по умолчанию: сюда
                   человек попадает, пока не зашёл в конкретную комнату. */}
               <li>

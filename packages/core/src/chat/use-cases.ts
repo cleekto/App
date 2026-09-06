@@ -38,6 +38,21 @@ function cleanRoomColor(value: string | null | undefined): string | null {
 }
 
 /**
+ * Цвет для комнаты, если его не выбрали.
+ *
+ * РАЗДАЁТСЯ ПО КРУГУ, а не оставляется пустым. Замысел «нужную комнату
+ * находят по цвету, а не читают названия» не работал из коробки: цвет никто
+ * не выбирает при создании, и весь список получался одинаково фиолетовым.
+ *
+ * По числу уже заведённых комнат, а не случайно: случайный дал бы двум
+ * соседним комнатам один цвет — ровно то, чего мы избегаем.
+ */
+async function nextRoomColor(ctx: AuthContext): Promise<string> {
+  const taken = await prisma.chatRoom.count({ where: { companyId: ctx.companyId } });
+  return ROOM_COLORS[taken % ROOM_COLORS.length] ?? 'brand';
+}
+
+/**
  * Куда адресовано сообщение.
  *
  * Комната, тема внутри комнаты либо личная переписка. Тема без комнаты
@@ -324,7 +339,7 @@ export async function createChatRoom(
       companyId: ctx.companyId,
       name,
       topic: topic === undefined || topic === '' ? null : topic,
-      colorToken: cleanRoomColor(input.colorToken),
+      colorToken: cleanRoomColor(input.colorToken) ?? (await nextRoomColor(ctx)),
       createdByUserId: ctx.userId,
     },
     select: { id: true },

@@ -117,7 +117,6 @@ export default async function DashboardPage() {
           label={t('dashboard.newToday')}
           value={<AnimatedNumber value={data.properties.createdToday} groupSeparator={separator} />}
           accent={accentOf('newToday')}
-          featured
           icon={
             <>
               <path d="M12 5v14M5 12h14" />
@@ -141,6 +140,15 @@ export default async function DashboardPage() {
           label={t('dashboard.totalProperties')}
           value={<AnimatedNumber value={data.properties.total} groupSeparator={separator} />}
           accent={accentOf('totalProperties')}
+          /*
+           * Выделено ИМЕННО ЭТО ЧИСЛО, а не «новых сегодня».
+           *
+           * Заливка тянет взгляд первой, и раньше она стояла на дневном
+           * счётчике — числе, которое к обеду ещё ноль и в понедельник
+           * ничего не говорит. «Объектов в базе» — то, чем агентство
+           * измеряет себя, и с него взгляд и должен начинаться.
+           */
+          featured
           icon={
             <>
               <path d="M3 10.5 12 3l9 7.5" />

@@ -142,8 +142,18 @@ export function EditProperty({
         }}
         className={
           compact
-            ? 'shrink-0 rounded-[var(--radius-pill)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)] transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-brand-text)]'
-            : 'rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-surface-muted)]'
+            ? /*
+               * `min-h-6` — не украшение, а норма попадания: было 21 пиксель
+               * при минимуме 24. Кнопка стоит в строке списка и на карточке
+               * доски, то есть в двух самых частых местах, и на телефоне
+               * в неё приходилось целиться.
+               *
+               * `active:scale` — отклик на нажатие, как у остальных кнопок:
+               * половина откликается, половина молчит — заметнее, чем
+               * отсутствие эффекта у всех.
+               */
+              'inline-flex min-h-6 shrink-0 items-center rounded-[var(--radius-pill)] px-2.5 text-[0.6875rem] font-medium text-[var(--color-text-tertiary)] transition-[background-color,color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-brand-text)]'
+            : 'rounded-[var(--radius-control)] border border-[var(--color-border-field)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-[background-color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] hover:bg-[var(--color-surface-muted)]'
         }
       >
         {labels.trigger}

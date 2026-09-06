@@ -182,7 +182,7 @@ function Frame({
           onClick={onRemove}
           aria-label={removeLabel}
           title={removeLabel}
-          className="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-[var(--color-surface)] text-[var(--color-danger)] shadow-[var(--shadow-raised)] transition-transform duration-[var(--duration-fast)] hover:scale-110"
+          className="absolute top-1 right-1 grid size-6 place-items-center rounded-full bg-[var(--color-surface)] text-[var(--color-danger)] shadow-[var(--shadow-raised)] transition-transform duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.92] [@media(hover:hover)and(pointer:fine)]:hover:scale-110"
         >
           {/* Крестик рисуется здесь: одна фигура, ради неё библиотеку
               иконок не подключают. */}

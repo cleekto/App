@@ -162,7 +162,7 @@ export function UploadButton({
         type="button"
         disabled={busy}
         onClick={() => input.current?.click()}
-        className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-surface-muted)] disabled:opacity-60"
+        className="rounded-[var(--radius-control)] border border-[var(--color-border-field)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-[background-color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] hover:bg-[var(--color-surface-muted)] disabled:opacity-60 disabled:active:scale-100"
       >
         {busy ? labels.busy : labels.choose}
       </button>

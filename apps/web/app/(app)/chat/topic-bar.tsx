@@ -70,7 +70,7 @@ export function TopicBar({
       <Link
         href={`/chat?room=${roomId}`}
         aria-current={activeTopicId === null ? 'page' : undefined}
-        className={`rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-medium transition-colors duration-[var(--duration-fast)] ${
+        className={`rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-medium transition-[background-color,color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] ${
           activeTopicId === null
             ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
             : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]'
@@ -84,7 +84,7 @@ export function TopicBar({
           key={topic.id}
           href={`/chat?room=${roomId}&topic=${topic.id}`}
           aria-current={topic.id === activeTopicId ? 'page' : undefined}
-          className={`inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-medium transition-colors duration-[var(--duration-fast)] ${
+          className={`inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-2.5 py-1 text-xs font-medium transition-[background-color,color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] ${
             topic.id === activeTopicId
               ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand-text)]'
               : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]'
@@ -130,7 +130,7 @@ export function TopicBar({
         <button
           type="button"
           onClick={() => setAdding(true)}
-          className="rounded-[var(--radius-pill)] border border-dashed border-[var(--color-border-strong)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition-colors duration-[var(--duration-fast)] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-text)]"
+          className="rounded-[var(--radius-pill)] border border-dashed border-[var(--color-border-field)] px-2.5 py-1 text-xs text-[var(--color-text-secondary)] transition-[border-color,color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] hover:border-[var(--color-brand)] hover:text-[var(--color-brand-text)]"
         >
           {labels.add}
         </button>

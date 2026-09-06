@@ -50,7 +50,7 @@ export function PropertyCard({
         <Photo
           src={photo}
           alt={photoAlt}
-          className="size-full transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] group-hover:scale-[1.04]"
+          className="size-full transition-transform duration-[var(--duration-slow)] ease-[var(--ease-out)] [@media(hover:hover)and(pointer:fine)]:group-hover:scale-[1.04]"
         />
         <span className="absolute top-2 left-2">{status}</span>
       </span>
