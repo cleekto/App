@@ -44,7 +44,7 @@ export const ru: DeepPartial<Dictionary> = {
     hidePassword: 'Скрыть пароль',
   },
   dashboard: {
-    title: 'Аналитика',
+    title: 'Достижения',
     scopeCompany: 'Всё агентство',
     scopeTeam: 'Ваша команда',
     scopeOwn: 'Ваши объекты',
@@ -124,11 +124,11 @@ export const ru: DeepPartial<Dictionary> = {
   },
 
   nav: {
-    properties: 'Объекты',
-    board: 'Доска',
-    tasks: 'Задачи',
-    chat: 'Чат',
-    messages: 'Сообщения',
+    properties: 'Мои объекты',
+    board: 'Моя доска',
+    tasks: 'Мои задачи',
+    chat: 'Рабочий чат',
+    messages: 'Messenger',
     settings: 'Настройки',
     signOut: 'Выйти',
     menu: 'Меню',
@@ -253,6 +253,8 @@ export const ru: DeepPartial<Dictionary> = {
     editTitle: 'Правка объекта',
     editFailed: 'Сохранить не вышло',
     notSpecified: 'Не указано',
+    exclusive: 'X-clusive',
+    exclusiveHint: 'Собственник согласился работать только с нами',
 
     // Характеристики из объявления. Показывается только то, что площадка
     // сказала: пустое поле означает «не сказано», а не «нет».
@@ -287,7 +289,7 @@ export const ru: DeepPartial<Dictionary> = {
     publishCheckCancel: 'Отмена',
   },
   board: {
-    title: 'Доска',
+    title: 'Моя доска',
     empty: 'В этом статусе пусто',
 
     // Фильтры доски: на агентстве из двадцати человек без них в колонке
@@ -322,7 +324,7 @@ export const ru: DeepPartial<Dictionary> = {
     },
   },
   task: {
-    title: 'Задачи',
+    title: 'Мои задачи',
     mine: 'Мои задачи',
     followUps: 'Пора связаться',
     empty: 'Сейчас делать нечего',

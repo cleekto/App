@@ -48,7 +48,7 @@ export const ka: DeepPartial<Dictionary> = {
     hidePassword: 'პაროლის დამალვა',
   },
   dashboard: {
-    title: 'ანალიტიკა',
+    title: 'მიღწევები',
     scopeCompany: 'მთელი სააგენტო',
     scopeTeam: 'თქვენი გუნდი',
     scopeOwn: 'თქვენი ობიექტები',
@@ -123,11 +123,11 @@ export const ka: DeepPartial<Dictionary> = {
   },
 
   nav: {
-    properties: 'ობიექტები',
-    board: 'დაფა',
-    tasks: 'დავალებები',
-    chat: 'ჩატი',
-    messages: 'შეტყობინებები',
+    properties: 'ჩემი ობიექტები',
+    board: 'ჩემი დაფა',
+    tasks: 'ჩემი დავალებები',
+    chat: 'სამუშაო ჩატი',
+    messages: 'Messenger',
     settings: 'პარამეტრები',
     signOut: 'გასვლა',
     menu: 'მენიუ',
@@ -252,6 +252,8 @@ export const ka: DeepPartial<Dictionary> = {
     editTitle: 'ობიექტის რედაქტირება',
     editFailed: 'შენახვა ვერ მოხერხდა',
     notSpecified: 'მითითებული არაა',
+    exclusive: 'X-clusive',
+    exclusiveHint: 'მესაკუთრე მხოლოდ ჩვენთან მუშაობაზე დათანხმდა',
 
     characteristics: 'მახასიათებლები',
     bedrooms: 'საძინებელი',
@@ -283,7 +285,7 @@ export const ka: DeepPartial<Dictionary> = {
     publishCheckCancel: 'გაუქმება',
   },
   board: {
-    title: 'დაფა',
+    title: 'ჩემი დაფა',
     empty: 'ამ სტატუსში ცარიელია',
 
     // დაფის ფილტრები: ოცკაციან სააგენტოში სვეტში ორმოცი ბარათია,
@@ -317,7 +319,7 @@ export const ka: DeepPartial<Dictionary> = {
     },
   },
   task: {
-    title: 'დავალებები',
+    title: 'ჩემი დავალებები',
     mine: 'ჩემი დავალებები',
     followUps: 'დროა დაუკავშირდეთ',
     empty: 'ახლა გასაკეთებელი არაფერია',

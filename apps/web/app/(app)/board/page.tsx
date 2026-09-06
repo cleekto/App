@@ -148,6 +148,7 @@ export default async function BoardPage({
             item.assignedUserAvatarKey === null
               ? null
               : (faceOf.get(item.assignedUserAvatarKey) ?? null),
+          isExclusive: item.isExclusive,
         }))}
         edit={
           canEdit
@@ -161,6 +162,7 @@ export default async function BoardPage({
           empty: t('board.empty'),
           photoAlt: t('property.photoAlt'),
           unassigned: t('property.unassigned'),
+          exclusive: t('property.exclusive'),
           manage: t('board.manage'),
           addStage: t('board.addStage'),
           stageName: t('board.stageName'),

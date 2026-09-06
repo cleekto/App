@@ -37,6 +37,8 @@ interface Card extends CardLines {
   photo: string | null;
   agentName: string | null;
   agentAvatar: string | null;
+  /** Эксклюзивная договорённость с собственником. */
+  isExclusive: boolean;
 }
 
 interface Column {
@@ -54,6 +56,7 @@ export interface BoardLabels extends ColumnMenuLabels {
   empty: string;
   photoAlt: string;
   unassigned: string;
+  exclusive: string;
   addStage: string;
   stageName: string;
   manage: string;
@@ -387,7 +390,17 @@ export function Board({
                      * и скругление рисуются по строкам текста, — карточки
                      * налезали друг на друга.
                      */
-                    className="block cursor-grab rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 shadow-[var(--shadow-card)] transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]"
+                    className={`block cursor-grab rounded-[var(--radius-card)] px-3 py-2.5 shadow-[var(--shadow-card)]${
+                      card.isExclusive
+                        ? /*
+                           * ЭКСКЛЮЗИВ ВИДЕН СРАЗУ: фирменная рамка и лёгкая
+                           * заливка того же цвета. Не заливка целиком —
+                           * на такой карточке перестал бы читаться текст,
+                           * а прочесть её надо чаще, чем заметить.
+                           */
+                          ' border border-[var(--color-brand)] bg-[var(--color-brand-soft)]/60'
+                        : ' border border-[var(--color-border)] bg-[var(--color-surface)]'
+                    } transition-[box-shadow,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] active:scale-[0.97] active:cursor-grabbing [@media(hover:hover)and(pointer:fine)]:hover:-translate-y-0.5 [@media(hover:hover)and(pointer:fine)]:hover:shadow-[var(--shadow-hover)]`}
                   >
                     <div className="flex gap-2.5">
                       {/* Обложка на карточке: доска — это взгляд сверху,

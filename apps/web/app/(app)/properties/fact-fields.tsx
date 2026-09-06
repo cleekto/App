@@ -46,6 +46,8 @@ export interface FactLabels {
   address: string;
   price: string;
   currency: string;
+  exclusive: string;
+  exclusiveHint: string;
 }
 
 /** Значения, уже лежащие у объекта. При заведении пусто. */
@@ -71,6 +73,7 @@ export interface FactValues {
   addressRaw?: string | null;
   price?: number | null;
   currency?: string | null;
+  isExclusive?: boolean | null;
 }
 
 /**
@@ -126,6 +129,8 @@ export function readFacts(form: FormData): Record<string, unknown> {
     addressRaw: optionalText(form.get('addressRaw')),
     price: optionalNumber(form.get('price')),
     currency: optionalText(form.get('currency')),
+    // Флажок присылает значение, только когда отмечен: отсутствие — это «нет».
+    isExclusive: form.get('isExclusive') === 'on',
   };
 }
 
@@ -307,6 +312,26 @@ export function FactFields({
           <Input name="cadastralCode" defaultValue={text(values.cadastralCode)} />
         </Field>
       </div>
+
+      {/*
+        ЭКСКЛЮЗИВ — ДОГОВОРЁННОСТЬ, А НЕ СТАДИЯ. Объект бывает эксклюзивным
+        на любой стадии воронки, от «в базе» до «размещено»; стадией это
+        сделать нельзя, иначе воронку пришлось бы удвоить.
+      */}
+      <label className="flex cursor-pointer items-start gap-2.5 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2.5">
+        <input
+          type="checkbox"
+          name="isExclusive"
+          defaultChecked={values.isExclusive === true}
+          className="mt-0.5 size-4 shrink-0 cursor-pointer accent-[var(--color-brand)]"
+        />
+        <span className="min-w-0">
+          <span className="block text-sm font-medium">{labels.exclusive}</span>
+          <span className="block text-xs text-[var(--color-text-secondary)]">
+            {labels.exclusiveHint}
+          </span>
+        </span>
+      </label>
 
       <Field label={labels.sellerKind}>
         <Select name="sellerKind" defaultValue={values.sellerKind ?? ''}>

@@ -26,6 +26,7 @@ const patchSchema = z
     // Полный список после правки: и состав, и порядок. Что из него уцелеет,
     // решает сервер — чужие ключи он отсеивает сам.
     photos: z.array(z.string().min(1).max(500)).max(20).optional(),
+    isExclusive: z.boolean().optional(),
   })
   .strict();
 

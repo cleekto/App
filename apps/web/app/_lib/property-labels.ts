@@ -44,6 +44,8 @@ export function factLabels(locale: Locale): FactLabels {
     address: t('property.addressLabel'),
     price: t('property.priceLabel'),
     currency: t('property.currencyLabel'),
+    exclusive: t('property.exclusive'),
+    exclusiveHint: t('property.exclusiveHint'),
   };
 }
 

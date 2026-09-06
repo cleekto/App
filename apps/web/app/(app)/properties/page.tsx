@@ -282,6 +282,11 @@ export default async function PropertiesPage({
                         <span className="truncate">
                           {item.assignedUserName ?? t('property.unassigned')}
                         </span>
+                        {item.isExclusive ? (
+                          <span className="shrink-0 rounded-[var(--radius-pill)] bg-[var(--color-brand)] px-1.5 py-0.5 text-[0.625rem] font-semibold text-white">
+                            {t('property.exclusive')}
+                          </span>
+                        ) : null}
                       </p>
                     </div>
 

@@ -56,6 +56,7 @@ const createSchema = z
     // дозаполнения (решение владельца 2026-09-06).
     ...propertyFactsShape,
     publicDescription: z.string().max(10_000).nullable().optional(),
+    isExclusive: z.boolean().optional(),
     /** Ключи загруженных фотографий. Чужие отсеивает ядро. */
     photoKeys: z.array(z.string().min(1).max(400)).max(20).optional(),
     acknowledgedDuplicateOf: z.array(z.string().uuid()).max(20).optional(),

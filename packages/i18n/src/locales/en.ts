@@ -39,7 +39,7 @@ export const en = {
     hidePassword: 'Hide password',
   },
   dashboard: {
-    title: 'Analytics',
+    title: 'Achievements',
     scopeCompany: 'Whole agency',
     scopeTeam: 'Your team',
     scopeOwn: 'Your properties',
@@ -116,11 +116,11 @@ export const en = {
   },
 
   nav: {
-    properties: 'Properties',
-    board: 'Board',
-    tasks: 'Tasks',
-    chat: 'Chat',
-    messages: 'Messages',
+    properties: 'My properties',
+    board: 'My board',
+    tasks: 'My tasks',
+    chat: 'Work chat',
+    messages: 'Messenger',
     settings: 'Settings',
     signOut: 'Sign out',
     menu: 'Menu',
@@ -245,6 +245,8 @@ export const en = {
     editTitle: 'Edit property',
     editFailed: 'Could not save',
     notSpecified: 'Not specified',
+    exclusive: 'X-clusive',
+    exclusiveHint: 'The owner agreed to work with us only',
 
     characteristics: 'Characteristics',
     bedrooms: 'Bedrooms',
@@ -276,7 +278,7 @@ export const en = {
     publishCheckCancel: 'Cancel',
   },
   board: {
-    title: 'Board',
+    title: 'My board',
     empty: 'Nothing in this status',
 
     // Board filters: in an agency of twenty, a column holds forty cards
@@ -311,7 +313,7 @@ export const en = {
     },
   },
   task: {
-    title: 'Tasks',
+    title: 'My tasks',
     mine: 'My tasks',
     followUps: 'Time to get in touch',
     empty: 'Nothing to do right now',

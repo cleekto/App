@@ -77,6 +77,13 @@ export interface PropertyListItem {
   assignedUserId: string | null;
   assignedUserName: string | null;
   /**
+   * Собственник согласился работать с агентством эксклюзивно.
+   *
+   * Не стадия воронки, а признак договорённости: объект бывает
+   * эксклюзивным на любой стадии.
+   */
+  isExclusive: boolean;
+  /**
    * Ключ фотографии ответственного, не ссылка.
    *
    * Ссылка подписана и живёт час — из сценария она вышла бы уже просроченной
@@ -231,6 +238,7 @@ export async function listProperties(
         row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.fullName ?? null),
       assignedUserAvatarKey:
         row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.avatarKey ?? null),
+      isExclusive: row.isExclusive,
       origin: row.origin,
       photo: row.photos[0] ?? null,
       updatedAt: row.updatedAt.toISOString(),
@@ -341,6 +349,7 @@ export async function getProperty(ctx: AuthContext, id: string): Promise<Propert
       row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.fullName ?? null),
     assignedUserAvatarKey:
       row.assignedUserId === null ? null : (assignees.get(row.assignedUserId)?.avatarKey ?? null),
+    isExclusive: row.isExclusive,
     origin: row.origin,
     photo: row.photos[0] ?? null,
     photos: row.photos,
@@ -500,6 +509,8 @@ export interface PropertyEditInput extends PropertyEditableFacts {
   propertyType?: PropertyType | undefined;
   /** Полный список фотографий после правки: и порядок, и состав. */
   photos?: string[] | undefined;
+  /** Эксклюзив: договорённость с собственником, а не стадия воронки. */
+  isExclusive?: boolean | undefined;
 }
 
 /**
@@ -613,6 +624,7 @@ export async function updateProperty(
   if (input.transactionType !== undefined) data.transactionType = input.transactionType;
   if (input.propertyType !== undefined) data.propertyType = input.propertyType;
   if (input.photos !== undefined) data.photos = keepablePhotos(ctx, input.photos, property.photos);
+  if (input.isExclusive !== undefined) data.isExclusive = input.isExclusive;
 
   /*
    * ПРИВЕДЁННЫЙ АДРЕС ПЕРЕСЧИТЫВАЕТСЯ ВМЕСТЕ С ОБЫЧНЫМ.
@@ -713,6 +725,7 @@ async function sharedLinks(
 
 export interface CreatePropertyInput extends PropertyEditableFacts {
   owner: { name?: string | null | undefined; phone: string };
+  isExclusive?: boolean | undefined;
   transactionType: TransactionType;
   propertyType: PropertyType;
   publicDescription?: string | null | undefined;
@@ -895,6 +908,7 @@ export async function createPropertyManually(
         ...factsOf(input),
         addressNormalized,
         publicDescription: input.publicDescription ?? null,
+        isExclusive: input.isExclusive ?? false,
         photos: ownKeys(ctx, input.photoKeys),
       },
       select: { id: true },
