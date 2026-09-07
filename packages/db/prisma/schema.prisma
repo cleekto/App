@@ -772,6 +772,20 @@ model ListingObservation {
   /// (`last_updated`), потому что даты публикации myhome не отдаёт вовсе.
   publishedAt DateTime?
 
+  /// Сколько раз объявление смотрели — по счётчику самой площадки.
+  ///
+  /// ЗАЧЕМ АГЕНТУ. Объявление с тремя тысячами просмотров видел весь город,
+  /// и собственнику уже звонили полсотни раз. Свежее и тихое — то, где ещё
+  /// никого не было. Это единственный признак «заезженности», которым
+  /// нельзя управлять поднятием: цену и дату продавец двигает сам,
+  /// а просмотры — нет.
+  ///
+  /// Есть только у объявлений, чью страницу мы открывали: в списках счётчика
+  /// нет ни у одной площадки. У myhome поле зовётся `views`,
+  /// у ss.ge — `viewCount`.
+  viewCount      Int?
+  viewsCheckedAt DateTime?
+
   firstSeenAt       DateTime  @default(now())
   lastSeenAt        DateTime  @default(now())
   lastPriceChangeAt DateTime?
@@ -788,6 +802,8 @@ model ListingObservation {
   @@index([sellerKind, lastSeenAt(sort: Desc)])
   /// Полоса «новые»: всё подряд, самое свежее сверху.
   @@index([publishedAt(sort: Desc)])
+  /// «Тихие» объявления собственников — те, где ещё никого не было.
+  @@index([sellerKind, viewCount])
   @@map("listing_observations")
 }
 

@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { workFeed, type FeedStream } from '@kleekto/core';
+import { workFeed, type FeedOrder, type FeedStream } from '@kleekto/core';
 import { formatDate, formatMoney, formatNumber, translate } from '@kleekto/i18n';
 import type { Locale, MessageKey } from '@kleekto/i18n';
 
@@ -31,6 +31,14 @@ import { FeedFilters } from './filters';
  * заставила бы его каждый раз перестраиваться.
  */
 
+/** Пилюля выбора: одна и та же и у полос, и у порядка. */
+const PILL = (active: boolean): string =>
+  `rounded-[var(--radius-pill)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-[var(--duration-fast)] ${
+    active
+      ? 'bg-[var(--color-brand)] text-white'
+      : 'text-[var(--color-text-secondary)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]'
+  }`;
+
 /** Разделители. Литералов в JSX нет (правило 18). */
 const DOT = ' · ';
 const DASH = '—';
@@ -49,6 +57,9 @@ const TRANSACTION_TYPES = ['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT'] as const;
 
 /** Порядок полос: сначала то, на чём агентство зарабатывает. */
 const STREAMS: readonly FeedStream[] = ['owners', 'fresh'];
+
+/** Порядок строк внутри полосы. */
+const ORDERS: readonly FeedOrder[] = ['new', 'quiet'];
 
 /** Имена площадок — не текст интерфейса, а собственные имена. */
 const SOURCE_NAME: Readonly<Record<string, string>> = {
@@ -145,9 +156,23 @@ export default async function FeedPage({
 
   // Полоса живёт в адресе: ссылкой на «новые» можно поделиться.
   const stream: FeedStream = single('stream') === 'fresh' ? 'fresh' : 'owners';
+  const order: FeedOrder = single('order') === 'quiet' ? 'quiet' : 'new';
+
+  /** Адрес той же ленты с одним изменённым параметром. */
+  const linkWith = (key: string, value: string | null): string => {
+    const next = new URLSearchParams(
+      Object.entries(params).flatMap(([name, one]) =>
+        typeof one === 'string' && name !== key ? [[name, one] as [string, string]] : [],
+      ),
+    );
+    if (value !== null) next.set(key, value);
+
+    return next.size === 0 ? '/feed' : `/feed?${next.toString()}`;
+  };
 
   const items = await workFeed(ctx, {
     stream,
+    order,
     district: single('district'),
     propertyType: pick('type', PROPERTY_TYPES),
     transactionType: pick('deal', TRANSACTION_TYPES),
@@ -171,37 +196,46 @@ export default async function FeedPage({
         не сразу, и без второй полосы свежее объявление было бы не видно
         вовсе, хотя это может быть лучший лид дня.
       */}
-      <nav className="-mt-3 flex flex-wrap items-center gap-1">
-        {STREAMS.map((one) => {
-          const active = one === stream;
-          const next = new URLSearchParams(
-            Object.entries(params).flatMap(([key, value]) =>
-              typeof value === 'string' && key !== 'stream'
-                ? [[key, value] as [string, string]]
-                : [],
-            ),
-          );
-          if (one === 'fresh') next.set('stream', 'fresh');
-
-          return (
+      <nav className="-mt-3 flex flex-wrap items-center gap-4">
+        <div className="flex flex-wrap items-center gap-1">
+          {STREAMS.map((one) => (
             <Link
               key={one}
-              href={next.size === 0 ? '/feed' : `/feed?${next.toString()}`}
-              aria-current={active ? 'page' : undefined}
-              className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-[var(--duration-fast)] ${
-                active
-                  ? 'bg-[var(--color-brand)] text-white'
-                  : 'text-[var(--color-text-secondary)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]'
-              }`}
+              href={linkWith('stream', one === 'fresh' ? 'fresh' : null)}
+              aria-current={one === stream ? 'page' : undefined}
+              className={PILL(one === stream)}
             >
               {one === 'owners' ? t('feed.streamOwners') : t('feed.streamFresh')}
             </Link>
-          );
-        })}
+          ))}
+        </div>
+
+        {/*
+          ПОРЯДОК — ОТДЕЛЬНО ОТ ПОЛОС, через разделитель: это другой вопрос.
+          Полоса отвечает «кого показывать», порядок — «с кого начинать».
+          Смешать их в один ряд значило бы предложить агенту выбрать одно
+          из четырёх, тогда как выборов два.
+        */}
+        <div className="flex flex-wrap items-center gap-1 border-l border-[var(--color-border)] pl-4">
+          {ORDERS.map((one) => (
+            <Link
+              key={one}
+              href={linkWith('order', one === 'quiet' ? 'quiet' : null)}
+              aria-current={one === order ? 'page' : undefined}
+              className={PILL(one === order)}
+            >
+              {one === 'new' ? t('feed.orderNew') : t('feed.orderQuiet')}
+            </Link>
+          ))}
+        </div>
       </nav>
 
       <p className="-mt-4 text-[0.8125rem] text-[var(--color-text-secondary)]">
-        {stream === 'owners' ? t('feed.streamOwnersHint') : t('feed.streamFreshHint')}
+        {order === 'quiet'
+          ? t('feed.orderQuietHint')
+          : stream === 'owners'
+            ? t('feed.streamOwnersHint')
+            : t('feed.streamFreshHint')}
       </p>
 
       <FeedFilters
@@ -285,9 +319,29 @@ export default async function FeedPage({
                     */}
                     <p className="mt-0.5 truncate text-[0.75rem] leading-4 text-[var(--color-text-tertiary)]">
                       {SOURCE_NAME[item.source] ?? ''}
+
+                      {/*
+                        Просмотры — ЧИСЛОМ, а не значком «мало/много»: сколько
+                        это для района и цены, решает агент, а не мы. И они
+                        остаются на телефоне вместе с площадкой: это главный
+                        признак того, звонили сюда или нет.
+                      */}
+                      {item.viewCount === null ? null : (
+                        <>
+                          {DOT}
+                          {`${formatNumber(locale, item.viewCount)} ${t('feed.views')}`}
+                        </>
+                      )}
+
                       <span className="hidden sm:inline">
                         {DOT}
-                        {formatDate(locale, new Date(item.lastSeenAt))}
+                        {/*
+                          Дата ПУБЛИКАЦИИ, а не «когда видели». Ради этого
+                          различия и написан сборщик: сам ss.ge сортирует
+                          по времени «поднятия», и наверху его выдачи висят
+                          объявления трёхлетней давности.
+                        */}
+                        {formatDate(locale, new Date(item.publishedAt ?? item.lastSeenAt))}
                       </span>
                     </p>
                   </div>

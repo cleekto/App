@@ -2,7 +2,7 @@ import type { Source } from '@kleekto/db';
 
 import type { HarvestCard } from './harvest';
 import { ingestListings } from './harvest';
-import { applySellerKind, sellersToResolve } from './sellers';
+import { applyListingSignals, applySellerKind, sellersToResolve } from './sellers';
 
 /**
  * Прогон сборщика: наполнить ленту без участия агента.
@@ -32,23 +32,37 @@ export interface CollectedPage {
 }
 
 /**
+ * Что читается со страницы объявления.
+ *
+ * Телефона в этом списке нет и не будет: лента не база, номер появляется
+ * в системе только после того, как агент раскрыл его сам и получил согласие
+ * (правила 0 и 11).
+ */
+export interface ListingSignals {
+  sellerKind: 'owner' | 'agency' | null;
+  viewCount: number | null;
+  publishedAt: string | null;
+}
+
+/**
  * Одна площадка глазами сценария: две способности и ничего больше.
  *
  * Обе передаются извне. Ядро не знает ни адресов, ни разметки — только то,
- * что списки можно прочитать, а тип продавца иногда приходится выяснять
- * отдельно.
+ * что списки можно прочитать, а признаки объявления иногда приходится
+ * выяснять отдельно.
  */
 export interface CollectorSource {
   source: Source;
   /** Прочитать страницы списков. Одна неудача не отменяет остальные. */
   readLists(): Promise<CollectedPage[]>;
   /**
-   * Узнать тип продавца по адресу любого его объявления.
+   * Прочитать признаки со страницы одного объявления.
    *
-   * `null` означает «эта площадка называет тип сама, выяснять нечего» —
-   * так у myhome. Тогда очередь опознания для неё не разбирается вовсе.
+   * `null` означает «страницы этой площадки нам недоступны» — так у myhome,
+   * который стоит за Cloudflare. Тогда очередь опознания для неё
+   * не разбирается вовсе.
    */
-  readSellerKind: ((listingUrl: string) => Promise<'owner' | 'agency' | null>) | null;
+  readListing: ((listingUrl: string) => Promise<ListingSignals>) | null;
 }
 
 export interface CollectorOptions {
@@ -75,6 +89,8 @@ export interface SourceReport {
   listingsCreated: number;
   sellersAsked: number;
   sellersResolved: number;
+  /** Сколько объявлений получили счётчик просмотров заодно. */
+  viewsRead: number;
   /** Сколько объявлений зажглось от опознанных продавцов. */
   listingsLit: number;
 }
@@ -113,6 +129,7 @@ export async function runCollector(
       listingsCreated: 0,
       sellersAsked: 0,
       sellersResolved: 0,
+      viewsRead: 0,
       listingsLit: 0,
     };
 
@@ -136,22 +153,35 @@ export async function runCollector(
     /*
      * ОЧЕРЕДЬ ОПОЗНАНИЯ — только там, где площадка тип не называет.
      *
-     * У myhome `readSellerKind` пуст, и карточки её объявлений не открываются
-     * никогда: незачем. У ss.ge иначе — без этого шага лента собственников
-     * по ней остаётся пустой навсегда.
+     * У myhome `readListing` пуст, и карточки её объявлений не открываются
+     * никогда. У ss.ge иначе — без этого шага лента собственников по ней
+     * остаётся пустой навсегда, а заодно здесь берётся счётчик просмотров:
+     * страница уже открыта, второй раз ходить незачем.
      */
-    if (site.readSellerKind !== null && budget > 0) {
+    if (site.readListing !== null && budget > 0) {
       const queue = await sellersToResolve(site.source, budget);
 
       for (const seller of queue) {
         await sleep(pause);
 
         report.sellersAsked += 1;
-        const kind = await site.readSellerKind(seller.listingUrl);
-        if (kind === null) continue;
+        const signals = await site.readListing(seller.listingUrl);
+
+        /*
+         * Счётчик просмотров записывается ВСЕГДА, даже когда тип продавца
+         * выяснить не вышло: страница уже открыта, и второй раз ходить
+         * за тем же числом было бы расточительством по отношению
+         * к площадке.
+         */
+        if (signals.viewCount !== null || signals.publishedAt !== null) {
+          await applyListingSignals(seller.observationId, signals);
+          report.viewsRead += 1;
+        }
+
+        if (signals.sellerKind === null) continue;
 
         report.sellersResolved += 1;
-        report.listingsLit += await applySellerKind(seller.sellerId, kind, 'listing');
+        report.listingsLit += await applySellerKind(seller.sellerId, signals.sellerKind, 'listing');
       }
     }
 

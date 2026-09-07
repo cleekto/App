@@ -21,6 +21,8 @@ import type { Source } from '@kleekto/db';
 
 export interface SellerToResolve {
   sellerId: string;
+  /** Объявление, которое откроют. Ему же достанется счётчик просмотров. */
+  observationId: string;
   /** Любое объявление этого продавца — по нему и узнаётся тип. */
   listingUrl: string;
   /** Сколько его объявлений мы уже видели. Чем больше, тем выше в очереди. */
@@ -50,16 +52,48 @@ export async function sellersToResolve(source: Source, limit: number): Promise<S
       observations: {
         take: 1,
         orderBy: { lastSeenAt: 'desc' },
-        select: { canonicalUrl: true },
+        select: { id: true, canonicalUrl: true },
       },
     },
   });
 
   return sellers.flatMap((seller) => {
-    const url = seller.observations[0]?.canonicalUrl;
-    if (url === undefined) return [];
+    const observation = seller.observations[0];
+    if (observation === undefined) return [];
 
-    return [{ sellerId: seller.id, listingUrl: url, listingsSeen: seller.listingsSeen }];
+    return [
+      {
+        sellerId: seller.id,
+        observationId: observation.id,
+        listingUrl: observation.canonicalUrl,
+        listingsSeen: seller.listingsSeen,
+      },
+    ];
+  });
+}
+
+/**
+ * Записать признаки, прочитанные со страницы объявления.
+ *
+ * Пустое не затирает заполненное: `undefined` в Prisma означает «не трогать».
+ * Площадка могла не назвать дату — это не повод стереть ту, что мы уже знали
+ * из списка.
+ */
+export async function applyListingSignals(
+  observationId: string,
+  signals: { viewCount: number | null; publishedAt: string | null },
+): Promise<void> {
+  const publishedAt = signals.publishedAt === null ? null : new Date(signals.publishedAt);
+  const valid = publishedAt !== null && !Number.isNaN(publishedAt.getTime());
+
+  await prisma.listingObservation.update({
+    where: { id: observationId },
+    data: {
+      ...(signals.viewCount === null
+        ? {}
+        : { viewCount: signals.viewCount, viewsCheckedAt: new Date() }),
+      ...(valid ? { publishedAt } : {}),
+    },
   });
 }
 

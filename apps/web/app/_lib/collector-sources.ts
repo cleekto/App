@@ -1,7 +1,7 @@
 import {
   COLLECTOR_PAGES,
   fetchListPage,
-  fetchSellerKind,
+  fetchListingSignals,
   type CollectorPage,
 } from '@kleekto/adapters';
 import type { CollectedPage, CollectorSource } from '@kleekto/core';
@@ -58,12 +58,13 @@ export function collectorSources(): CollectorSource[] {
       readLists: () => readLists('SS_GE'),
       /*
        * Единственное место, где сборщик открывает страницу объявления.
-       * Читается ровно одно поле — тип продавца. Телефон, который лежит
-       * на той же странице ещё до нажатия «показать номер», не разбирается
-       * и никуда не уходит: лента — не база, номер попадает в систему только
-       * после разговора и согласия (правила 0 и 11).
+       * Читаются три величины: тип продавца, счётчик просмотров и дата
+       * публикации. Телефон, который лежит на той же странице ещё до нажатия
+       * «показать номер», не разбирается и никуда не уходит: лента — не база,
+       * номер попадает в систему только после разговора и согласия
+       * (правила 0 и 11).
        */
-      readSellerKind: (listingUrl: string) => fetchSellerKind(listingUrl),
+      readListing: (listingUrl: string) => fetchListingSignals(listingUrl),
     },
   ];
 }

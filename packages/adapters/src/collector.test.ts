@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { COLLECTOR_PAGES, harvestHtml, sellerKindFromListingHtml } from './collector';
+import { COLLECTOR_PAGES, harvestHtml, listingSignals } from './collector';
 import { FIXTURE_ROOT } from './fixtures';
 
 /**
@@ -157,28 +157,70 @@ const ssListings = (() => {
 })();
 
 describe.runIf(ssListings.length > 0)('опознание продавца по странице объявления', () => {
-  it('возвращает тип и НИЧЕГО КРОМЕ ТИПА', () => {
-    /*
-     * САМОЕ ЧУВСТВИТЕЛЬНОЕ МЕСТО СБОРЩИКА. На странице объявления ss.ge
-     * телефон лежит в данных ДО того, как человек нажал «показать номер».
-     * Функция читает одно поле и по устройству не может вернуть ничего
-     * другого — эта проверка утверждает именно это, а не намерение.
-     */
-    const kinds = ssListings.map((html) => sellerKindFromListingHtml(html));
+  it('читает тип продавца', () => {
+    const kinds = ssListings.map((html) => listingSignals(html).sellerKind);
 
     expect(kinds.some((kind) => kind !== null)).toBe(true);
+    for (const kind of kinds) expect([null, 'owner', 'agency']).toContain(kind);
+  });
 
-    for (const kind of kinds) {
-      expect([null, 'owner', 'agency']).toContain(kind);
+  it('читает счётчик просмотров', () => {
+    // Единственный признак «заезженности», которым продавец не управляет:
+    // цену и дату поднятия он двигает сам, а просмотры — нет.
+    const views = ssListings.map((html) => listingSignals(html).viewCount);
+
+    expect(views.some((count) => count !== null)).toBe(true);
+    for (const count of views) {
+      if (count !== null) expect(count).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('ВОЗВРАЩАЕТ ТОЛЬКО ТРИ ВЕЛИЧИНЫ И НИ ОДНОГО ТЕЛЕФОНА', () => {
+    /*
+     * САМОЕ ЧУВСТВИТЕЛЬНОЕ МЕСТО СБОРЩИКА. На странице объявления телефон
+     * лежит в данных ДО того, как человек нажал «показать номер», —
+     * и у ss.ge, и у myhome. Проверка утверждает не намерение, а результат:
+     * форма ответа фиксирована, номера в ней нет.
+     */
+    for (const html of ssListings) {
+      const signals = listingSignals(html);
+
+      expect(Object.keys(signals).sort()).toEqual(['publishedAt', 'sellerKind', 'viewCount']);
+      expect(JSON.stringify(signals)).not.toMatch(/(?:\+?995)?5\d{8}/u);
     }
   });
 
   it('чужая разметка не опознаётся молча как собственник', () => {
     // «Не знаю» и «собственник» — разные вещи, и ошибка в эту сторону
     // стоит агенту звонка посреднику.
-    expect(sellerKindFromListingHtml('<html></html>')).toBeNull();
+    expect(listingSignals('<html></html>').sellerKind).toBeNull();
     expect(
-      sellerKindFromListingHtml('<script id="__NEXT_DATA__">{"props":{}}</script>'),
+      listingSignals('<script id="__NEXT_DATA__">{"props":{}}</script>').sellerKind,
     ).toBeNull();
+  });
+});
+
+const myhomeListings = saved('myhome-ge', 'listings');
+
+describe.runIf(myhomeListings.length > 0)('признаки страницы объявления myhome', () => {
+  it('читает просмотры, дату публикации и тип продавца', () => {
+    /*
+     * У myhome эти три величины есть только ЗДЕСЬ. В списке нет ни счётчика
+     * просмотров, ни даты публикации: там только `last_updated`. Разбор
+     * написан заранее — страницы myhome сборщику пока недоступны (Cloudflare),
+     * но расширение их читает, и как только появится доступ, работать будет
+     * то же самое.
+     */
+    const all = myhomeListings.map((html) => listingSignals(html));
+
+    expect(all.some((one) => one.viewCount !== null)).toBe(true);
+    expect(all.some((one) => one.publishedAt !== null)).toBe(true);
+    expect(all.some((one) => one.sellerKind !== null)).toBe(true);
+  });
+
+  it('телефона не отдаёт', () => {
+    for (const html of myhomeListings) {
+      expect(JSON.stringify(listingSignals(html))).not.toMatch(/(?:\+?995)?5\d{8}/u);
+    }
   });
 });

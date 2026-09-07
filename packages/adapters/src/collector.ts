@@ -163,49 +163,121 @@ export async function fetchListPage(
 }
 
 /**
- * Тип продавца со страницы объявления ss.ge — И БОЛЬШЕ НИЧЕГО.
+ * Что сборщик читает со страницы объявления. Ровно три величины.
  *
- * ЭТО САМОЕ ЧУВСТВИТЕЛЬНОЕ МЕСТО СБОРЩИКА, и написано оно нарочно узко.
- * В списке ss.ge тип продавца не виден: частный маклер там неотличим
- * от собственника, и без этого запроса лента собственников по ss.ge пуста.
- * Но на той же странице лежит телефон собственника — ДО того, как человек
- * нажал «показать номер».
- *
- * Поэтому функция возвращает `'owner' | 'agency' | null` и физически не может
- * вернуть ничего другого: она читает одно поле, `userEntityType`. Телефон
- * не разбирается, не передаётся дальше и в базу не попадает. Проверяется
- * тестом, который падает, если номер просочится.
- *
- * Одного такого запроса хватает на ВСЕ объявления продавца — прошлые
- * и будущие. Поэтому их десятки в день, а не тысячи.
+ * ЭТО САМОЕ ЧУВСТВИТЕЛЬНОЕ МЕСТО СБОРЩИКА, и список нарочно короткий.
+ * На той же странице лежит телефон собственника — ДО того, как человек
+ * нажал «показать номер». Он не разбирается, никуда не передаётся и в базу
+ * не попадает: лента не база, номер появляется в системе только после
+ * разговора и согласия (правила 0 и 11). Проверяется тестом, который падает,
+ * если номер просочится.
  */
-export function sellerKindFromListingHtml(html: string): 'owner' | 'agency' | null {
-  const match = NEXT_DATA.exec(html);
-  if (match?.[1] === undefined) return null;
+export interface ListingSignals {
+  /**
+   * Собственник или посредник.
+   *
+   * Ради этого поля страница и открывается: в списке ss.ge тип продавца
+   * не виден — частный маклер там неотличим от собственника, — и без него
+   * лента собственников по этой площадке пуста. Одного открытия хватает
+   * на ВСЕ объявления продавца, поэтому запросов десятки в день, а не тысячи.
+   */
+  sellerKind: 'owner' | 'agency' | null;
 
-  let root: unknown;
-  try {
-    root = JSON.parse(match[1]);
-  } catch {
-    return null;
-  }
+  /**
+   * Счётчик просмотров площадки.
+   *
+   * Единственный признак «заезженности», которым продавец не управляет:
+   * цену и дату поднятия он двигает сам, а просмотры — нет. Объявление
+   * с тремя тысячами просмотров видел весь город; тихое — то, где ещё
+   * никого не было.
+   */
+  viewCount: number | null;
 
-  const app = dig(root, ['props', 'pageProps', 'applicationData']);
-  if (typeof app !== 'object' || app === null) return null;
-
-  const entity = (app as Record<string, unknown>)['userEntityType'];
-  if (typeof entity !== 'string' || entity.trim() === '') return null;
-
-  // `Individual` — частное лицо. Всё прочее (агентство, застройщик, брокер) —
-  // посредник: различать их между собой агенту незачем.
-  return entity === 'Individual' ? 'owner' : 'agency';
+  /** Дата публикации, если площадка называет её на странице. ISO-строка. */
+  publishedAt: string | null;
 }
 
-/** Скачать страницу объявления и узнать по ней тип продавца. */
-export async function fetchSellerKind(
+const EMPTY_SIGNALS: ListingSignals = { sellerKind: null, viewCount: null, publishedAt: null };
+
+function parseNextData(html: string): unknown {
+  const match = NEXT_DATA.exec(html);
+  if (match?.[1] === undefined) return undefined;
+
+  try {
+    return JSON.parse(match[1]);
+  } catch {
+    return undefined;
+  }
+}
+
+function int(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 0) return value;
+  return null;
+}
+
+/**
+ * Признаки со страницы объявления — обеих площадок.
+ *
+ * Устройство у них разное: у ss.ge данные лежат в `applicationData`,
+ * у myhome — в кэше запроса `["statements","details"]`. Что именно читать,
+ * решает форма, а не адрес: адрес и версия API площадки могут смениться
+ * в любой день, а привязка к адресу ломается молча.
+ */
+export function listingSignals(html: string): ListingSignals {
+  const root = parseNextData(html);
+  if (root === undefined) return EMPTY_SIGNALS;
+
+  const ss = dig(root, ['props', 'pageProps', 'applicationData']);
+  if (isRecord(ss)) {
+    const entity = ss['userEntityType'];
+
+    return {
+      // `Individual` — частное лицо. Всё прочее (агентство, застройщик,
+      // брокер) — посредник: различать их между собой агенту незачем.
+      sellerKind:
+        typeof entity !== 'string' || entity.trim() === ''
+          ? null
+          : entity === 'Individual'
+            ? 'owner'
+            : 'agency',
+      viewCount: int(ss['viewCount']),
+      publishedAt: typeof ss['createDate'] === 'string' ? ss['createDate'] : null,
+    };
+  }
+
+  const queries = dig(root, ['props', 'pageProps', 'dehydratedState', 'queries']);
+  if (!Array.isArray(queries)) return EMPTY_SIGNALS;
+
+  for (const query of queries) {
+    const key = dig(query, ['queryKey']);
+    if (!Array.isArray(key) || key[0] !== 'statements' || key[1] !== 'details') continue;
+
+    const statement = dig(query, ['state', 'data', 'data', 'statement']);
+    if (!isRecord(statement)) continue;
+
+    const kind = dig(statement, ['user_type', 'type']);
+
+    return {
+      /*
+       * `physical` — собственник, всё прочее посредник. Есть ещё `is_owner`,
+       * но он про другое: у объявления с `user_type.type === "physical"`
+       * он стоял `false`. Читаем то, значение чего проверено.
+       */
+      sellerKind: typeof kind !== 'string' ? null : kind === 'physical' ? 'owner' : 'agency',
+      viewCount: int(statement['views']),
+      // У myhome дата публикации есть только здесь: в списке её нет вовсе.
+      publishedAt: marketTime(statement['created_at']),
+    };
+  }
+
+  return EMPTY_SIGNALS;
+}
+
+/** Скачать страницу объявления и прочитать её признаки. */
+export async function fetchListingSignals(
   listingUrl: string,
   fetchImpl: typeof globalThis.fetch = globalThis.fetch,
-): Promise<'owner' | 'agency' | null> {
+): Promise<ListingSignals> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -218,14 +290,26 @@ export async function fetchSellerKind(
         'accept-language': 'ka,en;q=0.9,ru;q=0.8',
       },
     });
-    if (!response.ok) return null;
+    if (!response.ok) return EMPTY_SIGNALS;
 
-    return sellerKindFromListingHtml(await response.text());
+    return listingSignals(await response.text());
   } catch {
-    return null;
+    return EMPTY_SIGNALS;
   } finally {
     clearTimeout(timer);
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Дата площадки без пояса — во время рынка (+04:00), а не UTC. */
+function marketTime(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+
+  const parsed = new Date(`${value.replace(' ', 'T')}+04:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 function dig(value: unknown, path: readonly string[]): unknown {

@@ -15,9 +15,22 @@ import { runCollector } from './collector';
 const ingest = vi.hoisted(() => vi.fn());
 const queue = vi.hoisted(() => vi.fn());
 const apply = vi.hoisted(() => vi.fn());
+const applySignals = vi.hoisted(() => vi.fn());
 
 vi.mock('./harvest', () => ({ ingestListings: ingest }));
-vi.mock('./sellers', () => ({ sellersToResolve: queue, applySellerKind: apply }));
+vi.mock('./sellers', () => ({
+  sellersToResolve: queue,
+  applySellerKind: apply,
+  applyListingSignals: applySignals,
+}));
+
+/** Признаки страницы объявления. Телефона в них нет по устройству. */
+function signals(
+  sellerKind: 'owner' | 'agency' | null,
+  viewCount: number | null = 42,
+): { sellerKind: 'owner' | 'agency' | null; viewCount: number | null; publishedAt: string | null } {
+  return { sellerKind, viewCount, publishedAt: null };
+}
 
 function page(cards: number, failure: string | null = null): CollectedPage {
   return {
@@ -34,7 +47,7 @@ function site(over: Partial<CollectorSource> = {}): CollectorSource {
   return {
     source: 'SS_GE',
     readLists: () => Promise.resolve([page(3)]),
-    readSellerKind: null,
+    readListing: null,
     ...over,
   };
 }
@@ -94,7 +107,7 @@ describe('прогон сборщика', () => {
     ingest.mockReset().mockResolvedValue({ accepted: 3, created: 0, sellersResolved: 0 });
     queue.mockReset().mockResolvedValue([]);
 
-    await runCollector([site({ source: 'MYHOME_GE', readSellerKind: null })], nap);
+    await runCollector([site({ source: 'MYHOME_GE', readListing: null })], nap);
 
     expect(queue).not.toHaveBeenCalled();
   });
@@ -102,15 +115,26 @@ describe('прогон сборщика', () => {
   it('опознаёт продавцов и разом зажигает их объявления', async () => {
     ingest.mockReset().mockResolvedValue({ accepted: 3, created: 3, sellersResolved: 0 });
     queue.mockReset().mockResolvedValue([
-      { sellerId: 'a', listingUrl: 'https://example.invalid/1', listingsSeen: 8 },
-      { sellerId: 'b', listingUrl: 'https://example.invalid/2', listingsSeen: 1 },
+      {
+        sellerId: 'a',
+        observationId: 'obs-a',
+        listingUrl: 'https://example.invalid/1',
+        listingsSeen: 8,
+      },
+      {
+        sellerId: 'b',
+        observationId: 'obs-b',
+        listingUrl: 'https://example.invalid/2',
+        listingsSeen: 1,
+      },
     ]);
     apply.mockReset().mockResolvedValueOnce(8).mockResolvedValueOnce(1);
+    applySignals.mockReset().mockResolvedValue(undefined);
 
-    const readSellerKind = vi.fn().mockResolvedValue('owner');
-    const report = await runCollector([site({ readSellerKind })], nap);
+    const readListing = vi.fn().mockResolvedValue(signals('owner'));
+    const report = await runCollector([site({ readListing })], nap);
 
-    expect(readSellerKind).toHaveBeenCalledTimes(2);
+    expect(readListing).toHaveBeenCalledTimes(2);
     expect(report.sources[0]).toMatchObject({
       sellersAsked: 2,
       sellersResolved: 2,
@@ -124,30 +148,75 @@ describe('прогон сборщика', () => {
     // «Не знаю» и «собственник» — разные вещи. Страница не открылась —
     // продавец остаётся в очереди до следующего прогона.
     ingest.mockReset().mockResolvedValue({ accepted: 0, created: 0, sellersResolved: 0 });
-    queue
-      .mockReset()
-      .mockResolvedValue([
-        { sellerId: 'a', listingUrl: 'https://example.invalid/1', listingsSeen: 3 },
-      ]);
+    queue.mockReset().mockResolvedValue([
+      {
+        sellerId: 'a',
+        observationId: 'obs-a',
+        listingUrl: 'https://example.invalid/1',
+        listingsSeen: 3,
+      },
+    ]);
     apply.mockReset();
+    applySignals.mockReset().mockResolvedValue(undefined);
 
-    const report = await runCollector([site({ readSellerKind: () => Promise.resolve(null) })], nap);
+    const report = await runCollector(
+      [site({ readListing: () => Promise.resolve(signals(null)) })],
+      nap,
+    );
 
     expect(apply).not.toHaveBeenCalled();
     expect(report.sources[0]).toMatchObject({ sellersAsked: 1, sellersResolved: 0 });
+  });
+
+  it('счётчик просмотров записывается даже когда тип выяснить не вышло', async () => {
+    /*
+     * Страница уже открыта. Второй раз ходить к площадке за тем же числом
+     * было бы расточительством по отношению к ней и к нам.
+     */
+    ingest.mockReset().mockResolvedValue({ accepted: 0, created: 0, sellersResolved: 0 });
+    queue.mockReset().mockResolvedValue([
+      {
+        sellerId: 'a',
+        observationId: 'obs-a',
+        listingUrl: 'https://x.invalid/1',
+        listingsSeen: 1,
+      },
+    ]);
+    apply.mockReset();
+    applySignals.mockReset().mockResolvedValue(undefined);
+
+    const report = await runCollector(
+      [site({ readListing: () => Promise.resolve(signals(null, 1739)) })],
+      nap,
+    );
+
+    expect(applySignals).toHaveBeenCalledWith('obs-a', signals(null, 1739));
+    expect(apply).not.toHaveBeenCalled();
+    expect(report.sources[0]).toMatchObject({ viewsRead: 1, sellersResolved: 0 });
   });
 
   it('держит паузу между обращениями к площадке', async () => {
     // Спешить сборщику некуда, а торопливость видна площадке первой.
     ingest.mockReset().mockResolvedValue({ accepted: 0, created: 0, sellersResolved: 0 });
     queue.mockReset().mockResolvedValue([
-      { sellerId: 'a', listingUrl: 'https://example.invalid/1', listingsSeen: 2 },
-      { sellerId: 'b', listingUrl: 'https://example.invalid/2', listingsSeen: 1 },
+      {
+        sellerId: 'a',
+        observationId: 'obs-a',
+        listingUrl: 'https://example.invalid/1',
+        listingsSeen: 2,
+      },
+      {
+        sellerId: 'b',
+        observationId: 'obs-b',
+        listingUrl: 'https://example.invalid/2',
+        listingsSeen: 1,
+      },
     ]);
     apply.mockReset().mockResolvedValue(0);
+    applySignals.mockReset().mockResolvedValue(undefined);
 
     const sleep = vi.fn().mockResolvedValue(undefined);
-    await runCollector([site({ readSellerKind: () => Promise.resolve('agency') })], {
+    await runCollector([site({ readListing: () => Promise.resolve(signals('agency')) })], {
       sleep,
       pauseMs: 1500,
     });
@@ -160,7 +229,7 @@ describe('прогон сборщика', () => {
     ingest.mockReset().mockResolvedValue({ accepted: 0, created: 0, sellersResolved: 0 });
     queue.mockReset();
 
-    await runCollector([site({ readSellerKind: () => Promise.resolve('owner') })], {
+    await runCollector([site({ readListing: () => Promise.resolve(signals('owner')) })], {
       ...nap,
       sellerBudget: 0,
     });
