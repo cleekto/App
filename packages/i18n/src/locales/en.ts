@@ -262,6 +262,9 @@ export const en = {
     duplicateHint:
       'The property has not been created. Open what was found, or add it anyway — nothing typed is lost.',
     createAnyway: 'Add anyway',
+    photoDownloadAll: 'Save all photos',
+    photoDownloadBusy: 'Packing…',
+    photoDownloadFailed: 'Could not save the photos',
     photoAlt: 'Listing photo',
     photos: 'Photos',
     photoChoose: 'Add photos',

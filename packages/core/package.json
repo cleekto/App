@@ -19,6 +19,7 @@
     "@kleekto/db": "workspace:*",
     "@node-rs/argon2": "^2.0.0",
     "exceljs": "^4.4.0",
+    "fflate": "^0.8.3",
     "jose": "^5.9.0"
   },
   "devDependencies": {

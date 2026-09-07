@@ -270,6 +270,9 @@ export const ru: DeepPartial<Dictionary> = {
     duplicateHint:
       'Объект не создан. Откройте найденное или заведите всё равно — введённое не потеряется.',
     createAnyway: 'Всё равно завести',
+    photoDownloadAll: 'Скачать все фото',
+    photoDownloadBusy: 'Собираю…',
+    photoDownloadFailed: 'Не удалось скачать фотографии',
     photoAlt: 'Фотография объекта',
     photos: 'Фотографии',
     photoChoose: 'Добавить фото',

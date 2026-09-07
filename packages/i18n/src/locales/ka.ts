@@ -269,6 +269,9 @@ export const ka: DeepPartial<Dictionary> = {
     duplicateHint:
       'ობიექტი არ შექმნილა. გახსენით ნაპოვნი ან მაინც დაამატეთ — შეყვანილი არ დაიკარგება.',
     createAnyway: 'მაინც დამატება',
+    photoDownloadAll: 'ყველა ფოტოს ჩამოტვირთვა',
+    photoDownloadBusy: 'ვამზადებ…',
+    photoDownloadFailed: 'ფოტოები ვერ ჩამოიტვირთა',
     photoAlt: 'ობიექტის ფოტო',
     photos: 'ფოტოები',
     photoChoose: 'ფოტოს დამატება',

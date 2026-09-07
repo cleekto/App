@@ -51,11 +51,22 @@ export function PhotoGallery({
     close: string;
     previous: string;
     next: string;
+    downloadAll: string;
+    downloadBusy: string;
+    downloadFailed: string;
   };
 }) {
   const [items, setItems] = useState(initial);
   const [editing, setEditing] = useState(false);
   const [failed, setFailed] = useState(false);
+  /** Архив собирается на сервере: пока идёт — кнопка занята. */
+  const [packing, setPacking] = useState(false);
+  /*
+   * Своя переменная, а не общая с сохранением: иначе неудачное скачивание
+   * показывало бы «не удалось сохранить», и агент искал бы пропавшую правку
+   * там, где ничего не менялось.
+   */
+  const [packFailed, setPackFailed] = useState(false);
 
   /** Какой снимок открыт во весь экран. `null` — просмотр закрыт. */
   const [viewing, setViewing] = useState<number | null>(null);
@@ -88,6 +99,46 @@ export function PhotoGallery({
     }
   };
 
+  /*
+   * СКАЧИВАНИЕ ИДЁТ ЧЕРЕЗ ССЫЛКУ, А НЕ ЧЕРЕЗ ОТКРЫТИЕ АДРЕСА.
+   *
+   * Маршрут архива требует сессии, и `window.open` на него открыл бы пустую
+   * вкладку, которая тут же закрылась. Забираем файл запросом, у которого
+   * cookie есть, и отдаём браузеру объектной ссылкой — так же, как отдал бы
+   * сервер, но без второй вкладки.
+   */
+  const downloadAll = async (): Promise<void> => {
+    if (packing) return;
+
+    setPacking(true);
+    setPackFailed(false);
+
+    try {
+      const response = await fetch(`/api/v1/properties/${propertyId}/photos`);
+      if (!response.ok) {
+        setPackFailed(true);
+        return;
+      }
+
+      const blob = await response.blob();
+      const href = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = href;
+      link.download = `${propertyId}-photos.zip`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+
+      // Ссылка держит файл в памяти вкладки, пока её не отпустят.
+      URL.revokeObjectURL(href);
+    } catch {
+      setPackFailed(true);
+    } finally {
+      setPacking(false);
+    }
+  };
+
   if (items.length === 0 && !canEdit) return null;
 
   return (
@@ -95,38 +146,62 @@ export function PhotoGallery({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm font-semibold">{labels.photos}</p>
 
-        {canEdit ? (
-          <div className="flex flex-wrap items-center gap-2">
-            {editing ? (
-              <UploadButton
-                kind="property"
-                multiple
-                labels={{
-                  choose: labels.choose,
-                  busy: labels.busy,
-                  failed: labels.uploadFailed,
-                }}
-                onUploaded={(results) => {
-                  void save([
-                    ...items,
-                    ...results.map((result) => ({ key: result.key, url: result.previewUrl })),
-                  ]);
-                }}
-              />
-            ) : null}
-
+        <div className="flex flex-wrap items-center gap-2">
+          {/*
+            СОХРАНИТЬ ВСЁ ОДНИМ ФАЙЛОМ.
+            Чтобы разместить объявление, агент перетаскивает в форму площадки
+            до шестнадцати снимков. До этой кнопки он сохранял их по одному
+            правой кнопкой — на каждом объекте. Самая механическая часть
+            размещения, и единственная, которую можно убрать целиком,
+            ничего не зная о разметке площадки.
+          */}
+          {items.length === 0 ? null : (
             <button
               type="button"
-              onClick={() => setEditing((on) => !on)}
-              className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-surface-muted)]"
+              disabled={packing}
+              onClick={() => void downloadAll()}
+              className="rounded-[var(--radius-control)] border border-[var(--color-border)] px-3 py-1.5 text-xs transition-colors duration-[var(--duration-fast)] disabled:opacity-50 [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
             >
-              {editing ? labels.done : labels.edit}
+              {packing ? labels.downloadBusy : labels.downloadAll}
             </button>
-          </div>
-        ) : null}
+          )}
+
+          {canEdit ? (
+            <div className="flex flex-wrap items-center gap-2">
+              {editing ? (
+                <UploadButton
+                  kind="property"
+                  multiple
+                  labels={{
+                    choose: labels.choose,
+                    busy: labels.busy,
+                    failed: labels.uploadFailed,
+                  }}
+                  onUploaded={(results) => {
+                    void save([
+                      ...items,
+                      ...results.map((result) => ({ key: result.key, url: result.previewUrl })),
+                    ]);
+                  }}
+                />
+              ) : null}
+
+              <button
+                type="button"
+                onClick={() => setEditing((on) => !on)}
+                className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-1.5 text-xs font-medium transition-colors duration-[var(--duration-fast)] hover:bg-[var(--color-surface-muted)]"
+              >
+                {editing ? labels.done : labels.edit}
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {failed ? <p className="text-xs text-[var(--color-danger)]">{labels.saveFailed}</p> : null}
+      {packFailed ? (
+        <p className="text-xs text-[var(--color-danger)]">{labels.downloadFailed}</p>
+      ) : null}
 
       {items.length === 0 ? null : (
         <>

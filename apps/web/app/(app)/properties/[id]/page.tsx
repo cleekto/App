@@ -128,6 +128,9 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           close: t('property.photoClose'),
           previous: t('property.photoPrevious'),
           next: t('property.photoNext'),
+          downloadAll: t('property.photoDownloadAll'),
+          downloadBusy: t('property.photoDownloadBusy'),
+          downloadFailed: t('property.photoDownloadFailed'),
         }}
       />
 

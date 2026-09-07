@@ -92,30 +92,42 @@ export async function handle<T>(
     const response = NextResponse.json(result, { status: options.status ?? 200 });
     return options.onResponse === undefined ? response : options.onResponse(response, result);
   } catch (error) {
-    if (isDomainError(error)) {
-      return NextResponse.json(
-        errorEnvelope(error.code, error.message, {
-          ...(error.details === undefined ? {} : { details: error.details }),
-        }),
-        { status: HTTP_STATUS_BY_ERROR[error.code] },
-      );
-    }
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        errorEnvelope('VALIDATION_ERROR', 'Тело запроса не прошло проверку', {
-          details: { fields: error.issues.map((issue) => issue.path.join('.')) },
-        }),
-        { status: HTTP_STATUS_BY_ERROR.VALIDATION_ERROR },
-      );
-    }
-
-    console.error('[api] необработанная ошибка:', error instanceof Error ? error.name : 'unknown');
-
-    return NextResponse.json(errorEnvelope('INTERNAL', 'Внутренняя ошибка'), {
-      status: HTTP_STATUS_BY_ERROR.INTERNAL,
-    });
+    return failureResponse(error);
   }
+}
+
+/**
+ * Доменная ошибка — в HTTP-ответ.
+ *
+ * Вынесено из `handle`, потому что не всякий маршрут отдаёт JSON: архив
+ * фотографий возвращает файл, а ошибаться обязан ровно так же, как все
+ * остальные. Два способа отображать одну и ту же ошибку разошлись бы
+ * при первой же правке.
+ */
+export function failureResponse(error: unknown): NextResponse {
+  if (isDomainError(error)) {
+    return NextResponse.json(
+      errorEnvelope(error.code, error.message, {
+        ...(error.details === undefined ? {} : { details: error.details }),
+      }),
+      { status: HTTP_STATUS_BY_ERROR[error.code] },
+    );
+  }
+
+  if (error instanceof z.ZodError) {
+    return NextResponse.json(
+      errorEnvelope('VALIDATION_ERROR', 'Тело запроса не прошло проверку', {
+        details: { fields: error.issues.map((issue) => issue.path.join('.')) },
+      }),
+      { status: HTTP_STATUS_BY_ERROR.VALIDATION_ERROR },
+    );
+  }
+
+  console.error('[api] необработанная ошибка:', error instanceof Error ? error.name : 'unknown');
+
+  return NextResponse.json(errorEnvelope('INTERNAL', 'Внутренняя ошибка'), {
+    status: HTTP_STATUS_BY_ERROR.INTERNAL,
+  });
 }
 
 /** Разбор тела запроса по схеме. Невалидное тело даёт 400, а не 500. */

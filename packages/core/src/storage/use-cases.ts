@@ -265,6 +265,64 @@ export async function fileUrl(ctx: AuthContext, key: string | null): Promise<str
   });
 }
 
+/**
+ * Содержимое файла — байтами, а не ссылкой.
+ *
+ * Нужно там, где файл собирается на сервере, а не отдаётся браузеру: сложить
+ * фотографии объекта в один архив по ссылкам значило бы подписать адрес,
+ * сходить по нему наружу и вернуться — вместо того чтобы взять из хранилища
+ * напрямую.
+ *
+ * Внешние адреса (объекты с площадок) скачиваются обычным запросом: своего
+ * там ничего нет, и подписывать нечем.
+ */
+export async function fileBytes(
+  ctx: AuthContext,
+  key: string,
+): Promise<{ bytes: Uint8Array; contentType: string | null } | null> {
+  if (key === '') return null;
+
+  if (key.startsWith('http://') || key.startsWith('https://')) {
+    try {
+      const response = await fetch(key);
+      if (!response.ok) return null;
+
+      return {
+        bytes: new Uint8Array(await response.arrayBuffer()),
+        contentType: response.headers.get('content-type'),
+      };
+    } catch {
+      // Чужая ссылка могла протухнуть вместе с объявлением. Это не поломка
+      // архива: остальные фотографии всё равно нужны агенту.
+      return null;
+    }
+  }
+
+  const config = storage();
+  if (config === null) return null;
+
+  /*
+   * Та же граница, что и у подписи адреса: ключ обязан начинаться
+   * с идентификатора компании. Без этой строки любой ключ из тела запроса
+   * читал бы чужой файл (правило 5).
+   */
+  if (!key.startsWith(`${ctx.companyId}/`)) return null;
+
+  try {
+    const object = await config.client.send(
+      new GetObjectCommand({ Bucket: config.bucket, Key: key }),
+    );
+    if (object.Body === undefined) return null;
+
+    return {
+      bytes: await object.Body.transformToByteArray(),
+      contentType: object.ContentType ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Ссылки сразу для списка — чтобы не подписывать по одной в цикле вызовов. */
 export async function fileUrls(
   ctx: AuthContext,
