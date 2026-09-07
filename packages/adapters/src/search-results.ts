@@ -14,6 +14,10 @@
  * содержали данные аренды. Агент листает выдачу переходами, а не
  * перезагрузками, поэтому разбор одного `__NEXT_DATA__` собирал бы вчерашнее.
  *
+ * Та же страница ss.ge, сохранённая ОБЫЧНОЙ ЗАГРУЗКОЙ, содержит и список
+ * из шестнадцати карточек, и собственный адрес в `pageProps.fullUrl` —
+ * по нему свежесть и проверяется, без догадок.
+ *
  * Отсюда две точки входа:
  *   `searchHarvest`   — разбор `__NEXT_DATA__` при обычной загрузке страницы,
  *                       с ПРОВЕРКОЙ, что данные относятся к текущему адресу;
@@ -25,7 +29,7 @@
  * сам открыл объявление и раскрыл номер (правило 11).
  */
 
-import { detectPropertyType, detectTransactionType } from './vocabulary';
+import { detectPropertyType, detectTransactionType, roomsFromTitle } from './vocabulary';
 import type { PropertyTypeCode, TransactionTypeCode } from './vocabulary';
 
 /** Одна карточка из списка. Всё необязательное: площадка отдаёт по-разному. */
@@ -235,6 +239,93 @@ function myhomeFromApi(payload: unknown): SearchCard[] | null {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ss.ge
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Адрес объявления ss.ge.
+ *
+ * Слаг из `detailUrl` подставляется сюда без изменений: проверено на
+ * одиннадцати сохранённых страницах — `<link rel="canonical">` каждой из них
+ * равен ровно этой склейке.
+ */
+const SS_ORIGIN = 'https://home.ss.ge';
+const SS_PATH = '/ka/udzravi-qoneba/';
+
+/**
+ * Одна карточка выдачи ss.ge.
+ *
+ * Разобрано по странице `home.ss.ge/ka/udzravi-qoneba/l/bina/iyideba`,
+ * сохранённой обычной загрузкой (16 карточек).
+ */
+function ssCard(raw: unknown): SearchCard[] {
+  if (!isRecord(raw)) return [];
+
+  const id = num(raw['applicationId']);
+  const slug = text(raw['detailUrl']);
+  if (id === null || slug === null) return [];
+
+  const title = text(raw['title']) ?? text(raw['shortTitle']);
+  const address = isRecord(raw['address']) ? raw['address'] : {};
+  const price = isRecord(raw['price']) ? raw['price'] : {};
+
+  const images = raw['appImages'];
+  const main = Array.isArray(images)
+    ? (images.find((image) => isRecord(image) && image['isMain'] === true) ?? images[0])
+    : null;
+
+  /*
+   * `userInfo` заполнен — ТОЧНО посредник: там название агентства с брендом.
+   * Пустой не означает собственника, и это не осторожность, а факт: в этой же
+   * выдаче лежит объявление 35756896 с `userInfo: null`, а на его странице
+   * стоит `userEntityType: "Broker"`. Поэтому здесь `null` — «не выяснено»,
+   * и выясняется оно по продавцу, когда агент откроет любое его объявление.
+   */
+  const seller = isRecord(raw['userInfo']) ? raw['userInfo'] : null;
+
+  const usd = num(price['priceUsd']);
+  const gel = num(price['priceGeo']);
+
+  return [
+    {
+      externalId: String(id),
+      url: `${SS_ORIGIN}${SS_PATH}${slug}`,
+      // Доллар первым: в нём цены разных объявлений сравнимы между собой.
+      price: usd ?? gel,
+      currency: usd === null ? (gel === null ? null : 'GEL') : 'USD',
+      area: num(raw['totalArea']),
+      /*
+       * КОМНАТЫ — ИЗ ЗАГОЛОВКА, А НЕ ИЗ `numberOfBedrooms`.
+       *
+       * Это разные величины, и путать их нельзя: у «იყიდება 2 ოთახიანი ბინა»
+       * (двухкомнатная) в данных стоит `numberOfBedrooms: 1`. Спальня —
+       * не комната, и агент, ищущий двушку, по такому числу её не нашёл бы.
+       */
+      rooms: roomsFromTitle(title),
+      floor: num(raw['floorNumber']),
+      totalFloors: num(raw['totalAmountOfFloor']),
+      district: text(address['subdistrictTitle']) ?? text(address['districtTitle']),
+      propertyType: detectPropertyType(title),
+      transactionType: detectTransactionType(title),
+      thumbnailUrl: isRecord(main) ? text(main['fileName']) : null,
+      sellerExternalId: text(raw['userId']),
+      sellerName: seller === null ? null : text(seller['name']),
+      sellerKind: seller === null ? null : 'agency',
+    },
+  ];
+}
+
+/**
+ * Список ss.ge из `pageProps` — из разметки или из ответа перехода Next.js.
+ */
+function ssFromPageProps(pageProps: unknown): SearchCard[] | null {
+  const items = at(pageProps, ['applicationList', 'realStateItemModel']);
+  if (!Array.isArray(items) || items.length === 0) return null;
+
+  return items.flatMap(ssCard);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Точки входа
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -254,14 +345,26 @@ function nextData(document: Document): Record<string, unknown> | null {
   }
 }
 
+/** Путь адреса без завершающего слэша: по нему и сверяем свежесть. */
+function pathOf(url: string): string | null {
+  try {
+    return new URL(url).pathname.replace(/\/+$/u, '');
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Сбор со страницы, загруженной обычным способом.
  *
  * ПРОВЕРКА СВЕЖЕСТИ ОБЯЗАТЕЛЬНА. `__NEXT_DATA__` после перехода внутри сайта
- * остаётся от предыдущей страницы, и без сверки мы записали бы объявления
- * из чужой выдачи как увиденные сейчас. Сверяем по маршруту: у списка myhome
- * `page: "/[...slug]"` и в `query` лежат фильтры выдачи, а у объявления —
- * `statementId`.
+ * остаётся от предыдущей страницы, и без сверки мы записали бы чужую выдачу
+ * как увиденную сейчас.
+ *
+ * У ss.ge проверка точная: страница сама называет свой адрес в
+ * `pageProps.fullUrl`, и достаточно сверить его с тем, где мы находимся.
+ * У myhome такого поля нет, поэтому там признак косвенный — `statementId`,
+ * который есть только у страницы объявления.
  */
 export function searchHarvest(document: Document, url: string): SearchHarvest | null {
   let host: string;
@@ -271,27 +374,28 @@ export function searchHarvest(document: Document, url: string): SearchHarvest | 
     return null;
   }
 
-  if (!host.endsWith('myhome.ge')) {
-    /*
-     * ss.ge СЮДА ПОКА НЕ ВХОДИТ, и это осознанно.
-     *
-     * На его странице списка `__NEXT_DATA__` содержал данные ранее открытого
-     * ОБЪЯВЛЕНИЯ, а в разметке нашлось лишь двенадцать ссылок на объявления
-     * из полусотни показанных. Ни того, ни другого не хватает, чтобы собирать
-     * ленту честно, а придумывать структуру страницы запрещено (правило 2).
-     *
-     * Продавцы ss.ge при этом узнаются полностью — со страниц объявлений,
-     * которые агент открывает сам: там есть и `userId`, и `userEntityType`.
-     */
-    return null;
-  }
-
   const data = nextData(document);
   if (data === null) return null;
+  const pageProps = at(data, ['props', 'pageProps']);
+
+  if (host.endsWith('ss.ge')) {
+    /*
+     * Сверка по собственному адресу страницы. Именно так ловится случай,
+     * из-за которого разбор ss.ge пришлось отложить в прошлый раз: там
+     * `fullUrl` отсутствовал вовсе, а рядом лежал `applicationData`
+     * ранее открытого объявления.
+     */
+    const declared = isRecord(pageProps) ? text(pageProps['fullUrl']) : null;
+    if (declared === null || pathOf(declared) !== pathOf(url)) return null;
+
+    const cards = ssFromPageProps(pageProps);
+    return cards === null ? null : { source: 'SS_GE', cards };
+  }
+
+  if (!host.endsWith('myhome.ge')) return null;
 
   // Список — только если страница действительно список: у объявления
   // в `pageProps` лежит `statementId`, и его данные к выдаче не относятся.
-  const pageProps = at(data, ['props', 'pageProps']);
   if (isRecord(pageProps) && pageProps['statementId'] !== undefined) return null;
 
   const cards = myhomeFromPageProps(pageProps);
@@ -306,13 +410,22 @@ export function searchHarvest(document: Document, url: string): SearchHarvest | 
  * API площадки. Не подошло ни то, ни другое — значит, это не наш ответ.
  */
 export function harvestPayload(payload: unknown): SearchHarvest | null {
-  const viaPageProps = myhomeFromPageProps(at(payload, ['pageProps']));
-  if (viaPageProps !== null && viaPageProps.length > 0) {
-    return { source: 'MYHOME_GE', cards: viaPageProps };
+  const myhomePage = myhomeFromPageProps(at(payload, ['pageProps']));
+  if (myhomePage !== null && myhomePage.length > 0) {
+    return { source: 'MYHOME_GE', cards: myhomePage };
   }
 
-  const viaApi = myhomeFromApi(payload);
-  if (viaApi !== null && viaApi.length > 0) return { source: 'MYHOME_GE', cards: viaApi };
+  const myhomeApi = myhomeFromApi(payload);
+  if (myhomeApi !== null && myhomeApi.length > 0) return { source: 'MYHOME_GE', cards: myhomeApi };
+
+  /*
+   * ss.ge: список лежит под `applicationList.realStateItemModel` — и в ответе
+   * перехода Next.js (внутри `pageProps`), и, если площадка ответит своим
+   * API той же формой, прямо в корне. Проверяются оба вложения, потому что
+   * различать их по адресу означало бы привязаться к тому, что меняется.
+   */
+  const ss = ssFromPageProps(at(payload, ['pageProps'])) ?? ssFromPageProps(payload);
+  if (ss !== null && ss.length > 0) return { source: 'SS_GE', cards: ss };
 
   return null;
 }
