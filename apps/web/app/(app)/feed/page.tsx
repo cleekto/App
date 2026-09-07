@@ -1,4 +1,6 @@
-import { workFeed } from '@kleekto/core';
+import Link from 'next/link';
+
+import { workFeed, type FeedStream } from '@kleekto/core';
 import { formatDate, formatMoney, formatNumber, translate } from '@kleekto/i18n';
 import type { Locale, MessageKey } from '@kleekto/i18n';
 
@@ -45,6 +47,9 @@ const PROPERTY_TYPES = [
 ] as const;
 const TRANSACTION_TYPES = ['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT'] as const;
 
+/** Порядок полос: сначала то, на чём агентство зарабатывает. */
+const STREAMS: readonly FeedStream[] = ['owners', 'fresh'];
+
 /** Имена площадок — не текст интерфейса, а собственные имена. */
 const SOURCE_NAME: Readonly<Record<string, string>> = {
   SS_GE: 'ss.ge',
@@ -85,7 +90,18 @@ function factsOf(
   }
   // «m²» одинаково во всех трёх языках — переводить его было бы выдумкой.
   if (item.area !== null) parts.push(`${formatNumber(locale, item.area)} m²`);
-  if (item.floor !== null) {
+
+  /*
+   * «Нулевой этаж без дома» — это не этаж, а пустое поле.
+   *
+   * У участков ss.ge присылает `floorNumber: 0` и ни одного этажа в доме,
+   * и в строке появлялось «950 m² · 0» — увидено на живой ленте. Настоящий
+   * первый этаж от этого не страдает: у него есть дом, а значит, и число
+   * этажей в нём.
+   */
+  const noFloor = item.floor === 0 && item.totalFloors === null;
+
+  if (item.floor !== null && !noFloor) {
     parts.push(
       item.totalFloors === null
         ? String(item.floor)
@@ -127,7 +143,11 @@ export default async function FeedPage({
       : undefined;
   };
 
+  // Полоса живёт в адресе: ссылкой на «новые» можно поделиться.
+  const stream: FeedStream = single('stream') === 'fresh' ? 'fresh' : 'owners';
+
   const items = await workFeed(ctx, {
+    stream,
     district: single('district'),
     propertyType: pick('type', PROPERTY_TYPES),
     transactionType: pick('deal', TRANSACTION_TYPES),
@@ -144,8 +164,44 @@ export default async function FeedPage({
         action={<p className="text-sm text-[var(--color-text-secondary)]">{foundLine}</p>}
       />
 
-      <p className="-mt-3 text-[0.8125rem] text-[var(--color-text-secondary)]">
-        {t('feed.subtitle')}
+      {/*
+        ДВЕ ПОЛОСЫ ОТВЕЧАЮТ НА РАЗНЫЕ ВОПРОСЫ, поэтому они рядом, а не одна
+        под фильтром. «Собственники» — кому звонить: на них агентство
+        и зарабатывает. «Новые» — что появилось: тип продавца выясняется
+        не сразу, и без второй полосы свежее объявление было бы не видно
+        вовсе, хотя это может быть лучший лид дня.
+      */}
+      <nav className="-mt-3 flex flex-wrap items-center gap-1">
+        {STREAMS.map((one) => {
+          const active = one === stream;
+          const next = new URLSearchParams(
+            Object.entries(params).flatMap(([key, value]) =>
+              typeof value === 'string' && key !== 'stream'
+                ? [[key, value] as [string, string]]
+                : [],
+            ),
+          );
+          if (one === 'fresh') next.set('stream', 'fresh');
+
+          return (
+            <Link
+              key={one}
+              href={next.size === 0 ? '/feed' : `/feed?${next.toString()}`}
+              aria-current={active ? 'page' : undefined}
+              className={`rounded-[var(--radius-pill)] px-3 py-1.5 text-[0.8125rem] font-medium transition-colors duration-[var(--duration-fast)] ${
+                active
+                  ? 'bg-[var(--color-brand)] text-white'
+                  : 'text-[var(--color-text-secondary)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]'
+              }`}
+            >
+              {one === 'owners' ? t('feed.streamOwners') : t('feed.streamFresh')}
+            </Link>
+          );
+        })}
+      </nav>
+
+      <p className="-mt-4 text-[0.8125rem] text-[var(--color-text-secondary)]">
+        {stream === 'owners' ? t('feed.streamOwnersHint') : t('feed.streamFreshHint')}
       </p>
 
       <FeedFilters

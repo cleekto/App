@@ -141,6 +141,11 @@ export const en = {
     empty: 'Nothing here yet',
     emptyHint:
       'The feed fills up as you browse listing pages on ss.ge and myhome.ge with the extension on. Only listings posted by owners get in.',
+    streamOwners: 'Owners',
+    streamFresh: 'New',
+    streamOwnersHint: 'Posted by owners — these are the calls that earn',
+    streamFreshHint: 'Everything new, newest first, whoever posted it',
+    published: 'Posted',
     photoAlt: 'Listing photo',
     open: 'Open on the site',
     seen: 'Last seen',
