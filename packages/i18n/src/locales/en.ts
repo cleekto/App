@@ -150,6 +150,9 @@ export const en = {
     orderQuiet: 'Untouched',
     orderQuietHint: 'Fewest views first — nobody has called these yet',
     views: 'views',
+    collect: 'Collect from myhome.ge',
+    collectHint:
+      'myhome blocks our server, but not your browser. Open these — the extension picks up owner listings, twenty per page.',
     photoAlt: 'Listing photo',
     open: 'Open on the site',
     seen: 'Last seen',

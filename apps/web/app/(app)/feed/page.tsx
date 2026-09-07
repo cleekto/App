@@ -7,6 +7,7 @@ import type { Locale, MessageKey } from '@kleekto/i18n';
 import { Photo } from '../../_ui/photo';
 import { Card, EmptyState, PageHeader } from '../../_ui/primitives';
 import { contextLocale, requireContext } from '../../_lib/session';
+import { CollectFromMyhome } from './collect-myhome';
 import { FeedFilters } from './filters';
 
 /**
@@ -237,6 +238,8 @@ export default async function FeedPage({
             ? t('feed.streamOwnersHint')
             : t('feed.streamFreshHint')}
       </p>
+
+      <CollectFromMyhome locale={locale} />
 
       <FeedFilters
         labels={{

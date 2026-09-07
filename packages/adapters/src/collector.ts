@@ -30,6 +30,7 @@
  */
 
 import { harvestPayload, type SearchHarvest } from './search-results';
+import type { PropertyTypeCode, TransactionTypeCode } from './vocabulary';
 
 /**
  * Блок данных Next.js в разметке.
@@ -79,6 +80,57 @@ export const COLLECTOR_PAGES: readonly CollectorPage[] = [
   { source: 'SS_GE', url: 'https://home.ss.ge/ka/udzravi-qoneba/l/bina/qiravdeba' },
   { source: 'SS_GE', url: 'https://home.ss.ge/ka/udzravi-qoneba/l/saxli/iyideba' },
   { source: 'SS_GE', url: 'https://home.ss.ge/ka/udzravi-qoneba/l/mitsis-nakveti/iyideba' },
+];
+
+/**
+ * Страницы myhome, которые открывает САМ АГЕНТ, а не сборщик.
+ *
+ * ЗАЧЕМ ОНИ ЕСТЬ ОТДЕЛЬНО ОТ `COLLECTOR_PAGES`. myhome стоит за Cloudflare:
+ * серверу приходит «Just a moment…» и 403, и обходить эту проверку мы
+ * не будем. А браузер агента проходит её сам — он и есть браузер, с живой
+ * сессией и историей. Значит, myhome собирается тем же расширением,
+ * что и всегда, просто агент открывает нужные страницы одним нажатием,
+ * а не ищет их руками.
+ *
+ * `owner_type=physical` — ШТАТНЫЙ ФИЛЬТР САМОЙ ПЛОЩАДКИ. Проверено живым
+ * браузером: четыре раздела, по двадцать карточек, и во всех до одной
+ * `user_type.type === "physical"`. То есть одно открытие страницы — двадцать
+ * объявлений собственников, без единой догадки с нашей стороны.
+ *
+ * Это лучшее, что есть у нас по обеим площадкам: на ss.ge тип продавца
+ * приходится выяснять по одному, здесь он дан списком.
+ */
+export interface BrowsePage {
+  /** Коды наши, не площадки: подпись собирается из общего словаря. */
+  propertyType: PropertyTypeCode;
+  transactionType: TransactionTypeCode;
+  url: string;
+}
+
+const MYHOME_OWNERS = 'https://www.myhome.ge/udzravi-qoneba';
+const OWNERS_ONLY = '?owner_type=physical';
+
+export const MYHOME_OWNER_PAGES: readonly BrowsePage[] = [
+  {
+    propertyType: 'APARTMENT',
+    transactionType: 'SALE',
+    url: `${MYHOME_OWNERS}/iyideba/bina/${OWNERS_ONLY}`,
+  },
+  {
+    propertyType: 'APARTMENT',
+    transactionType: 'RENT',
+    url: `${MYHOME_OWNERS}/qiravdeba/bina/${OWNERS_ONLY}`,
+  },
+  {
+    propertyType: 'HOUSE',
+    transactionType: 'SALE',
+    url: `${MYHOME_OWNERS}/iyideba/saxli/${OWNERS_ONLY}`,
+  },
+  {
+    propertyType: 'LAND',
+    transactionType: 'SALE',
+    url: `${MYHOME_OWNERS}/iyideba/mitsis-nakveti/${OWNERS_ONLY}`,
+  },
 ];
 
 /**
