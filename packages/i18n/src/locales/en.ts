@@ -273,6 +273,9 @@ export const en = {
       'Ready to paste into the platform form — myhome asks for all three languages. Your own text goes first; edit after pasting.',
     copy: 'Copy',
     copied: 'Copied',
+    listingFields: 'Values for the form',
+    listingFieldsHint:
+      'In the order the platform asks for them, ready to paste — no currency, no thousand separators.',
     photoAlt: 'Listing photo',
     photos: 'Photos',
     photoChoose: 'Add photos',

@@ -1,6 +1,4 @@
-'use client';
-
-import { useState } from 'react';
+import { CopyButton } from '../../../_ui/copy-button';
 
 /**
  * Текст объявления на трёх языках — с кнопкой «скопировать» у каждого.
@@ -29,27 +27,6 @@ export function ListingText({
   blocks: Block[];
   labels: { title: string; hint: string; copy: string; copied: string };
 }) {
-  const [copied, setCopied] = useState<string | null>(null);
-
-  const copy = async (block: Block): Promise<void> => {
-    try {
-      await navigator.clipboard.writeText(block.text);
-      setCopied(block.locale);
-
-      // Отметка гаснет сама: она подтверждает действие, а не остаётся
-      // состоянием, которое агенту потом сбрасывать.
-      setTimeout(() => {
-        setCopied((current) => (current === block.locale ? null : current));
-      }, 2000);
-    } catch {
-      /*
-       * Буфер обмена может быть закрыт настройками браузера. Текст при этом
-       * виден целиком — агент выделит и скопирует руками, и это лучше,
-       * чем сообщение об ошибке там, где выход очевиден.
-       */
-    }
-  };
-
   return (
     <section className="flex flex-col gap-2">
       <p className="text-sm font-semibold">{labels.title}</p>
@@ -66,13 +43,7 @@ export function ListingText({
                 {block.label}
               </span>
 
-              <button
-                type="button"
-                onClick={() => void copy(block)}
-                className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] px-2 py-1 text-[0.6875rem] transition-colors duration-[var(--duration-fast)] [@media(hover:hover)and(pointer:fine)]:hover:bg-[var(--color-surface-muted)]"
-              >
-                {copied === block.locale ? labels.copied : labels.copy}
-              </button>
+              <CopyButton text={block.text} labels={{ copy: labels.copy, copied: labels.copied }} />
             </div>
 
             {/*

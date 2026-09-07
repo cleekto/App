@@ -20,6 +20,7 @@ import {
   priceLine,
   statusLabel,
 } from '../../../_lib/format';
+import { listingFields } from '../../../_lib/listing-fields';
 import { listingTexts } from '../../../_lib/listing-text';
 import { LOCALE_NAMES } from '../../../_lib/locale-names';
 import { contextLocale, requireContext } from '../../../_lib/session';
@@ -29,6 +30,7 @@ import { CommentBox } from './comment-box';
 import { editLabels, factDictionaries } from '../../../_lib/property-labels';
 import { PropertyControls } from './controls';
 import { EditProperty } from '../edit-property';
+import { ListingFields } from './listing-fields';
 import { ListingText } from './listing-text';
 import { PhotoGallery } from './photo-gallery';
 import { PublicDescription } from './public-description';
@@ -86,7 +88,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
    * всё, что нужно, у нас уже лежит — характеристики объекта и словари
    * значений, переведённые с первого дня.
    */
-  const texts = listingTexts({
+  const facts = {
     propertyType: property.propertyType,
     transactionType: property.transactionType,
     rooms: property.rooms,
@@ -105,6 +107,13 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
     buildingStatus: property.buildingStatus,
     projectType: property.projectType,
     publicDescription: property.publicDescription,
+  };
+
+  const texts = listingTexts(facts);
+  const fields = listingFields(locale, {
+    ...facts,
+    price: property.price,
+    cadastralCode: property.cadastralCode,
   });
 
   return (
@@ -172,6 +181,16 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         трижды: пять-десять минут на объект, дольше даже загрузки
         шестнадцати фотографий.
       */}
+      <ListingFields
+        fields={fields}
+        labels={{
+          title: t('property.listingFields'),
+          hint: t('property.listingFieldsHint'),
+          copy: t('property.copy'),
+          copied: t('property.copied'),
+        }}
+      />
+
       <ListingText
         blocks={texts.map((one) => ({
           locale: one.locale,
