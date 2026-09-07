@@ -34,6 +34,8 @@ export interface HarvestCard {
   propertyType?: PropertyType | null | undefined;
   transactionType?: TransactionType | null | undefined;
   thumbnailUrl?: string | null | undefined;
+  /** Когда объявление появилось на площадке — по её данным. ISO-строка. */
+  publishedAt?: string | null | undefined;
   sellerExternalId?: string | null | undefined;
   sellerName?: string | null | undefined;
   sellerKind?: 'owner' | 'agency' | null | undefined;
@@ -74,19 +76,47 @@ function orNull<T>(value: T | null | undefined): T | null {
   return value ?? null;
 }
 
+/** Дата из чужой строки. Мусор — это `null`, а не «сегодня». */
+function toDate(value: string | null | undefined): Date | null {
+  if (value === null || value === undefined || value === '') return null;
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * Приём от расширения — от имени работающего человека.
+ *
+ * Право спрашивается на чтение объекта, область не применяется: индекс
+ * объявлений общий для всех компаний (архитектурный инвариант), и присылать
+ * в него может любой работающий агент. Проверка нужна, чтобы в индекс
+ * не писал тот, кому в продукте нечего делать.
+ */
 export async function harvestSearchResults(
   ctx: AuthContext,
   source: Source,
   incoming: readonly HarvestCard[],
 ): Promise<HarvestResult> {
-  /*
-   * Право — на чтение объекта, область не применяется. Индекс объявлений
-   * общий для всех компаний (архитектурный инвариант), и присылать в него
-   * может любой работающий агент: его браузер и есть источник. Проверка
-   * нужна, чтобы в индекс не писал тот, кому в продукте нечего делать.
-   */
   requirePermission(ctx, 'property', 'read');
+  return ingestListings(source, incoming);
+}
 
+/**
+ * Приём БЕЗ ЧЕЛОВЕКА — так работает сборщик по расписанию.
+ *
+ * `AuthContext` тут не нужен и намеренно отсутствует: у ночного запуска нет
+ * пользователя, и придумывать ему учётную запись значило бы завести в системе
+ * ложного «сотрудника», от чьего имени что-то происходит. Проверять здесь
+ * нечего: индекс объявлений не принадлежит никакой компании, `companyId`
+ * в этой таблице нет вовсе — а значит, и правило 5 нечему нарушить.
+ *
+ * Снаружи эта функция недоступна: маршрут сборщика закрыт общим секретом,
+ * а не сессией.
+ */
+export async function ingestListings(
+  source: Source,
+  incoming: readonly HarvestCard[],
+): Promise<HarvestResult> {
   // Одна страница выдачи иногда показывает объявление дважды (закреплённые
   // сверху повторяются в списке). Внутри пачки такой повтор — не новость.
   const cards = [...new Map(incoming.map((card) => [card.externalId, card])).values()];
@@ -236,6 +266,7 @@ export async function harvestSearchResults(
       propertyType: orNull(card.propertyType),
       transactionType: orNull(card.transactionType),
       thumbnailUrl: orNull(card.thumbnailUrl),
+      publishedAt: toDate(card.publishedAt),
       sellerId: seller?.id ?? null,
       sellerKind: seller?.entityType ?? toSellerKind(card.sellerKind),
     };

@@ -40,8 +40,10 @@ export interface WorkFeedItem {
   thumbnailUrl: string | null;
   /** Имя, под которым площадка показывает подавшего. Не контакт. */
   sellerName: string | null;
-  /** Когда объявление видели в последний раз. По нему лента и упорядочена. */
+  /** Когда объявление видели в последний раз. */
   lastSeenAt: string;
+  /** Когда оно появилось на площадке — по её данным. По нему и порядок. */
+  publishedAt: string | null;
   /** Цена менялась — повод позвонить даже по давнему объявлению. */
   lastPriceChangeAt: string | null;
   /**
@@ -51,7 +53,22 @@ export interface WorkFeedItem {
   looksLikeAgency: boolean;
 }
 
+/**
+ * Две полосы ленты, и они отвечают на разные вопросы.
+ *
+ * `owners` — «кому звонить»: только объявления собственников. На них
+ * агентство и зарабатывает, и это главная полоса.
+ *
+ * `fresh` — «что появилось»: всё новое подряд, независимо от того, кто подал.
+ * Нужна потому, что тип продавца выясняется не сразу — у ss.ge вообще только
+ * после того, как сборщик откроет карточку. Пока он не выяснен, объявление
+ * в первой полосе не показывается, и без второй оно было бы не видно вовсе,
+ * хотя это может быть лучший лид дня.
+ */
+export type FeedStream = 'owners' | 'fresh';
+
 export interface WorkFeedFilters {
+  stream?: FeedStream | undefined;
   propertyType?: PropertyType | undefined;
   transactionType?: TransactionType | undefined;
   district?: string | undefined;
@@ -105,9 +122,18 @@ export async function workFeed(
     }),
   ]);
 
+  const stream: FeedStream = filters.stream ?? 'owners';
+
   const where: Prisma.ListingObservationWhereInput = {
-    // Не выяснено — не показываем: «не знаю» и «собственник» не одно и то же.
-    sellerKind: SellerKind.owner,
+    /*
+     * В полосе собственников «не выяснено» не показывается: «не знаю»
+     * и «собственник» — разные вещи, и звонок посреднику вместо
+     * собственника хуже, чем несделанный звонок (решение владельца).
+     *
+     * В полосе «новые» тип не спрашивается вовсе: там важно, что объявление
+     * появилось, а кто его подал — выяснится.
+     */
+    ...(stream === 'owners' ? { sellerKind: SellerKind.owner } : {}),
     ...(ownPhones.length === 0
       ? {}
       : { phoneNormalized: { notIn: ownPhones.map((row) => row.phoneNormalized) } }),
@@ -124,13 +150,23 @@ export async function workFeed(
     where,
     include: { seller: { select: { displayName: true } } },
     /*
-     * Сверху — то, что видели последним. Это не «выгодность»: ранжирование
-     * по отклонению цены от медианы — отдельная работа, и делать вид, что
-     * порядок умный, когда он просто хронологический, нельзя. Свежее сверху
-     * — честный и понятный порядок, и он же самый полезный: по объявлению,
-     * которое висит третий месяц, уже звонили все.
+     * СВЕРХУ — САМОЕ НОВОЕ ПО ДАННЫМ ПЛОЩАДКИ, а не по времени нашего
+     * последнего взгляда.
+     *
+     * Разница здесь решающая, и ради неё написан сборщик. Сам ss.ge
+     * сортирует выдачу по времени «поднятия»: наверху у него висят
+     * объявления, созданные годы назад, — на сохранённой странице третьим
+     * шло объявление 2023 года. Поэтому просмотр сайта нового и не находит.
+     * `publishedAt` — настоящая дата публикации, и по ней сортируем мы.
+     *
+     * Кто ещё не опознан по дате (объявления, увиденные до появления
+     * сборщика), уходит вниз, а не наверх: `nulls: 'last'`.
+     *
+     * Это по-прежнему не «выгодность»: ранжирование по отклонению цены
+     * от медианы — отдельная работа, и делать вид, что порядок умный,
+     * когда он хронологический, нельзя.
      */
-    orderBy: [{ lastSeenAt: 'desc' }],
+    orderBy: [{ publishedAt: { sort: 'desc', nulls: 'last' } }, { firstSeenAt: 'desc' }],
     take: Math.min(filters.limit ?? 100, MAX_LIMIT),
   });
 
@@ -150,6 +186,7 @@ export async function workFeed(
     thumbnailUrl: row.thumbnailUrl,
     sellerName: row.seller?.displayName ?? null,
     lastSeenAt: row.lastSeenAt.toISOString(),
+    publishedAt: row.publishedAt?.toISOString() ?? null,
     lastPriceChangeAt: row.lastPriceChangeAt?.toISOString() ?? null,
     looksLikeAgency: row.isAgencyGuess,
   }));

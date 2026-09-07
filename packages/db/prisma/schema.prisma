@@ -758,6 +758,20 @@ model ListingObservation {
   sellerId String?        @db.Uuid
   seller   ListingSeller? @relation(fields: [sellerId], references: [id], onDelete: SetNull)
 
+  /// Когда объявление появилось НА ПЛОЩАДКЕ — по её собственным данным.
+  ///
+  /// Не то же, что `firstSeenAt`: то — когда его увидели МЫ. Ради этого поля
+  /// сборщик и существует: у ss.ge в выдаче стоит `createDate`, настоящая
+  /// дата публикации, а сам сайт сортирует по `orderDate` — времени
+  /// «поднятия». Из-за этого наверху его списка висят объявления трёхлетней
+  /// давности, и просмотр сайта нового не находит. Мы сортируем по этому
+  /// полю — сайт так не умеет.
+  ///
+  /// ЗНАЧЕНИЕ РАЗНОЕ У ПЛОЩАДОК, и путать их нельзя: у ss.ge это дата
+  /// публикации (`createDate`), у myhome — дата последнего изменения
+  /// (`last_updated`), потому что даты публикации myhome не отдаёт вовсе.
+  publishedAt DateTime?
+
   firstSeenAt       DateTime  @default(now())
   lastSeenAt        DateTime  @default(now())
   lastPriceChangeAt DateTime?
@@ -772,6 +786,8 @@ model ListingObservation {
   /// Лента спрашивает «объявления от собственников, свежие сверху» —
   /// без этого индекса это перебор всей таблицы.
   @@index([sellerKind, lastSeenAt(sort: Desc)])
+  /// Полоса «новые»: всё подряд, самое свежее сверху.
+  @@index([publishedAt(sort: Desc)])
   @@map("listing_observations")
 }
 

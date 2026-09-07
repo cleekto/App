@@ -50,6 +50,19 @@ export interface SearchCard {
   /** Маленькое фото с самой площадки: строка ленты без него выглядит пустой. */
   thumbnailUrl: string | null;
 
+  /**
+   * Когда объявление появилось на площадке — ПО ЕЁ СОБСТВЕННЫМ ДАННЫМ.
+   *
+   * Смысл у площадок разный, и путать их нельзя: у ss.ge это `createDate`,
+   * настоящая дата публикации; у myhome — `last_updated`, дата последнего
+   * изменения, потому что даты публикации myhome не отдаёт вовсе.
+   *
+   * ISO-строка либо `null`. Ради этого поля сборщик и нужен: сам ss.ge
+   * сортирует выдачу по времени «поднятия», и наверху у него висят
+   * объявления трёхлетней давности.
+   */
+  publishedAt: string | null;
+
   /** Идентификатор продавца на площадке. Ключ, по которому копится знание. */
   sellerExternalId: string | null;
   sellerName: string | null;
@@ -83,6 +96,20 @@ function text(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const clean = value.trim();
   return clean === '' ? null : clean;
+}
+
+/**
+ * Дата площадки без пояса — во время рынка.
+ *
+ * myhome отдаёт «2026-09-06 00:41:32». Разобрать это как UTC значило бы
+ * сдвинуть каждое объявление на четыре часа назад, и полоса «новые»
+ * перестала бы быть новой.
+ */
+function marketTime(value: string | null): string | null {
+  if (value === null) return null;
+
+  const parsed = new Date(`${value.replace(' ', 'T')}+04:00`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
 /** Спуск по вложенным ключам без проверки на каждом уровне. */
@@ -183,6 +210,12 @@ function myhomeCard(raw: unknown): SearchCard[] {
       propertyType: detectPropertyType(title),
       transactionType: detectTransactionType(title),
       thumbnailUrl: isRecord(main) ? (text(main['thumb']) ?? text(main['large'])) : null,
+      /*
+       * Даты публикации myhome не отдаёт — только `last_updated`. Формат
+       * «2026-09-06 00:41:32», без пояса; читаем его как время рынка
+       * (+04:00), а не как UTC: иначе всё уезжало бы на четыре часа.
+       */
+      publishedAt: marketTime(text(raw['last_updated'])),
       sellerExternalId: num(raw['user_id']) === null ? null : String(num(raw['user_id'])),
       sellerName: text(raw['user_title']),
       /*
@@ -308,6 +341,12 @@ function ssCard(raw: unknown): SearchCard[] {
       propertyType: detectPropertyType(title),
       transactionType: detectTransactionType(title),
       thumbnailUrl: isRecord(main) ? text(main['fileName']) : null,
+      /*
+       * `createDate` — публикация, `orderDate` — «поднятие». Берём первое,
+       * и в этом весь смысл: сам сайт сортирует по второму, поэтому наверху
+       * его выдачи висит объявление, созданное в 2023 году.
+       */
+      publishedAt: text(raw['createDate']),
       sellerExternalId: text(raw['userId']),
       sellerName: seller === null ? null : text(seller['name']),
       sellerKind: seller === null ? null : 'agency',

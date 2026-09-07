@@ -54,5 +54,7 @@ export * from './activity/feed';
 export * from './analytics/achievements';
 export * from './feed/use-cases';
 export * from './feed/harvest';
+export * from './feed/sellers';
+export * from './feed/collector';
 export * from './analytics/use-cases';
 export * from './rate-limit/use-cases';

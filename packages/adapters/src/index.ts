@@ -12,6 +12,7 @@ export * from './types';
 export * from './shared';
 export * from './vocabulary';
 export * from './search-results';
+export * from './collector';
 export * from './form-fill';
 export * from './publish-types';
 export { SsGeAdapter } from './ss-ge';
