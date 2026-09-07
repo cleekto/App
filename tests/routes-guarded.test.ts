@@ -27,6 +27,19 @@ const PUBLIC_ROUTES = new Set([
   'auth/logout/route.ts',
 ]);
 
+/**
+ * Маршруты, которые закрыты не сессией, а общим секретом.
+ *
+ * Такой ровно один — фоновый сборщик ленты. У запуска по расписанию нет
+ * пользователя, и заводить ему учётную запись значило бы поселить в системе
+ * ложного «сотрудника», от чьего имени что-то происходит.
+ *
+ * Послабления здесь нет: ниже отдельная проверка требует, чтобы каждый такой
+ * маршрут сверял `CRON_SECRET`. Забыть закрытие так же нельзя, как и в случае
+ * с сессией.
+ */
+const SCHEDULER_ROUTES = new Set(['collector/run/route.ts']);
+
 function routeFiles(dir: string): string[] {
   const found: string[] = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
@@ -47,10 +60,19 @@ describe('маршруты API', () => {
     expect(routes.length).toBeGreaterThan(5);
   });
 
-  it.each(routes.filter((route) => !PUBLIC_ROUTES.has(route.key)))(
-    '$key требует аутентификацию',
+  it.each(
+    routes.filter((route) => !PUBLIC_ROUTES.has(route.key) && !SCHEDULER_ROUTES.has(route.key)),
+  )('$key требует аутентификацию', ({ source }) => {
+    expect(source).toMatch(/requireAuth\(/u);
+  });
+
+  it.each(routes.filter((route) => SCHEDULER_ROUTES.has(route.key)))(
+    '$key закрыт секретом планировщика',
     ({ source }) => {
-      expect(source).toMatch(/requireAuth\(/u);
+      // Открытый сборщик хуже отсутствующего: его дёргали бы кто угодно
+      // и сколько угодно, и площадка увидела бы это первой.
+      expect(source).toMatch(/CRON_SECRET/u);
+      expect(source).toMatch(/requireScheduler\(/u);
     },
   );
 

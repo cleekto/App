@@ -73,6 +73,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@kleekto/adapters':
+        specifier: workspace:*
+        version: link:../../packages/adapters
       '@kleekto/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts

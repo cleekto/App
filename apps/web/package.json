@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@kleekto/adapters": "workspace:*",
     "@kleekto/contracts": "workspace:*",
     "@kleekto/core": "workspace:*",
     "@kleekto/db": "workspace:*",
