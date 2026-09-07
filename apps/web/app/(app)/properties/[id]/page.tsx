@@ -20,6 +20,8 @@ import {
   priceLine,
   statusLabel,
 } from '../../../_lib/format';
+import { listingTexts } from '../../../_lib/listing-text';
+import { LOCALE_NAMES } from '../../../_lib/locale-names';
 import { contextLocale, requireContext } from '../../../_lib/session';
 import { ActivityList } from './activity-list';
 import { Characteristics } from './characteristics';
@@ -27,6 +29,7 @@ import { CommentBox } from './comment-box';
 import { editLabels, factDictionaries } from '../../../_lib/property-labels';
 import { PropertyControls } from './controls';
 import { EditProperty } from '../edit-property';
+import { ListingText } from './listing-text';
 import { PhotoGallery } from './photo-gallery';
 import { PublicDescription } from './public-description';
 import { TaskBox } from './task-box';
@@ -74,6 +77,35 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
   // Правило 6: кнопки правки прячутся у того, кому сервер всё равно откажет.
   // Отказать он может и по области — это его дело, не экрана.
   const canEditPhotos = permissionScope(ctx.role, 'property', 'update') !== null;
+
+  /*
+   * ТЕКСТ ОБЪЯВЛЕНИЯ СОБИРАЕТСЯ НА СЕРВЕРЕ, СРАЗУ НА ТРЁХ ЯЗЫКАХ.
+   *
+   * Форма myhome спрашивает описание отдельно на грузинском, английском
+   * и русском, и агент писал их руками трижды. Здесь он их забирает готовыми:
+   * всё, что нужно, у нас уже лежит — характеристики объекта и словари
+   * значений, переведённые с первого дня.
+   */
+  const texts = listingTexts({
+    propertyType: property.propertyType,
+    transactionType: property.transactionType,
+    rooms: property.rooms,
+    bedrooms: property.bedrooms,
+    areaTotal: property.areaTotal,
+    floor: property.floor,
+    totalFloors: property.totalFloors,
+    district: property.district,
+    addressRaw: property.addressRaw,
+    bathrooms: property.bathrooms,
+    balconies: property.balconies,
+    balconyArea: property.balconyArea,
+    houseArea: property.houseArea,
+    yardArea: property.yardArea,
+    condition: property.condition,
+    buildingStatus: property.buildingStatus,
+    projectType: property.projectType,
+    publicDescription: property.publicDescription,
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,6 +163,26 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           downloadAll: t('property.photoDownloadAll'),
           downloadBusy: t('property.photoDownloadBusy'),
           downloadFailed: t('property.photoDownloadFailed'),
+        }}
+      />
+
+      {/*
+        ТЕКСТ ДЛЯ ФОРМЫ ПЛОЩАДКИ — сразу на трёх языках, с копированием.
+        myhome спрашивает описание отдельно на каждом, и агент набирал их
+        трижды: пять-десять минут на объект, дольше даже загрузки
+        шестнадцати фотографий.
+      */}
+      <ListingText
+        blocks={texts.map((one) => ({
+          locale: one.locale,
+          label: LOCALE_NAMES[one.locale],
+          text: one.text,
+        }))}
+        labels={{
+          title: t('property.listingText'),
+          hint: t('property.listingTextHint'),
+          copy: t('property.copy'),
+          copied: t('property.copied'),
         }}
       />
 

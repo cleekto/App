@@ -10,6 +10,7 @@ import { MARKET_UTC_OFFSET, translate } from '@kleekto/i18n';
 
 import { factsLine, kindLine, placeLine, priceLine, statusLabel } from '../../_lib/format';
 import { editLabels, factDictionaries } from '../../_lib/property-labels';
+import { LOCALE_NAMES } from '../../_lib/locale-names';
 import { contextLocale, requireContext } from '../../_lib/session';
 import { Board } from './board';
 import { BoardFilters } from './filters';
@@ -196,16 +197,3 @@ export default async function BoardPage({
     </div>
   );
 }
-
-/**
- * Подписи языков у полей имени стадии — каждая на своём языке.
- *
- * Не переводятся: человек ищет глазами «ქართული», а не «грузинский»,
- * на каком бы языке ни был остальной интерфейс. Тот же приём, что
- * в переключателе языка.
- */
-const LOCALE_NAMES: Record<string, string> = {
-  ka: 'ქართული',
-  en: 'English',
-  ru: 'Русский',
-};

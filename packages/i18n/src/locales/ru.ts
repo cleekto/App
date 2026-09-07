@@ -276,6 +276,11 @@ export const ru: DeepPartial<Dictionary> = {
     photoDownloadAll: 'Скачать все фото',
     photoDownloadBusy: 'Собираю…',
     photoDownloadFailed: 'Не удалось скачать фотографии',
+    listingText: 'Текст для объявления',
+    listingTextHint:
+      'Готов для вставки в форму площадки — myhome спрашивает все три языка. Ваш текст идёт первым; после вставки поправьте.',
+    copy: 'Копировать',
+    copied: 'Скопировано',
     photoAlt: 'Фотография объекта',
     photos: 'Фотографии',
     photoChoose: 'Добавить фото',

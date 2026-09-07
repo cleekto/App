@@ -268,6 +268,11 @@ export const en = {
     photoDownloadAll: 'Save all photos',
     photoDownloadBusy: 'Packing…',
     photoDownloadFailed: 'Could not save the photos',
+    listingText: 'Description for the listing',
+    listingTextHint:
+      'Ready to paste into the platform form — myhome asks for all three languages. Your own text goes first; edit after pasting.',
+    copy: 'Copy',
+    copied: 'Copied',
     photoAlt: 'Listing photo',
     photos: 'Photos',
     photoChoose: 'Add photos',

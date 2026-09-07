@@ -275,6 +275,11 @@ export const ka: DeepPartial<Dictionary> = {
     photoDownloadAll: 'ყველა ფოტოს ჩამოტვირთვა',
     photoDownloadBusy: 'ვამზადებ…',
     photoDownloadFailed: 'ფოტოები ვერ ჩამოიტვირთა',
+    listingText: 'ტექსტი განცხადებისთვის',
+    listingTextHint:
+      'მზადაა საიტის ფორმაში ჩასასმელად — myhome სამივე ენას ითხოვს. თქვენი ტექსტი პირველია; ჩასმის შემდეგ შეასწორეთ.',
+    copy: 'კოპირება',
+    copied: 'დაკოპირდა',
     photoAlt: 'ობიექტის ფოტო',
     photos: 'ფოტოები',
     photoChoose: 'ფოტოს დამატება',
