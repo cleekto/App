@@ -24,6 +24,24 @@ const myhome = new MyhomeAdapter();
 const hasSs = fixturesAvailable('ss-ge');
 const hasMyhome = fixturesAvailable('myhome-ge');
 
+/**
+ * Снимки полезной нагрузки лежат отдельно от сохранённых страниц — и точно
+ * так же вне git (правило 10).
+ *
+ * Проверять их наличие ОБЯЗАТЕЛЬНО, и это не перестраховка: наборы ниже
+ * читали снимки напрямую, и в CI, где фикстур нет, они падали на ENOENT.
+ * Красный CI на каждом коммите — хуже отсутствующего: он перестаёт что-либо
+ * значить, и настоящую поломку в нём уже не разглядеть.
+ */
+const hasSsPayload = ((): boolean => {
+  try {
+    readFileSync(join(FIXTURE_ROOT, 'ss-ge', 'payload', 'apartment-sale.json'), 'utf8');
+    return true;
+  } catch {
+    return false;
+  }
+})();
+
 describe('выбор адаптера по адресу', () => {
   it.each([
     ['https://home.ss.ge/ka/udzravi-qoneba/iyideba-bina-31346373', 'SS_GE'],
@@ -442,7 +460,7 @@ function ssGeDocumentFromPayload(name: string): Document {
   return document as unknown as Document;
 }
 
-describe('ss.ge: разбор из данных страницы', () => {
+describe.runIf(hasSsPayload)('ss.ge: разбор из данных страницы', () => {
   it('берёт то, чего разбор разметки не давал вовсе', () => {
     const { payload } = ss.extract(
       ssGeDocumentFromPayload('apartment-sale'),
@@ -580,7 +598,7 @@ describe('myhome.ge: разбор из данных страницы', () => {
   });
 });
 
-describe('ss.ge: переход по ссылке внутри сайта', () => {
+describe.runIf(hasSsPayload)('ss.ge: переход по ссылке внутри сайта', () => {
   /**
    * ss.ge — одностраничное приложение, и при переходе по ссылке внутри сайта
    * `__NEXT_DATA__` в разметке НЕ ОБНОВЛЯЕТСЯ: адрес уже другой, а объект
