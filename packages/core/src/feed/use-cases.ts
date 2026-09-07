@@ -155,9 +155,29 @@ export async function workFeed(
      * появилось, а кто его подал — выяснится.
      */
     ...(stream === 'owners' ? { sellerKind: SellerKind.owner } : {}),
+    /*
+     * ОБЪЯВЛЕНИЕ БЕЗ ТЕЛЕФОНА — НЕ ДУБЛЬ, А ПРОСТО ОБЪЯВЛЕНИЕ БЕЗ ТЕЛЕФОНА.
+     *
+     * Здесь была ошибка, обнулявшая ленту целиком, и стоит она отдельного
+     * объяснения. Условие «убрать те, чей телефон уже в базе» было написано
+     * одним `notIn`. Но телефона у собранных объявлений НЕТ ВОВСЕ — сборщик
+     * их не берёт (правило 11), — а в SQL `NULL NOT IN (…)` даёт не «истину»,
+     * а NULL, и строка отбрасывается. Стоило компании завести хоть один
+     * контакт с телефоном, и лента показывала ноль объявлений при полном
+     * индексе. Ровно это и увидел владелец: 15 объявлений в базе, 0 на экране.
+     *
+     * Правильный смысл: исключаем только тех, про кого ТОЧНО ЗНАЕМ, что их
+     * телефон у нас уже есть. Неизвестный телефон — повод показать, а не
+     * спрятать: ради того лента и существует, чтобы агент позвонил и узнал.
+     */
     ...(ownPhones.length === 0
       ? {}
-      : { phoneNormalized: { notIn: ownPhones.map((row) => row.phoneNormalized) } }),
+      : {
+          OR: [
+            { phoneNormalized: null },
+            { phoneNormalized: { notIn: ownPhones.map((row) => row.phoneNormalized) } },
+          ],
+        }),
     ...(doNotCall.length === 0 ? {} : { id: { notIn: doNotCall.map((row) => row.observationId) } }),
     ...(filters.propertyType === undefined ? {} : { propertyType: filters.propertyType }),
     ...(filters.transactionType === undefined ? {} : { transactionType: filters.transactionType }),

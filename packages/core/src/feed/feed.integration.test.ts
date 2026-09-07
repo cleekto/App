@@ -114,6 +114,52 @@ describe('индекс общий, а работа по нему — своя', 
     expect(await inFeed(batumi, one.externalId)).toBe(true);
   });
 
+  it('ОБЪЯВЛЕНИЕ БЕЗ ТЕЛЕФОНА НЕ ПРЯЧЕТСЯ, когда у компании есть свои контакты', async () => {
+    /*
+     * Ошибка, обнулявшая ленту целиком, и поймал её владелец на живом проде:
+     * 15 объявлений в базе, 0 на экране.
+     *
+     * Условие «убрать те, чей телефон уже у нас есть» было одним `notIn`,
+     * а телефона у собранных объявлений нет вовсе — сборщик их не берёт.
+     * В SQL `NULL NOT IN (…)` даёт NULL, а не «истину», и строка выпадала.
+     * Достаточно было одного контакта с телефоном у компании, чтобы лента
+     * стала пустой при полном индексе.
+     *
+     * ПОЧЕМУ ОШИБКУ НЕ ПОЙМАЛИ РАНЬШЕ: у засеянной компании контактов
+     * собственников нет вовсе, и условие с телефонами просто не включалось.
+     * Поэтому проверка заводит контакт сама, а не надеется на сид, — иначе
+     * она снова ничего не проверит.
+     */
+    await prisma.ownerContact.create({
+      data: {
+        companyId: vake.companyId,
+        phones: {
+          create: {
+            companyId: vake.companyId,
+            phoneOriginal: `555 00 ${String(seq).padStart(4, '0')}`,
+            phoneNormalized: `+99555500${String(seq).padStart(4, '0')}`,
+          },
+        },
+      },
+    });
+
+    const phones = await prisma.ownerContactPhone.count({
+      where: { ownerContact: { companyId: vake.companyId } },
+    });
+    expect(phones).toBeGreaterThan(0);
+
+    const one = card();
+    await harvestSearchResults(vake, 'MYHOME_GE', [one]);
+
+    const observation = await prisma.listingObservation.findFirstOrThrow({
+      where: { source: 'MYHOME_GE', externalId: one.externalId },
+      select: { phoneNormalized: true },
+    });
+    expect(observation.phoneNormalized).toBeNull();
+
+    expect(await inFeed(vake, one.externalId)).toBe(true);
+  });
+
   it('«просил не звонить» убирает объявление у всей компании, но не у чужой', async () => {
     const one = card();
     await harvestSearchResults(vake, 'MYHOME_GE', [one]);
