@@ -1,11 +1,20 @@
 'use client';
 
 import { PUBLISH_FORM_URLS, withPropertyMark } from '@kleekto/adapters';
+
+import { PublishHint } from './publish-hint';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface Labels {
   status: string;
+  publishNextTitle: string;
+  publishNextForm: string;
+  publishNextFill: string;
+  publishNextManual: string;
+  publishNextPhotos: string;
+  publishNextPublish: string;
+  publishNextGot: string;
   assignee: string;
   unassigned: string;
   publish: string;
@@ -46,6 +55,8 @@ export function PropertyControls({
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  /** Какую площадку объясняем. `null` — окна нет. */
+  const [hint, setHint] = useState<{ source: string; autofills: boolean } | null>(null);
   const [check, setCheck] = useState<CheckResult | null>(null);
   /** Площадка, ради которой открылось предупреждение. Иначе «всё равно»
       не знает, что именно размещать. */
@@ -116,6 +127,14 @@ export function PropertyControls({
     const form = PUBLISH_FORM_URLS[source];
     if (form !== undefined) window.open(withPropertyMark(form, propertyId), '_blank', 'noopener');
 
+    /*
+     * Подсказка ПОСЛЕ открытия вкладки, а не вместо неё: форма уже ждёт
+     * в соседней вкладке, пока агент читает, что делать. Показывается
+     * и там, где формы мы не открываем, — тогда она объясняет, что
+     * заполнять придётся руками.
+     */
+    setHint({ source, autofills: form !== undefined });
+
     await post(`/api/v1/properties/${propertyId}/publications`, { targetSource: source });
   };
 
@@ -180,6 +199,23 @@ export function PropertyControls({
           );
         })}
       </div>
+
+      {hint === null ? null : (
+        <PublishHint
+          source={hint.source}
+          autofills={hint.autofills}
+          onClose={() => setHint(null)}
+          labels={{
+            title: labels.publishNextTitle,
+            form: labels.publishNextForm,
+            fill: labels.publishNextFill,
+            manual: labels.publishNextManual,
+            photos: labels.publishNextPhotos,
+            publish: labels.publishNextPublish,
+            got: labels.publishNextGot,
+          }}
+        />
+      )}
 
       {check === null ? null : (
         <div className="w-full rounded-lg bg-[var(--color-warning)]/10 px-3 py-3 text-sm">

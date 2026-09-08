@@ -219,6 +219,13 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           openExisting: t('property.publishCheckOpenExisting'),
           publishAnyway: t('property.publishCheckAnyway'),
           cancel: t('property.publishCheckCancel'),
+          publishNextTitle: t('property.publishNextTitle'),
+          publishNextForm: t('property.publishNextForm'),
+          publishNextFill: t('property.publishNextFill'),
+          publishNextManual: t('property.publishNextManual'),
+          publishNextPhotos: t('property.publishNextPhotos'),
+          publishNextPublish: t('property.publishNextPublish'),
+          publishNextGot: t('property.publishNextGot'),
         }}
       />
 

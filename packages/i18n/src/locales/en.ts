@@ -276,6 +276,17 @@ export const en = {
     listingFields: 'Values for the form',
     listingFieldsHint:
       'In the order the platform asks for them, ready to paste — no currency, no thousand separators.',
+    publishNextTitle: 'What to do now',
+    publishNextForm: 'The listing form opened in a new tab.',
+    publishNextFill:
+      'The extension is filling the fields. Whatever it could not fill, it lists — type those in yourself.',
+    publishNextManual:
+      'This platform is filled by hand. Copy the text and the values from this card.',
+    publishNextPhotos:
+      'Photos are in your Downloads folder — drag them into the form. Not downloaded yet? Use “Save all photos” above.',
+    publishNextPublish:
+      'Check everything and press Publish yourself. kleekTo never submits the form.',
+    publishNextGot: 'Got it',
     photoAlt: 'Listing photo',
     photos: 'Photos',
     photoChoose: 'Add photos',
