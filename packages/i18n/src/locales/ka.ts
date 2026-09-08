@@ -513,6 +513,9 @@ export const ka: DeepPartial<Dictionary> = {
 
     callResult: 'ზარის შედეგი',
 
+    harvestNone: 'ჯერ არაფერი შეგროვდა',
+    harvestOk: 'შეგროვდა: {count}',
+    harvestFailed: 'ბოლო შეგროვება ჩაიშალა',
     outcome: {
       consent: 'დათანხმდა — დაემატოს kleekTo-ში',
       refused: 'უარი / აღარ დავურეკოთ',

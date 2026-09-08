@@ -1,6 +1,7 @@
 import { harvestPayload, searchHarvest } from '@kleekto/adapters';
 import type { SearchCard, SearchHarvest } from '@kleekto/adapters';
 
+import { rememberHarvest } from '../core/harvest-note';
 import type { ContentToWorker, WorkerReply } from '../core/messages';
 
 /**
@@ -53,17 +54,37 @@ async function deliver(harvest: SearchHarvest): Promise<void> {
   const message: ContentToWorker = { type: 'observations', source: harvest.source, cards };
 
   /*
-   * Ответ не разбираем и агенту ничего не показываем.
+   * АГЕНТУ НЕ ПОКАЗЫВАЕМ НИЧЕГО, НО СЛЕД ОСТАВЛЯЕМ.
    *
    * Сбор — фоновая польза, а не действие агента: он не просил, он просто
-   * смотрел выдачу. Уведомление об успехе здесь было бы шумом, а сообщение
-   * об ошибке — тревогой на пустом месте: не дошло сегодня, дойдёт завтра,
-   * главный цикл от этого не зависит (правило 16).
+   * смотрел выдачу. Уведомление об успехе было бы шумом, а сообщение
+   * об ошибке — тревогой на пустом месте: не дошло сейчас, дойдёт
+   * в следующий раз, главный цикл от этого не зависит.
+   *
+   * НО МОЛЧАТЬ СОВСЕМ ОКАЗАЛОСЬ НЕЛЬЗЯ. Схема приёма на сервере несколько
+   * дней отвергала каждую пачку целиком — в неё не добавили одно поле, —
+   * и узнать об этом было неоткуда: здесь стоял пустой `catch`, а лента
+   * по myhome просто оставалась пустой. Владелец заметил раньше нас.
+   *
+   * Поэтому итог кладётся в хранилище расширения: он не мешает агенту
+   * и виден в его окошке. «Собрано 20 минуту назад» и «ни одного за день»
+   * — разные картины, и различать их должно быть можно, не разбирая код.
    */
   try {
-    (await chrome.runtime.sendMessage(message)) as WorkerReply;
-  } catch {
-    // Worker спит или расширение обновилось — молчим.
+    const reply = (await chrome.runtime.sendMessage(message)) as WorkerReply;
+    const accepted = 'accepted' in reply ? reply.accepted : null;
+
+    await rememberHarvest(
+      accepted === null
+        ? { at: Date.now(), failed: 'error' in reply ? reply.error : 'unknown' }
+        : { at: Date.now(), accepted },
+    );
+  } catch (error) {
+    // Worker спит или расширение обновилось. Тоже след, а не тишина.
+    await rememberHarvest({
+      at: Date.now(),
+      failed: error instanceof Error ? error.name : 'unknown',
+    });
   }
 }
 

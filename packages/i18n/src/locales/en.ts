@@ -527,6 +527,9 @@ export const en = {
      */
     callResult: 'Call result',
 
+    harvestNone: 'Nothing collected yet',
+    harvestOk: 'Collected: {count}',
+    harvestFailed: 'Last collection failed',
     outcome: {
       /** Формулировка говорит, что произойдёт, а не «согласен» (DESIGN §25.4). */
       consent: 'Agreed — add to kleekTo',

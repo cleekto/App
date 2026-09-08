@@ -48,6 +48,13 @@ const cardSchema = z
     transactionType: z.enum(['SALE', 'RENT', 'PLEDGE', 'DAILY_RENT']).nullable().optional(),
 
     thumbnailUrl: z.string().url().nullable().optional(),
+    /*
+     * Дата публикации на площадке. ДОБАВЛЕНА ПОСЛЕ ТОГО, КАК СХЕМА УЖЕ
+     * СТОЯЛА, — и без неё маршрут молча отвергал каждую пачку: схема
+     * `.strict()`, а расширение слало поле, которого она не знала.
+     * Заметить это было неоткуда: сбор задуман тихим и глотал отказ.
+     */
+    publishedAt: z.string().nullable().optional(),
 
     sellerExternalId: z.string().min(1).max(64).nullable().optional(),
     sellerName: z.string().max(200).nullable().optional(),

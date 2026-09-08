@@ -104,6 +104,12 @@
       <div id="signed-in" hidden>
         <p id="who"></p>
         <p id="hint"></p>
+        <!--
+          Итог последнего сбора. Не украшение: сбор идёт молча, и это его
+          единственный видимый след. Пустая лента и сломанный сбор без него
+          выглядят одинаково — так уже случилось однажды.
+        -->
+        <p id="harvest" class="quiet" hidden></p>
         <button id="sign-out" class="plain" type="button"></button>
       </div>
     </div>

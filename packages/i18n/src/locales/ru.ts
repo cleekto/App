@@ -528,6 +528,9 @@ export const ru: DeepPartial<Dictionary> = {
 
     callResult: 'Результат разговора',
 
+    harvestNone: 'Пока ничего не собрано',
+    harvestOk: 'Собрано: {count}',
+    harvestFailed: 'Последний сбор не прошёл',
     outcome: {
       consent: 'Согласен — добавить в kleekTo',
       refused: 'Отказ / не звонить',

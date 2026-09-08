@@ -1,5 +1,6 @@
 import { isLocale, translator, type Locale, type MessageKey } from '@kleekto/i18n';
 
+import { lastHarvest } from '../core/harvest-note';
 import type { ContentToWorker, WorkerReply } from '../core/messages';
 
 /**
@@ -72,6 +73,25 @@ async function render(): Promise<void> {
   element('who').textContent = `${t('extension.signedInAs')} ${session.email}`;
   fill('hint', 'extension.notAListing');
   fill('sign-out', 'extension.signOut');
+
+  /*
+   * ИТОГ ПОСЛЕДНЕГО СБОРА — единственный видимый след фоновой работы.
+   *
+   * Сбор идёт молча и не должен мешать агенту. Но однажды он молчал
+   * несколько дней, отвергаемый сервером целиком, и «лента пустая»
+   * выглядело точно так же, как «сбор сломан». Одна строка здесь
+   * различает эти два случая, ничего при этом не требуя от агента.
+   */
+  const harvest = element('harvest');
+  const last = await lastHarvest();
+
+  harvest.hidden = false;
+  harvest.textContent =
+    last === null
+      ? t('extension.harvestNone')
+      : last.failed !== undefined
+        ? t('extension.harvestFailed')
+        : t('extension.harvestOk').replace('{count}', String(last.accepted ?? 0));
 }
 
 element<HTMLFormElement>('sign-in').addEventListener('submit', (event) => {
