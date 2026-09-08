@@ -21,6 +21,15 @@ import { UploadButton } from '../../../_ui/upload';
  * собирать заново на сервере.
  */
 
+/**
+ * Пауза между сохранениями.
+ *
+ * Chrome отбрасывает загрузки, начатые в одном кадре: он видит очередь
+ * одновременных нажатий и оставляет из них первое. Двухсот миллисекунд
+ * хватает, и шестнадцать снимков уходят за три секунды.
+ */
+const DOWNLOAD_GAP_MS = 200;
+
 export interface PhotoItem {
   /** Ключ в хранилище либо внешний адрес, если снимок пришёл с площадки. */
   key: string;
@@ -114,24 +123,37 @@ export function PhotoGallery({
     setPackFailed(false);
 
     try {
-      const response = await fetch(`/api/v1/properties/${propertyId}/photos`);
-      if (!response.ok) {
-        setPackFailed(true);
-        return;
+      /*
+       * ФАЙЛЫ ПО ОДНОМУ, А НЕ АРХИВОМ. Архив приходилось распаковывать перед
+       * тем, как перетащить снимки в форму площадки, — лишний шаг на каждом
+       * объекте. Отдельные файлы падают в «Загрузки» и перетаскиваются оттуда
+       * сразу.
+       *
+       * Браузер спросит один раз, можно ли сайту сохранять несколько файлов.
+       * Обойти этот вопрос нельзя; агенту про него сказано в подсказке.
+       */
+      for (let index = 0; index < items.length; index += 1) {
+        const link = document.createElement('a');
+        link.href = `/api/v1/properties/${propertyId}/photos/${String(index)}`;
+        /*
+         * Имя приходит с сервера заголовком: оно содержит номер объекта
+         * и порядковый номер снимка, чтобы шестнадцать файлов одного объекта
+         * не смешались в папке с шестнадцатью другого. Атрибут ставится
+         * пустым — браузеру нужно само его наличие, а значение он возьмёт
+         * из `Content-Disposition`.
+         */
+        link.download = '';
+        document.body.append(link);
+        link.click();
+        link.remove();
+
+        /*
+         * Пауза между файлами. Без неё Chrome отбрасывает часть загрузок,
+         * начатых в одном кадре: он видит очередь одновременных нажатий
+         * и оставляет из них первое.
+         */
+        await new Promise((resolve) => setTimeout(resolve, DOWNLOAD_GAP_MS));
       }
-
-      const blob = await response.blob();
-      const href = URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = href;
-      link.download = `${propertyId}-photos.zip`;
-      document.body.append(link);
-      link.click();
-      link.remove();
-
-      // Ссылка держит файл в памяти вкладки, пока её не отпустят.
-      URL.revokeObjectURL(href);
     } catch {
       setPackFailed(true);
     } finally {

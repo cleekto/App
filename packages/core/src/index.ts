@@ -48,7 +48,7 @@ export * from './migration/parse';
 export * from './migration/use-cases';
 
 export * from './properties/use-cases';
-export * from './properties/photo-archive';
+export * from './properties/photo-file';
 export * from './tasks/use-cases';
 export * from './comments/use-cases';
 export * from './activity/feed';
