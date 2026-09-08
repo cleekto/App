@@ -15,6 +15,7 @@ export * from './search-results';
 export * from './collector';
 export * from './form-fill';
 export * from './publish-types';
+export * from './publish-handoff';
 export { SsGeAdapter } from './ss-ge';
 export { MyhomeAdapter } from './myhome-ge';
 export { PREFILL_BLIND, SsGeFormAdapter } from './ss-ge-form';

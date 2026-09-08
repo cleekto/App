@@ -1,6 +1,8 @@
 import type { SearchCard } from '@kleekto/adapters';
+import type { FillResult } from '@kleekto/contracts';
 
 import type { CallOutcome, ImportRequestBody, ImportResponse } from './import-manager';
+import type { DraftResponse } from './publish-manager';
 
 /**
  * Сообщения между частями расширения.
@@ -23,6 +25,17 @@ export type ContentToWorker =
    * (правило 0). Телефонов здесь нет — в выдаче их не отдают.
    */
   | { type: 'observations'; source: 'SS_GE' | 'MYHOME_GE'; cards: SearchCard[] }
+  /**
+   * Собрать черновик публикации на сервере.
+   *
+   * Контакты собственника в него не попадают и попасть не могут: черновик
+   * собирается по белому списку полей (правило 13), а расширение получает
+   * уже готовый. Поэтому вписать их в чужую форму оно не способно даже
+   * по ошибке.
+   */
+  | { type: 'draft'; propertyId: string; targetSource: string }
+  /** Отчёт о заполнении. Он же сигнал метрики «сколько полей не далось». */
+  | { type: 'filled'; publicationId: string; result: FillResult }
   | { type: 'session' }
   | { type: 'login'; email: string; password: string }
   | { type: 'logout' };
@@ -38,6 +51,8 @@ export type WorkerToContent =
 export type WorkerReply =
   | { ok: true; response: ImportResponse }
   | { ok: true; accepted: number }
+  | { ok: true; draft: DraftResponse }
+  | { ok: true; reported: true }
   | { ok: true; session: { email: string; locale: string } | null }
   | { ok: false; error: 'network' | 'session' | 'unknown'; message: string };
 

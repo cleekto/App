@@ -1,4 +1,10 @@
-import { adapterFor } from '@kleekto/adapters';
+import {
+  adapterFor,
+  PREFILL_BLIND,
+  propertyMark,
+  publishAdapterFor,
+  type FormSnapshot,
+} from '@kleekto/adapters';
 import { isLocale, type Locale } from '@kleekto/i18n';
 
 import { APP_URL } from '../core/config';
@@ -6,6 +12,7 @@ import { startFeedCollector } from './feed';
 import type { CallOutcome, ImportRequestBody, ImportResponse } from '../core/import-manager';
 import { runImport } from '../core/import-manager';
 import type { ContentToWorker, WorkerReply, WorkerToContent } from '../core/messages';
+import { runClear, runFill } from '../core/publish-manager';
 import { Ui } from './ui';
 
 /**
@@ -61,6 +68,109 @@ async function signedIn(): Promise<boolean> {
   return 'session' in reply && reply.session !== null;
 }
 
+/**
+ * Помощник на форме «новое объявление».
+ *
+ * ОТКУДА ОН ЗНАЕТ, ЧТО ЗАПОЛНЯТЬ. Кнопка «Разместить» на карточке объекта
+ * открывает форму сама и дописывает к адресу метку `#kleekto=<объект>`.
+ * Якорь не уходит на сервер площадки — она не узнаёт ни одного нашего
+ * идентификатора и вообще не видит, что здесь замешана чужая система.
+ *
+ * Без метки помощник молчит: агент мог открыть форму сам, чтобы разместить
+ * что-то своё, и лезть к нему с чужим объектом незачем.
+ *
+ * ПРАВИЛО 12 ЦЕЛО. Здесь заполняются поля — и только. Форма не
+ * отправляется, галочки согласия не ставятся, капча не решается.
+ * «Опубликовать» нажимает человек.
+ */
+async function runFormHelper(): Promise<void> {
+  const propertyId = propertyMark(location.href);
+  if (propertyId === null) return;
+
+  if (!(await signedIn())) {
+    const ui = new Ui(await currentLocale(), () => undefined);
+    ui.signInRequired();
+    return;
+  }
+
+  const locale = await currentLocale();
+  let snapshot: FormSnapshot | null = null;
+
+  const ui: Ui = new Ui(locale, (action) => {
+    if (action.type === 'close') {
+      ui.hide();
+      return;
+    }
+
+    /*
+     * «Откатить форму» — единственное действие помощника кроме закрытия.
+     * Оно нужно потому, что площадка хранит черновик формы у себя: агент
+     * заполнил объект A, не опубликовал, взялся за B — и в полях остались
+     * данные A. Откат возвращает то, что было до нашего заполнения.
+     */
+    if (action.type === 'clear-form' && snapshot !== null) {
+      const cleared = runClear(snapshot, action.includeEdited);
+      ui.formCleared(cleared.editedByAgent);
+    }
+  });
+
+  const outcome = await runFill(
+    {
+      requestDraft: async (id, targetSource) => {
+        const reply = await ask({ type: 'draft', propertyId: id, targetSource });
+        if (!('ok' in reply) || reply.ok !== true || !('draft' in reply)) {
+          const error = 'error' in reply ? reply.error : 'unknown';
+          const failure = new Error(error);
+          failure.name = error === 'session' ? 'UnauthenticatedError' : 'Error';
+          throw failure;
+        }
+        return reply.draft;
+      },
+      reportFilled: async (publicationId, result) => {
+        // Отчёт уходит и при полном успехе, и при частичном: иначе о смене
+        // вёрстки формы мы узнаем от агента, а не из метрики.
+        await ask({ type: 'filled', publicationId, result });
+      },
+    },
+    document,
+    location.href,
+    propertyId,
+  );
+
+  if (outcome.kind === 'unavailable') {
+    ui.notAPublishForm();
+    return;
+  }
+
+  if (outcome.kind === 'failed') {
+    ui.error(outcome.error);
+    return;
+  }
+
+  snapshot = outcome.snapshot;
+
+  /*
+   * ЧУЖИЕ ДАННЫЕ В ФОРМЕ — только те, что ОСТАЛИСЬ. Площадка хранит черновик
+   * у себя: агент заполнил объект A, не опубликовал, взялся за B — и поля,
+   * которых адаптер не касается, стоят с данными A. Там, где мы записали
+   * поверх (`overwritten`), предупреждать не о чем; опасен именно `kept`,
+   * и заметить его, кроме агента, некому.
+   */
+  const kept = outcome.result.prefilled
+    .filter((field) => field.outcome === 'kept')
+    .map((field) => field.field);
+
+  ui.fillResult(
+    outcome.publisher,
+    outcome.result.filled,
+    // Имя поля, а не причина: агенту нужно знать, что дописать,
+    // а причина «не нашлось соответствия» ему ничего не говорит.
+    [...outcome.result.unfilled.map((field) => field.field), ...outcome.manualOnly],
+    kept,
+    PREFILL_BLIND,
+  );
+}
+
 async function main(): Promise<void> {
   /*
    * Сбор рабочей ленты идёт на ЛЮБОЙ странице площадки и раньше всего
@@ -68,6 +178,19 @@ async function main(): Promise<void> {
    * а данные там уже есть. Интерфейса у сбора нет — он молчит и не мешает.
    */
   startFeedCollector();
+
+  /*
+   * ФОРМА РАЗМЕЩЕНИЯ — ОТДЕЛЬНЫЙ ВХОД, и он идёт раньше проверки ниже.
+   *
+   * Страница «новое объявление» не является объявлением, и проверка
+   * `adapterFor` её отбрасывает. Раньше на этом всё и заканчивалось:
+   * заполнение формы было написано и покрыто тестами, но `content.ts`
+   * его не вызывал — то есть на экране агента оно не существовало вовсе.
+   */
+  if (publishAdapterFor(location.href) !== null) {
+    await runFormHelper();
+    return;
+  }
 
   // Дальше — только страница объявления. Не ошибка: агент просто открыл
   // что-то другое, и расширение об этом молчит.

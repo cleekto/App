@@ -1,5 +1,6 @@
 'use client';
 
+import { PUBLISH_FORM_URLS, withPropertyMark } from '@kleekto/adapters';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
@@ -91,9 +92,30 @@ export function PropertyControls({
     }
   };
 
+  /**
+   * Черновик готов — открываем форму площадки с меткой объекта.
+   *
+   * ДО ЭТОГО КНОПКА НИЧЕГО НЕ ПОКАЗЫВАЛА. Она создавала черновик на сервере
+   * и обновляла страницу: со стороны неотличимо от «не работает». А главное,
+   * расширение не знало, какой из сорока объектов агент размещает, и помощник
+   * на форме молчал.
+   *
+   * Метка едет в ЯКОРЕ адреса: он не уходит на сервер площадки, и та
+   * не получает ни одного нашего идентификатора.
+   *
+   * Форма открывается СРАЗУ, до ответа сервера. Черновик всё равно запросит
+   * само расширение, когда страница откроется; ждать здесь значило бы держать
+   * агента перед неподвижной кнопкой ради того, что ему не нужно. К тому же
+   * браузер разрешает открыть вкладку только в ответ на нажатие — после
+   * `await` разрешение уже потеряно, и вкладку съел бы блокировщик.
+   */
   const createDraft = async (source: string): Promise<void> => {
     setCheck(null);
     setPending(null);
+
+    const form = PUBLISH_FORM_URLS[source];
+    if (form !== undefined) window.open(withPropertyMark(form, propertyId), '_blank', 'noopener');
+
     await post(`/api/v1/properties/${propertyId}/publications`, { targetSource: source });
   };
 

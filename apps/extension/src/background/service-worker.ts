@@ -115,6 +115,14 @@ async function handle(message: ContentToWorker): Promise<WorkerReply> {
         const { accepted } = await api.postObservations(message.source, message.cards);
         return { ok: true, accepted };
       }
+      case 'draft': {
+        const draft = await api.createPublicationDraft(message.propertyId, message.targetSource);
+        return { ok: true, draft };
+      }
+      case 'filled': {
+        await api.reportPublicationFilled(message.publicationId, message.result);
+        return { ok: true, reported: true };
+      }
       case 'session': {
         const session = await readSession(chromeStorage());
         return {
