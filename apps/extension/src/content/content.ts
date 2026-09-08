@@ -83,6 +83,45 @@ async function signedIn(): Promise<boolean> {
  * отправляется, галочки согласия не ставятся, капча не решается.
  * «Опубликовать» нажимает человек.
  */
+/** Сколько ждём появления полей, прежде чем сдаться. */
+const FIELDS_TIMEOUT_MS = 300_000;
+
+/**
+ * Ждёт, пока поля формы окажутся на странице.
+ *
+ * ЗАЧЕМ. Размещение на ss.ge — мастер: сначала карточками выбирают
+ * категорию, тип и сделку, и только потом появляются поля. Адрес при этом
+ * не меняется. Помощник запускался при загрузке страницы, то есть на первом
+ * шаге, и заполнял форму, которой ещё не было: «0 полей заполнено», всё
+ * перечислено как ручное. Со стороны агента это ровно «не работает».
+ *
+ * Ждём наблюдателем, а не опросом по таймеру: шаг мастера меняет разметку,
+ * и об этом изменении браузер сообщает сам. Ограничение по времени есть,
+ * потому что агент мог передумать и уйти с формы, а висеть вечно
+ * наблюдатель на чужой странице не должен.
+ */
+function waitForFields(adapter: { hasFields(document: Document): boolean }): Promise<boolean> {
+  if (adapter.hasFields(document)) return Promise.resolve(true);
+
+  return new Promise((resolve) => {
+    const done = (found: boolean): void => {
+      observer.disconnect();
+      clearTimeout(timer);
+      resolve(found);
+    };
+
+    const observer = new MutationObserver(() => {
+      if (adapter.hasFields(document)) done(true);
+    });
+
+    const timer = setTimeout(() => {
+      done(false);
+    }, FIELDS_TIMEOUT_MS);
+
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
 async function runFormHelper(): Promise<void> {
   const propertyId = propertyMark(location.href);
   if (propertyId === null) return;
@@ -91,6 +130,21 @@ async function runFormHelper(): Promise<void> {
     const ui = new Ui(await currentLocale(), () => undefined);
     ui.signInRequired();
     return;
+  }
+
+  /*
+   * ПОЛЯ СНАЧАЛА, ЧЕРНОВИК ПОТОМ. Просить черновик раньше значило бы
+   * заводить публикацию на каждое открытие формы, даже когда агент до полей
+   * так и не дошёл, — и в базе оставались бы черновики ни о чём.
+   */
+  const publishAdapter = publishAdapterFor(location.href);
+  if (publishAdapter !== null && !publishAdapter.hasFields(document)) {
+    const waiting = new Ui(await currentLocale(), () => undefined);
+    waiting.waitingForForm();
+
+    const appeared = await waitForFields(publishAdapter);
+    waiting.hide();
+    if (!appeared) return;
   }
 
   const locale = await currentLocale();

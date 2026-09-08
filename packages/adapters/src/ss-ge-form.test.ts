@@ -98,6 +98,38 @@ describe('ss.ge: заполнение формы размещения', () => {
     expect(adapter.isNewListingForm(document as unknown as Document)).toBe(false);
   });
 
+  /**
+   * ПЕРВЫЙ ШАГ МАСТЕРА — ЕЩЁ НЕ ФОРМА.
+   *
+   * Проверено на живом сайте 2026-09-08. Размещение идёт мастером: сначала
+   * карточками выбирают категорию, тип и сделку, и только потом появляются
+   * поля. Адрес и маршрут приложения всё это время те же самые, поэтому
+   * `isNewListingForm` отвечает «да» уже на первом шаге — и отвечает верно.
+   *
+   * Различать эти два состояния обязан отдельный признак, иначе помощник
+   * заполняет форму, которой нет, и рапортует «0 полей заполнено».
+   */
+  it('готовность полей отличается от того, что мы на форме создания', () => {
+    const ready = createFormDocument();
+    expect(adapter.isNewListingForm(ready)).toBe(true);
+    expect(adapter.hasFields(ready)).toBe(true);
+
+    // Тот же маршрут, поля ещё не отрисованы — выбор категории карточками.
+    const { document } = parseHTML(
+      `<html><body>
+         <script id="__NEXT_DATA__" type="application/json">${JSON.stringify({
+           page: '/real-estate/create',
+           props: { pageProps: {} },
+         })}</script>
+         <div>უძრავი ქონება</div><div>ბინა</div><div>იყიდება</div>
+       </body></html>`,
+    );
+    const wizard = document as unknown as Document;
+
+    expect(adapter.isNewListingForm(wizard)).toBe(true);
+    expect(adapter.hasFields(wizard)).toBe(false);
+  });
+
   it('заполняет поля, у которых есть имя', () => {
     const document = createFormDocument();
     const { result } = adapter.fill(document, draftWith());

@@ -602,6 +602,8 @@ export const en = {
     fill: {
       /** DESIGN §25.2: «от имени» всегда видно — это публичное лицо агентства. */
       publishingAs: 'Publishing as',
+      waiting:
+        'Go through the first steps: category, type, deal. I will fill in as soon as the fields appear.',
       filled: 'fields filled',
       leftForYou: 'Left for you',
       stalePrevious: 'The form still holds data from a previous property',

@@ -72,6 +72,7 @@ function fakeAdapter(overrides: Partial<ListingPublishAdapter> = {}): ListingPub
     formVersion: 'тест@0.0.0',
     canHandleForm: () => true,
     isNewListingForm: () => true,
+    hasFields: () => true,
     fill: (document, draft) => {
       const fields: FormSnapshot['fields'] = [];
       const filled: string[] = [];
@@ -585,5 +586,33 @@ describe('помощник на форме доходит до страницы'
   it('отчёт о заполнении уходит на сервер', () => {
     // Без него о смене вёрстки формы мы узнаем от агента, а не из метрики.
     expect(content).toMatch(/type: 'filled'/u);
+  });
+
+  /**
+   * ЗАПОЛНЯТЬ НЕЧЕГО, ПОКА ПОЛЕЙ НЕТ.
+   *
+   * Найдено на живом сайте. Размещение на ss.ge — мастер: сначала карточками
+   * выбирают категорию, тип и сделку, и только потом появляются поля. Адрес
+   * при этом не меняется, и помощник, запускавшийся при загрузке страницы,
+   * заполнял форму, которой ещё не существовало: «0 полей заполнено», все
+   * поля перечислены как ручные. Селекторы адаптера при этом были верные —
+   * после выбора «ბინა → იყიდება» они находят всё.
+   */
+  it('ждёт появления полей, прежде чем заполнять', () => {
+    expect(content).toMatch(/hasFields\(document\)/u);
+    expect(content).toMatch(/MutationObserver/u);
+
+    // Ожидание идёт ДО запроса черновика: иначе каждое открытие формы
+    // заводило бы публикацию, даже когда агент до полей не дошёл.
+    expect(content.indexOf('waitForFields(publishAdapter)')).toBeLessThan(
+      content.indexOf('runFill('),
+    );
+  });
+
+  it('ожидание не висит вечно', () => {
+    // Агент мог передумать и уйти с формы; наблюдатель на чужой странице
+    // обязан когда-то отключиться сам.
+    expect(content).toMatch(/FIELDS_TIMEOUT_MS/u);
+    expect(content).toMatch(/observer\.disconnect\(\)/u);
   });
 });

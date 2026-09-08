@@ -154,6 +154,18 @@ export class SsGeFormAdapter implements ListingPublishAdapter {
     return typeof page === 'string' && page.endsWith('/create');
   }
 
+  /**
+   * Признак — площадь.
+   *
+   * Она появляется вместе со всем остальным блоком полей и есть у любого
+   * типа недвижимости, который агентство размещает. Ждать чего-то более
+   * редкого — например цены — значило бы не дождаться на тех типах, где
+   * его нет, и молчать на готовой форме.
+   */
+  hasFields(document: Document): boolean {
+    return document.querySelector(`input[name="${FIELD_AREA}"]`) !== null;
+  }
+
   fill(document: Document, draft: ListingPublishDraft): FillOutcome {
     const filled: string[] = [];
     const unfilled: UnfilledField[] = [];

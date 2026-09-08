@@ -577,6 +577,8 @@ export const ka: DeepPartial<Dictionary> = {
 
     fill: {
       publishingAs: 'სახელით',
+      waiting:
+        'გაიარეთ პირველი ნაბიჯები: კატეგორია, ტიპი, გარიგება. შევავსებ, როგორც კი ველები გამოჩნდება.',
       filled: 'ველი შევსებულია',
       leftForYou: 'დაგრჩათ',
       stalePrevious: 'ფორმაში დარჩა წინა ობიექტის მონაცემები',
