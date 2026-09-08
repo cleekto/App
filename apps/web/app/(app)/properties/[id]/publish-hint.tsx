@@ -31,6 +31,7 @@ export function PublishHint({
   labels: {
     title: string;
     form: string;
+    formSelf: string;
     fill: string;
     manual: string;
     photos: string;
@@ -41,14 +42,53 @@ export function PublishHint({
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
+  /*
+   * ЗАКРЫТИЕ НЕ ДОЛЖНО ЗАВИСЕТЬ ОТ СОБЫТИЯ `close`.
+   *
+   * Раньше состояние подсказки снималось только через `onClose` на элементе.
+   * Событие `close` не всплывает, и на проверке оно не пришло вовсе: окно
+   * закрывалось, но родитель об этом не узнавал. Дальше начиналось скрытое:
+   * подсказка оставалась «открытой» в состоянии, следующее нажатие «Разместить»
+   * лишь меняло ей свойства, а `showModal` при этом не вызывался — и второе
+   * окно за загрузку страницы уже не показывалось.
+   *
+   * Поэтому закрытие зовём сами, а `close` слушаем вдобавок — ради Esc,
+   * который закрывает окно мимо наших кнопок. Двойной вызов безвреден:
+   * родитель просто ещё раз обнуляет одно и то же.
+   */
+  const closing = useRef(onClose);
+  closing.current = onClose;
+
   useEffect(() => {
+    const node = dialog.current;
+    if (node === null) return undefined;
+
     // `showModal`, а не атрибут `open`: только он даёт подложку, ловушку
     // фокуса и закрытие по Esc — то есть настоящее окно, а не блок поверх.
-    dialog.current?.showModal();
+    node.showModal();
+
+    const done = (): void => {
+      closing.current();
+    };
+    node.addEventListener('close', done);
+    return () => {
+      node.removeEventListener('close', done);
+    };
   }, []);
 
+  const dismiss = (): void => {
+    dialog.current?.close();
+    onClose();
+  };
+
+  /*
+   * ПЕРВЫЙ ШАГ РАЗНЫЙ, И ЭТО НЕ ПРИДИРКА. Вкладку с формой мы открываем
+   * только там, где знаем её адрес. Для myhome адреса нет — вкладка
+   * не открывается, а подсказка утверждала «форма открылась в новой
+   * вкладке» и отправляла агента искать несуществующее окно.
+   */
   const steps = [
-    labels.form,
+    autofills ? labels.form : labels.formSelf,
     autofills ? labels.fill : labels.manual,
     labels.photos,
     labels.publish,
@@ -57,11 +97,10 @@ export function PublishHint({
   return (
     <dialog
       ref={dialog}
-      onClose={onClose}
       // Нажатие мимо окна закрывает его: так ведут себя все окна, и другого
       // человек от этого не ждёт.
       onClick={(event) => {
-        if (event.target === dialog.current) dialog.current?.close();
+        if (event.target === dialog.current) dismiss();
       }}
       className="m-auto w-[min(30rem,92vw)] rounded-[var(--radius-card)] bg-[var(--color-surface)] p-0 text-[var(--color-text-primary)] shadow-[var(--shadow-overlay)] backdrop:bg-black/40"
     >
@@ -90,7 +129,7 @@ export function PublishHint({
           <button
             type="button"
             autoFocus
-            onClick={() => dialog.current?.close()}
+            onClick={dismiss}
             className="rounded-[var(--radius-control)] bg-[var(--color-brand)] px-4 py-2 text-xs font-medium text-white transition-[background-color,transform] duration-[var(--duration-fast)] ease-[var(--ease-out)] hover:bg-[var(--color-brand-hover)] active:scale-[0.97]"
           >
             {labels.got}

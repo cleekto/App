@@ -10,6 +10,7 @@ interface Labels {
   status: string;
   publishNextTitle: string;
   publishNextForm: string;
+  publishNextFormSelf: string;
   publishNextFill: string;
   publishNextManual: string;
   publishNextPhotos: string;
@@ -208,6 +209,7 @@ export function PropertyControls({
           labels={{
             title: labels.publishNextTitle,
             form: labels.publishNextForm,
+            formSelf: labels.publishNextFormSelf,
             fill: labels.publishNextFill,
             manual: labels.publishNextManual,
             photos: labels.publishNextPhotos,

@@ -278,6 +278,8 @@ export const en = {
       'In the order the platform asks for them, ready to paste — no currency, no thousand separators.',
     publishNextTitle: 'What to do now',
     publishNextForm: 'The listing form opened in a new tab.',
+    publishNextFormSelf:
+      'Open the new-listing form on the platform yourself — kleekTo cannot open this one.',
     publishNextFill:
       'The extension is filling the fields. Whatever it could not fill, it lists — type those in yourself.',
     publishNextManual:

@@ -221,6 +221,7 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
           cancel: t('property.publishCheckCancel'),
           publishNextTitle: t('property.publishNextTitle'),
           publishNextForm: t('property.publishNextForm'),
+          publishNextFormSelf: t('property.publishNextFormSelf'),
           publishNextFill: t('property.publishNextFill'),
           publishNextManual: t('property.publishNextManual'),
           publishNextPhotos: t('property.publishNextPhotos'),
