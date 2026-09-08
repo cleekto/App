@@ -556,6 +556,10 @@ export const en = {
      * ничего не сломалось, просто пропущен шаг. Тон спокойный, без «ошибка».
      */
     phoneNotRevealed: 'Reveal the phone number on the page, then press “Agreed” again.',
+    // Fallback: the page will not give up the number, but the call already happened.
+    phoneTypeItHint: 'Number unreadable on the page? Type the one you called.',
+    phoneTypePlaceholder: '+995 5XX XX XX XX',
+    phoneTypeSubmit: 'Add with this number',
 
     added: {
       title: 'Added to kleekTo',

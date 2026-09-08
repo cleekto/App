@@ -534,6 +534,10 @@ export const ka: DeepPartial<Dictionary> = {
     },
 
     phoneNotRevealed: 'ჯერ გახსენით ტელეფონის ნომერი გვერდზე, შემდეგ კვლავ დააჭირეთ „დათანხმდა“.',
+    // სათადარიგო გზა: ნომერი გვერდზე არ იკითხება, ზარი კი უკვე შედგა.
+    phoneTypeItHint: 'ნომერი გვერდზე არ იკითხება? ჩაწერეთ ის, რომელზეც დარეკეთ.',
+    phoneTypePlaceholder: '+995 5XX XX XX XX',
+    phoneTypeSubmit: 'დამატება ამ ნომრით',
 
     added: {
       title: 'დაემატა kleekTo-ში',

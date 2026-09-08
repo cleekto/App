@@ -120,6 +120,67 @@ describe('правило раскрытого телефона', () => {
     }
   });
 
+  /**
+   * РУЧНОЙ ВВОД — НЕ ДЫРА В ПРАВИЛЕ 11, А ВЫХОД ИЗ ТУПИКА.
+   *
+   * Правило запрещает РАСШИРЕНИЮ добывать номер: имитировать нажатие
+   * «показать», дёргать внутренние endpoint'ы площадки, угадывать. Оно
+   * никогда не запрещало человеку сообщить номер, по которому он только что
+   * звонил, — а именно так агент и оказывается у кнопки «Согласен».
+   *
+   * Тупик возникал не когда номера нет, а когда МЫ не смогли его прочитать:
+   * сменилась вёрстка, номер показан картинкой, отдан через форму. Это наша
+   * слепота, и платить за неё несделанной работой агенту не за что.
+   *
+   * Проверка при этом ровно та же. Ниже доказывается обе половины: годный
+   * номер проходит, негодный — нет, и отличается он не источником.
+   */
+  describe('номер, набранный руками', () => {
+    it.skipIf(!hasFixtures)('годный номер снимает блокировку', async () => {
+      const send = vi.fn<(body: ImportRequestBody) => Promise<ImportResponse>>();
+      send.mockResolvedValue(OK_RESPONSE);
+      const { document, url } = listingWithHiddenPhone();
+
+      const result = await runImport({ send }, document, url, {
+        outcome: 'consent',
+        manualPhone: '+995 599 12 34 56',
+      });
+
+      expect(result.kind).toBe('sent');
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0]?.[0].owner.phone).toBe('+995 599 12 34 56');
+    });
+
+    it.skipIf(!hasFixtures)('маска и мусор не проходят и руками', async () => {
+      // Иначе руками можно было бы вписать «звоните в агентство»
+      // и сломать дедупликацию всей команде.
+      for (const typed of ['', '   ', '599•••••', 'показать номер', '0322121661', '12345']) {
+        const send = vi.fn<(body: ImportRequestBody) => Promise<ImportResponse>>();
+        const { document, url } = listingWithHiddenPhone();
+
+        const result = await runImport({ send }, document, url, {
+          outcome: 'consent',
+          manualPhone: typed,
+        });
+
+        expect(result.kind, typed).toBe('phone_not_revealed');
+        expect(send, typed).not.toHaveBeenCalled();
+      }
+    });
+
+    it.skipIf(!hasFixtures)('без набранного номера всё остаётся как было', async () => {
+      // Само появление поля ввода ничего не разрешает: пока агент ничего
+      // не напечатал, блокировка на месте.
+      const send = vi.fn<(body: ImportRequestBody) => Promise<ImportResponse>>();
+      const { document, url } = listingWithHiddenPhone();
+
+      const result = await runImport({ send }, document, url, { outcome: 'consent' });
+
+      expect(result.kind).toBe('phone_not_revealed');
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
   it.skipIf(!hasFixtures)('предпросмотр не теряется при блокировке', async () => {
     // DESIGN §25.1: ничего из сделанного агентом не пропадает.
     const { document, url } = listingWithHiddenPhone();

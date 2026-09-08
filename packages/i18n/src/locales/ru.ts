@@ -552,6 +552,10 @@ export const ru: DeepPartial<Dictionary> = {
 
     phoneNotRevealed:
       'Сначала откройте номер телефона на странице, затем нажмите «Согласен» ещё раз.',
+    // Запасной путь: номер на странице не читается, а разговор уже был.
+    phoneTypeItHint: 'Номер не читается со страницы? Впишите тот, по которому звонили.',
+    phoneTypePlaceholder: '+995 5XX XX XX XX',
+    phoneTypeSubmit: 'Добавить с этим номером',
 
     added: {
       title: 'Добавлено в kleekTo',

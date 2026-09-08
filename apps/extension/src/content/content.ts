@@ -68,21 +68,6 @@ async function signedIn(): Promise<boolean> {
   return 'session' in reply && reply.session !== null;
 }
 
-/**
- * Помощник на форме «новое объявление».
- *
- * ОТКУДА ОН ЗНАЕТ, ЧТО ЗАПОЛНЯТЬ. Кнопка «Разместить» на карточке объекта
- * открывает форму сама и дописывает к адресу метку `#kleekto=<объект>`.
- * Якорь не уходит на сервер площадки — она не узнаёт ни одного нашего
- * идентификатора и вообще не видит, что здесь замешана чужая система.
- *
- * Без метки помощник молчит: агент мог открыть форму сам, чтобы разместить
- * что-то своё, и лезть к нему с чужим объектом незачем.
- *
- * ПРАВИЛО 12 ЦЕЛО. Здесь заполняются поля — и только. Форма не
- * отправляется, галочки согласия не ставятся, капча не решается.
- * «Опубликовать» нажимает человек.
- */
 /** Сколько ждём появления полей, прежде чем сдаться. */
 const FIELDS_TIMEOUT_MS = 300_000;
 
@@ -122,6 +107,21 @@ function waitForFields(adapter: { hasFields(document: Document): boolean }): Pro
   });
 }
 
+/**
+ * Помощник на форме «новое объявление».
+ *
+ * ОТКУДА ОН ЗНАЕТ, ЧТО ЗАПОЛНЯТЬ. Кнопка «Разместить» на карточке объекта
+ * открывает форму сама и дописывает к адресу метку `#kleekto=<объект>`.
+ * Якорь не уходит на сервер площадки — она не узнаёт ни одного нашего
+ * идентификатора и вообще не видит, что здесь замешана чужая система.
+ *
+ * Без метки помощник молчит: агент мог открыть форму сам, чтобы разместить
+ * что-то своё, и лезть к нему с чужим объектом незачем.
+ *
+ * ПРАВИЛО 12 ЦЕЛО. Здесь заполняются поля — и только. Форма не
+ * отправляется, галочки согласия не ставятся, капча не решается.
+ * «Опубликовать» нажимает человек.
+ */
 async function runFormHelper(): Promise<void> {
   const propertyId = propertyMark(location.href);
   if (propertyId === null) return;
@@ -297,6 +297,7 @@ async function main(): Promise<void> {
       ...(extra.acknowledgedDuplicateOf === undefined
         ? {}
         : { acknowledgedDuplicateOf: extra.acknowledgedDuplicateOf }),
+      ...(extra.manualPhone === undefined ? {} : { manualPhone: extra.manualPhone }),
     });
 
     switch (result.kind) {
@@ -389,6 +390,21 @@ async function main(): Promise<void> {
         ui.refusedRecorded();
         return;
 
+      /*
+       * НОМЕР, НАБРАННЫЙ РУКАМИ. Правило 11 цело: расширение по-прежнему
+       * не добывает номер само. Оно лишь перестало быть тупиком там, где
+       * не смогло его прочитать, — а агент к этому моменту уже позвонил
+       * и получил согласие. Исход повторяется тот же, что и был.
+       */
+      case 'phone-typed':
+        await perform(lastOutcome ?? 'consent', {
+          manualPhone: action.phone,
+          ...(lastOutcome === 'callback' && lastCallbackAt !== null
+            ? { callbackAt: lastCallbackAt }
+            : {}),
+        });
+        return;
+
       case 'retry':
         if (lastOutcome === null) {
           await openMenu();
@@ -434,6 +450,7 @@ interface ImportOptionsLite {
   callbackAt: string;
   doNotCallCompanyWide: boolean;
   acknowledgedDuplicateOf: string[];
+  manualPhone: string;
 }
 
 function matchIds(matches: unknown[]): string[] {

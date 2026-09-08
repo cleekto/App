@@ -24,6 +24,8 @@ export type UiAction =
   | { type: 'do-not-call' }
   | { type: 'retry' }
   | { type: 'clear-form'; includeEdited: boolean }
+  /** Номер, набранный агентом руками, когда со страницы он не читается. */
+  | { type: 'phone-typed'; phone: string }
   | { type: 'close' };
 
 const HOST_ID = 'kleekto-root';
@@ -191,6 +193,46 @@ export class Ui {
     panel.append(this.closeButton(), this.head(this.t('extension.phoneNotRevealed'), 'quiet'));
     if (preview !== null) panel.append(this.summary(preview));
     panel.append(this.button(this.t('common.retry'), 'primary', { type: 'retry' }));
+
+    /*
+     * ВТОРОЙ ВЫХОД, А НЕ ПЕРВЫЙ. «Повторить» стоит выше и остаётся главным:
+     * в девяти случаях из десяти агент просто не нажал «показать номер»,
+     * и правильное действие — нажать и повторить.
+     *
+     * Ручной ввод — для десятого: площадка сменила вёрстку, показала номер
+     * картинкой, отдала через форму. Тогда агент, уже поговоривший
+     * с собственником, вписывает номер из журнала вызовов и идёт дальше.
+     * Раньше здесь был тупик, и виновата в нём была наша слепота, а не он.
+     */
+    panel.append(this.head(this.t('extension.phoneTypeItHint'), 'quiet'));
+
+    const row = document.createElement('div');
+    row.className = 'row';
+
+    const input = document.createElement('input');
+    input.type = 'tel';
+    input.className = 'input';
+    input.placeholder = this.t('extension.phoneTypePlaceholder');
+    input.setAttribute('aria-label', this.t('extension.phoneTypePlaceholder'));
+
+    const send = (): void => {
+      const phone = input.value.trim();
+      if (phone !== '') this.onAction({ type: 'phone-typed', phone });
+    };
+
+    // Enter — то же самое, что кнопка: набрал номер и нажал ввод.
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') send();
+    });
+
+    const go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'btn plain';
+    go.textContent = this.t('extension.phoneTypeSubmit');
+    go.addEventListener('click', send);
+
+    row.append(input, go);
+    panel.append(row);
   }
 
   /**
@@ -566,6 +608,13 @@ const STYLES = `
   .quiet-group { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e8eaed; }
   .row { display: flex; gap: 6px; }
   .row .btn { margin-top: 10px; text-align: center; border: 1px solid #e8eaed; border-radius: 8px; }
+  /* Номер, набранный руками. min-width: 0 обязателен: без него поле
+     во флексе не сжимается и выталкивает кнопку за край панели. */
+  .input {
+    flex: 1; min-width: 0; margin-top: 10px; padding: 10px 12px;
+    border: 1px solid #e8eaed; border-radius: 8px; font: inherit; color: #2b2f38;
+  }
+  .input:focus { outline: 2px solid #1f6feb; outline-offset: 1px; }
   .close {
     position: absolute; top: 10px; right: 10px;
     border: none; background: transparent; cursor: pointer;
