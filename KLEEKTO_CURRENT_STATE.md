@@ -4,9 +4,11 @@
 Phase 01 — Security & Foundation.
 
 ## Current commit
-Canonical remote revision on `main`: `f1634aeed5ffcd6144dcca0df7c9877e09d56a48`.
+Canonical revision: current HEAD of `main`.
 
-Historical Codex-only commit `5f603d7a0ea241328cda22e9fe184f9e68ab70a1` was never pushed to GitHub. Its intended safe test-database isolation change set was reconstructed, reviewed in PR #3, and merged into `main`.
+Last product/security merge: `f1634aeed5ffcd6144dcca0df7c9877e09d56a48` (PR #3 — safe destructive integration database isolation).
+
+Historical Codex-only commit `5f603d7a0ea241328cda22e9fe184f9e68ab70a1` was never pushed to GitHub. Its intended change set was reconstructed, reviewed in PR #3, and merged into `main`.
 
 ## Current branch
 `main`
@@ -25,9 +27,10 @@ Temporary feature/security branches are not sources of truth after merge.
   - dedicated CI database `localhost:5432/kleekto_test`;
   - security/unit coverage and CI wiring.
 - `KLEEKTO_CURRENT_STATE.md` established as the short session entry point.
+- Canonical migration/reset plan recorded and merged via PR #4.
 
 ## Next action
-1. Canonical-repository reset: keep one product repository and one stable `main`.
+1. Keep one product repository and one stable `main`.
 2. Create/rename the canonical GitHub repository to `KleekTo` when repository administration is available.
 3. Carry the current `main` history and canonical docs into that repository without rewriting or dropping validated history.
 4. Connect the new ChatGPT Project `KleekTo` to that single repository and keep only current canonical materials there.
