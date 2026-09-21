@@ -11,6 +11,32 @@ import { z } from 'zod';
 export const sourceSchema = z.enum(['SS_GE', 'MYHOME_GE']);
 export type SourceId = z.infer<typeof sourceSchema>;
 
+const SOURCE_HOSTS: Readonly<Record<SourceId, readonly string[]>> = {
+  SS_GE: ['home.ss.ge'],
+  MYHOME_GE: ['myhome.ge', 'www.myhome.ge'],
+};
+
+/**
+ * A source URL is part of the provider contract, not an arbitrary web URL.
+ *
+ * Exact host matching is intentional: suffix checks such as
+ * `host.endsWith('ss.ge')` accept attacker-controlled lookalikes.
+ */
+export function sourceUrlMatchesSource(source: SourceId, value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+
+  if (url.protocol !== 'https:') return false;
+  if (url.username !== '' || url.password !== '') return false;
+  if (url.port !== '') return false;
+
+  return SOURCE_HOSTS[source].includes(url.hostname.toLowerCase());
+}
+
 export const listingImportPayloadSchema = z.object({
   source: sourceSchema,
   sourceUrl: z.string().url(),
