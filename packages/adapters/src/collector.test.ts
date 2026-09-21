@@ -1,9 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { COLLECTOR_PAGES, harvestHtml, listingSignals } from './collector';
+import {
+  COLLECTOR_PAGES,
+  fetchListPage,
+  fetchListingSignals,
+  harvestHtml,
+  listingSignals,
+} from './collector';
 import { FIXTURE_ROOT } from './fixtures';
 
 /**
@@ -58,6 +64,85 @@ describe('адреса, которые читает сборщик', () => {
 
     expect(sources).toContain('SS_GE');
     expect(sources).not.toContain('MYHOME_GE');
+  });
+});
+
+describe('server egress boundary', () => {
+  it('does not request a URL outside the declared source', async () => {
+    const fetchImpl = vi.fn();
+
+    const outcome = await fetchListPage(
+      { source: 'SS_GE', url: 'https://169.254.169.254/latest/meta-data/' },
+      fetchImpl as unknown as typeof globalThis.fetch,
+    );
+
+    expect(outcome.failure).toBe('url');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('does not enable myhome server collection accidentally', async () => {
+    const fetchImpl = vi.fn();
+
+    const outcome = await fetchListPage(
+      { source: 'MYHOME_GE', url: 'https://www.myhome.ge/udzravi-qoneba/iyideba/bina/' },
+      fetchImpl as unknown as typeof globalThis.fetch,
+    );
+
+    expect(outcome.failure).toBe('url');
+    expect(fetchImpl).not.toHaveBeenCalled();
+  });
+
+  it('rejects a redirect from ss.ge to another host', async () => {
+    const fetchImpl = vi.fn().mockResolvedValueOnce(
+      new Response(null, {
+        status: 302,
+        headers: { location: 'https://127.0.0.1/internal' },
+      }),
+    );
+
+    const outcome = await fetchListPage(
+      { source: 'SS_GE', url: 'https://home.ss.ge/ka/udzravi-qoneba/l/bina/iyideba' },
+      fetchImpl as unknown as typeof globalThis.fetch,
+    );
+
+    expect(outcome.failure).toBe('url');
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ redirect: 'manual' });
+  });
+
+  it('allows a same-source redirect and rechecks the destination', async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(null, {
+          status: 302,
+          headers: { location: '/ka/udzravi-qoneba/l/bina/qiravdeba' },
+        }),
+      )
+      .mockResolvedValueOnce(new Response('<html><body></body></html>', { status: 200 }));
+
+    const outcome = await fetchListPage(
+      { source: 'SS_GE', url: 'https://home.ss.ge/ka/udzravi-qoneba/l/bina/iyideba' },
+      fetchImpl as unknown as typeof globalThis.fetch,
+    );
+
+    expect(outcome.failure).toBe('parse');
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl.mock.calls[1]?.[0]).toBe(
+      'https://home.ss.ge/ka/udzravi-qoneba/l/bina/qiravdeba',
+    );
+  });
+
+  it('does not fetch listing signals from a foreign host', async () => {
+    const fetchImpl = vi.fn();
+
+    const signals = await fetchListingSignals(
+      'https://home.ss.ge.evil.example/listing',
+      fetchImpl as unknown as typeof globalThis.fetch,
+    );
+
+    expect(signals).toEqual({ sellerKind: null, viewCount: null, publishedAt: null });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });
 

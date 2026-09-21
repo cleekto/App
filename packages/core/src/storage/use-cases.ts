@@ -4,6 +4,7 @@ import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import type { AuthContext } from '../auth/context';
+import { downloadPublicHttps } from '../egress/public-download';
 import { ValidationError } from '../errors';
 
 /**
@@ -283,19 +284,14 @@ export async function fileBytes(
   if (key === '') return null;
 
   if (key.startsWith('http://') || key.startsWith('https://')) {
-    try {
-      const response = await fetch(key);
-      if (!response.ok) return null;
-
-      return {
-        bytes: new Uint8Array(await response.arrayBuffer()),
-        contentType: response.headers.get('content-type'),
-      };
-    } catch {
-      // Чужая ссылка могла протухнуть вместе с объявлением. Это не поломка
-      // архива: остальные фотографии всё равно нужны агенту.
-      return null;
-    }
+    /*
+     * Внешняя фотография — недоверенный URL из объявления. Обычный fetch
+     * здесь был SSRF-границей: адрес мог указывать на localhost, metadata
+     * service или уйти туда через redirect. Downloader разрешает только
+     * публичный HTTPS, проверяет DNS и соединяется с уже проверенным IP;
+     * каждый redirect проходит ту же проверку заново.
+     */
+    return downloadPublicHttps(key, MAX_BYTES);
   }
 
   const config = storage();

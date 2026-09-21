@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { sourceUrlMatchesSource } from '@kleekto/contracts';
 import { importListing } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
@@ -79,6 +80,15 @@ const importSchema = z
     acknowledgedDuplicateOf: z.array(z.string().uuid()).optional(),
   })
   .strict()
+  .superRefine((value, ctx) => {
+    if (!sourceUrlMatchesSource(value.source, value.sourceUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sourceUrl'],
+        message: 'Адрес объявления не соответствует источнику',
+      });
+    }
+  })
   .refine(
     (value) =>
       value.outcome !== 'callback' || (value.callbackAt !== null && value.callbackAt !== undefined),
