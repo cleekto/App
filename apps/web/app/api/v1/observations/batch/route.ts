@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { sourceUrlMatchesSource } from '@kleekto/contracts';
 import { harvestSearchResults } from '@kleekto/core';
 
 import { handle, parseBody, requireAuth } from '../../../_lib/handler';
@@ -67,7 +68,18 @@ const batchSchema = z
     source: z.enum(['SS_GE', 'MYHOME_GE']),
     cards: z.array(cardSchema).max(MAX_CARDS),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    value.cards.forEach((card, index) => {
+      if (sourceUrlMatchesSource(value.source, card.url)) return;
+
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cards', index, 'url'],
+        message: 'Адрес объявления не соответствует источнику',
+      });
+    });
+  });
 
 /**
  * POST /api/v1/observations/batch
