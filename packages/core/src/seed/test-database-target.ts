@@ -93,9 +93,7 @@ export function validateTestDatabaseTarget(
 
   const declaredTarget = input.testDatabaseTarget?.trim() ?? '';
   if (declaredTarget === '') {
-    throw new Error(
-      `TEST_DATABASE_TARGET не задан. Ожидается descriptor ${validated.descriptor}.`,
-    );
+    throw new Error(`TEST_DATABASE_TARGET не задан. Ожидается descriptor ${validated.descriptor}.`);
   }
 
   if (declaredTarget !== validated.descriptor) {
