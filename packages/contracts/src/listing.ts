@@ -11,16 +11,17 @@ import { z } from 'zod';
 export const sourceSchema = z.enum(['SS_GE', 'MYHOME_GE']);
 export type SourceId = z.infer<typeof sourceSchema>;
 
-const SOURCE_HOSTS: Readonly<Record<SourceId, readonly string[]>> = {
-  SS_GE: ['home.ss.ge'],
-  MYHOME_GE: ['myhome.ge', 'www.myhome.ge'],
+const SOURCE_DOMAINS: Readonly<Record<SourceId, string>> = {
+  SS_GE: 'ss.ge',
+  MYHOME_GE: 'myhome.ge',
 };
 
 /**
  * A source URL is part of the provider contract, not an arbitrary web URL.
  *
- * Exact host matching is intentional: suffix checks such as
- * `host.endsWith('ss.ge')` accept attacker-controlled lookalikes.
+ * The existing adapters accept the provider root and its subdomains. The
+ * boundary check keeps that behavior while requiring a real DNS-label
+ * boundary: `evilss.ge` and `ss.ge.evil.example` are not accepted.
  */
 export function sourceUrlMatchesSource(source: string, value: string): boolean {
   if (source !== 'SS_GE' && source !== 'MYHOME_GE') return false;
@@ -36,7 +37,9 @@ export function sourceUrlMatchesSource(source: string, value: string): boolean {
   if (url.username !== '' || url.password !== '') return false;
   if (url.port !== '') return false;
 
-  return SOURCE_HOSTS[source].includes(url.hostname.toLowerCase());
+  const root = SOURCE_DOMAINS[source];
+  const host = url.hostname.toLowerCase();
+  return host === root || host.endsWith(`.${root}`);
 }
 
 export const listingImportPayloadSchema = z.object({
