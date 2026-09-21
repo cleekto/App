@@ -29,6 +29,8 @@
  * оно держится не на риске блокировки, а на дедупликации).
  */
 
+import { sourceUrlMatchesSource } from '@kleekto/contracts';
+
 import { harvestPayload, type SearchHarvest } from './search-results';
 import type { PropertyTypeCode, TransactionTypeCode } from './vocabulary';
 
@@ -46,6 +48,58 @@ const BROWSER_UA =
 
 /** Долго не ждём: страница либо отвечает быстро, либо не отвечает. */
 const TIMEOUT_MS = 20_000;
+
+const MAX_REDIRECTS = 3;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+
+const REQUEST_HEADERS = {
+  'user-agent': BROWSER_UA,
+  accept: 'text/html,application/xhtml+xml',
+  'accept-language': 'ka,en;q=0.9,ru;q=0.8',
+} as const;
+
+/**
+ * Server-side collection is narrower than browser support.
+ *
+ * At the moment only ss.ge has an approved/stable server path. myhome.ge is
+ * deliberately excluded by the protected-source contract. Redirects are
+ * followed manually so an allowed marketplace URL cannot bounce the server
+ * to another host or to an internal address.
+ */
+async function fetchCollectorUrl(
+  source: CollectorPage['source'],
+  rawUrl: string,
+  signal: AbortSignal,
+  fetchImpl: typeof globalThis.fetch,
+): Promise<Response | null> {
+  if (source !== 'SS_GE') return null;
+
+  let current = rawUrl;
+
+  for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
+    if (!sourceUrlMatchesSource(source, current)) return null;
+
+    const response = await fetchImpl(current, {
+      signal,
+      redirect: 'manual',
+      headers: REQUEST_HEADERS,
+    });
+
+    if (!REDIRECT_STATUSES.has(response.status)) return response;
+    if (redirects === MAX_REDIRECTS) return null;
+
+    const location = response.headers.get('location');
+    if (location === null) return null;
+
+    try {
+      current = new URL(location, current).toString();
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
 
 export interface CollectorPage {
   source: 'SS_GE' | 'MYHOME_GE';
@@ -178,16 +232,11 @@ export async function fetchListPage(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetchImpl(page.url, {
-      signal: controller.signal,
-      headers: {
-        // Обычный браузерный набор. Площадки отдают список именно на такой
-        // запрос — проверено; клиент, представляющийся иначе, получает 403.
-        'user-agent': BROWSER_UA,
-        accept: 'text/html,application/xhtml+xml',
-        'accept-language': 'ka,en;q=0.9,ru;q=0.8',
-      },
-    });
+    const response = await fetchCollectorUrl(page.source, page.url, controller.signal, fetchImpl);
+
+    if (response === null) {
+      return { url: page.url, status: null, harvest: null, failure: 'url' };
+    }
 
     if (!response.ok) {
       return { url: page.url, status: response.status, harvest: null, failure: 'status' };
@@ -334,15 +383,13 @@ export async function fetchListingSignals(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetchImpl(listingUrl, {
-      signal: controller.signal,
-      headers: {
-        'user-agent': BROWSER_UA,
-        accept: 'text/html,application/xhtml+xml',
-        'accept-language': 'ka,en;q=0.9,ru;q=0.8',
-      },
-    });
-    if (!response.ok) return EMPTY_SIGNALS;
+    const response = await fetchCollectorUrl(
+      'SS_GE',
+      listingUrl,
+      controller.signal,
+      fetchImpl,
+    );
+    if (response === null || !response.ok) return EMPTY_SIGNALS;
 
     return listingSignals(await response.text());
   } catch {
