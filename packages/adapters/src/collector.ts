@@ -383,12 +383,7 @@ export async function fetchListingSignals(
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetchCollectorUrl(
-      'SS_GE',
-      listingUrl,
-      controller.signal,
-      fetchImpl,
-    );
+    const response = await fetchCollectorUrl('SS_GE', listingUrl, controller.signal, fetchImpl);
     if (response === null || !response.ok) return EMPTY_SIGNALS;
 
     return listingSignals(await response.text());
