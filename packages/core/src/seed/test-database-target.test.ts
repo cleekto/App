@@ -1,9 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import {
-  selectTestDatabase,
-  validateTestDatabaseTarget,
-} from './test-database-target';
+import { selectTestDatabase, validateTestDatabaseTarget } from './test-database-target';
 
 const seedMocks = vi.hoisted(() => ({
   firstDeleteMany: vi.fn(),
@@ -119,10 +116,8 @@ describe('test database target validation', () => {
 
   it('accepts a dedicated local database and selects it as DATABASE_URL', () => {
     const env: NodeJS.ProcessEnv = {
-      DATABASE_URL:
-        'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public',
-      DIRECT_URL:
-        'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public',
+      DATABASE_URL: 'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public',
+      DIRECT_URL: 'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public',
       TEST_DATABASE_URL: LOCAL_TEST_URL,
       TEST_DATABASE_TARGET: LOCAL_TEST_TARGET,
     };
