@@ -4,6 +4,7 @@ import { sourceUrlMatchesSource } from './listing';
 
 describe('source URL policy', () => {
   it.each([
+    ['SS_GE', 'https://ss.ge/ru/listing/123', true],
     ['SS_GE', 'https://home.ss.ge/ka/udzravi-qoneba/123', true],
     ['MYHOME_GE', 'https://www.myhome.ge/udzravi-qoneba/123', true],
     ['MYHOME_GE', 'https://myhome.ge/udzravi-qoneba/123', true],
@@ -11,6 +12,7 @@ describe('source URL policy', () => {
     ['SS_GE', 'https://home.ss.ge:444/ka/udzravi-qoneba/123', false],
     ['SS_GE', 'https://user:pass@home.ss.ge/ka/udzravi-qoneba/123', false],
     ['SS_GE', 'https://home.ss.ge.evil.example/123', false],
+    ['SS_GE', 'https://evilss.ge/123', false],
     ['SS_GE', 'https://ss.ge.evil.example/123', false],
     ['SS_GE', 'https://127.0.0.1/123', false],
     ['MYHOME_GE', 'https://home.ss.ge/123', false],
