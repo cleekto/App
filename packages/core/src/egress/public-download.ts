@@ -193,7 +193,7 @@ async function requestPinnedHttps(
       },
     );
 
-    req.setTimeout(REQUEST_TIMEOUT_MS, () => req.destroy());
+    req.setTimeout(REQUEST_TIMEOUT_MS, () => req.destroy(new Error('timeout')));
     req.on('error', () => finish({ kind: 'failed' }));
     req.end();
   });
