@@ -67,8 +67,6 @@ describe('адреса, которые читает сборщик', () => {
   });
 });
 
-
-
 describe('server egress boundary', () => {
   it('does not request a URL outside the declared source', async () => {
     const fetchImpl = vi.fn();
