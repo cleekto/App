@@ -21,9 +21,7 @@ function routes(dir: string): string[] {
 }
 
 function executableSource(content: string): string {
-  return content
-    .replace(/\/\*[\s\S]*?\*\//gu, '')
-    .replace(/\/\/.*$/gmu, '');
+  return content.replace(/\/\*[\s\S]*?\*\//gu, '').replace(/\/\/.*$/gmu, '');
 }
 
 describe('API request-body boundary', () => {
@@ -34,7 +32,7 @@ describe('API request-body boundary', () => {
       const code = executableSource(readFileSync(path, 'utf8'));
 
       if (/\brequest\.(?:json|formData)\s*\(/u.test(code)) {
-        offenders.push(path.slice(API_ROOT.length + 1).replaceAll('\\\\', '/'));
+        offenders.push(path.slice(API_ROOT.length + 1).replaceAll('\\', '/'));
       }
     }
 
