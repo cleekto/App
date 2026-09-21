@@ -1,29 +1,35 @@
 # KleeKto — Current State
 
 ## Current phase
-Phase 01 — Security & Foundation. Первый implementation slice: safe destructive test-database isolation.
+Phase 01 — Security & Foundation.
 
 ## Current commit
-Authoritative working revision: HEAD of `phase-01/safe-test-db-isolation`.
-Stable base on `main`: `7d165bcf2014b599bc237f1da66d8aa2d4456ca7`.
+Canonical remote revision on `main`: `f1634aeed5ffcd6144dcca0df7c9877e09d56a48`.
+
+Historical Codex-only commit `5f603d7a0ea241328cda22e9fe184f9e68ab70a1` was never pushed to GitHub. Its intended safe test-database isolation change set was reconstructed, reviewed in PR #3, and merged into `main`.
 
 ## Current branch
-`phase-01/safe-test-db-isolation`
+`main`
+
+Temporary feature/security branches are not sources of truth after merge.
 
 ## Completed work
 - Phase 00.5 canonical contract reconciliation merged into `main`.
 - Auth access-token rotation uniqueness fix merged into `main`.
-- Safe test-DB isolation reconstructed on GitHub from the preserved Phase 01 report:
+- Safe destructive integration database isolation merged via PR #3:
   - dedicated `TEST_DATABASE_URL`;
-  - target-bound `TEST_DATABASE_TARGET`;
-  - fail-closed validation before Prisma/destructive seed;
+  - exact `TEST_DATABASE_TARGET=hostname:port/database` acknowledgement;
+  - PostgreSQL-only URL validation;
+  - fail-closed selection before Prisma/destructive seed;
   - defense-in-depth guard before the first `deleteMany()`;
-  - CI uses dedicated `localhost:5432/kleekto_test`;
-  - unit/security coverage added.
-- Historical Codex-only commit `5f603d7a0ea241328cda22e9fe184f9e68ab70a1` was not present on any GitHub remote. Its intended change set is preserved here by reconstruction; do not treat the old SHA as remotely recoverable.
+  - dedicated CI database `localhost:5432/kleekto_test`;
+  - security/unit coverage and CI wiring.
+- `KLEEKTO_CURRENT_STATE.md` established as the short session entry point.
 
 ## Next action
-1. Require green GitHub CI for `phase-01/safe-test-db-isolation`.
-2. Open/merge PR `security(test): isolate destructive integration database` using squash merge.
-3. After merge, update this file to the merged `main` revision.
-4. Next security slice: SSRF egress/source-URL foundation.
+1. Canonical-repository reset: keep one product repository and one stable `main`.
+2. Create/rename the canonical GitHub repository to `KleekTo` when repository administration is available.
+3. Carry the current `main` history and canonical docs into that repository without rewriting or dropping validated history.
+4. Connect the new ChatGPT Project `KleekTo` to that single repository and keep only current canonical materials there.
+5. After the migration is verified, archive/delete obsolete chats, projects, repositories, and merged temporary branches.
+6. Resume Phase 01 with the next security slice: SSRF egress/source-URL foundation.
