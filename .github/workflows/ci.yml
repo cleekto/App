@@ -53,12 +53,6 @@ jobs:
       - name: Установка зависимостей
         run: pnpm install --frozen-lockfile
 
-      - name: DEBUG Prettier diff
-        run: |
-          pnpm exec prettier --write packages/core/src/seed/test-database-target.ts packages/core/src/seed/test-database-target.test.ts
-          git diff -- packages/core/src/seed/test-database-target.ts packages/core/src/seed/test-database-target.test.ts
-          exit 1
-
       - name: Генерация клиента Prisma
         env:
           DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
