@@ -1,10 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import {
-  downloadPublicHttps,
-  isPublicIpv4,
-  type ResolvedHttpsTarget,
-} from './public-download';
+import { downloadPublicHttps, isPublicIpv4, type ResolvedHttpsTarget } from './public-download';
 
 function target(rawUrl: string, address = '93.184.216.34'): ResolvedHttpsTarget {
   return { url: new URL(rawUrl), address };
