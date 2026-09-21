@@ -242,9 +242,11 @@ export async function parseFormData(request: Request, maxBytes: number): Promise
   }
 
   const bytes = await readBodyBytes(request, maxBytes);
+  const body = new Uint8Array(bytes.byteLength);
+  body.set(bytes);
 
   try {
-    return await new Response(bytes, {
+    return await new Response(body.buffer, {
       headers: { 'content-type': contentType },
     }).formData();
   } catch {
