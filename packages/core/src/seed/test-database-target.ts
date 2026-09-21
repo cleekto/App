@@ -8,9 +8,9 @@ export interface TestDatabaseTarget {
 }
 
 export interface ValidateTestDatabaseTargetInput {
-  testDatabaseUrl?: string;
-  testDatabaseTarget?: string;
-  forbiddenDatabaseUrls?: readonly (string | undefined)[];
+  testDatabaseUrl?: string | undefined;
+  testDatabaseTarget?: string | undefined;
+  forbiddenDatabaseUrls?: readonly (string | undefined)[] | undefined;
 }
 
 const POSTGRES_PROTOCOLS = new Set(['postgresql:', 'postgres:']);
