@@ -3,30 +3,23 @@ import { resolve } from 'node:path';
 
 import { defineConfig } from 'vitest/config';
 
+import { selectTestDatabase } from './packages/core/src/seed/test-database-target';
+
 /**
- * Запас времени зависит от того, где стоит база.
- *
- * Локально каждый запрос — доли миллисекунды, и двадцати секунд на тест
- * с избытком: если тест в них не уложился, он и правда медленный, и это
- * надо увидеть. По сети до ветки разработки в облаке тот же тест делает
- * те же сто запросов, но каждый идёт через океан — двадцати секунд не
- * хватает, и падают заведомо исправные проверки.
- *
- * Поэтому предел выбирается по адресу базы, а не задирается глобально:
- * иначе локальная медленность перестала бы быть заметной.
+ * Integration config обязан fail-closed выбрать отдельную test DB до загрузки
+ * setup-файлов, test modules и Prisma.
  */
 const envFile = resolve(import.meta.dirname, '.env');
 if (existsSync(envFile)) process.loadEnvFile(envFile);
 
-const url = process.env.DATABASE_URL ?? '';
-const isLocal = /localhost|127\.0\.0\.1|@postgres[:/]/u.test(url);
+const testDatabase = selectTestDatabase();
+const isLocal = testDatabase.isLocal;
 
 /**
- * Интеграционные тесты. Требуют работающей базы: `pnpm db:up && pnpm db:migrate`.
+ * Запас времени зависит от ПРОВЕРЕННОГО test target.
  *
- * Отделены от обычных не для удобства, а чтобы `pnpm test` оставался честным:
- * тест, который «пропускается, когда базы нет», рано или поздно пропускается
- * всегда и перестаёт что-либо проверять.
+ * Локально каждый запрос — доли миллисекунды. По сети до отдельной test DB
+ * тот же suite может делать много round-trips, поэтому remote timeout выше.
  */
 export default defineConfig({
   test: {

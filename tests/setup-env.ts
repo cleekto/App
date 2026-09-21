@@ -1,12 +1,14 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
+import { assertSelectedTestDatabase } from '../packages/core/src/seed/test-database-target';
+
 /**
  * Подхватывает корневой .env для интеграционных тестов.
  *
- * Vitest сам файлы окружения для node-тестов не читает. Логика та же, что
- * в `scripts/with-env.mjs`: локально переменные приходят из .env, в CI — из
- * окружения, где файла нет, и это норма.
+ * Vitest сам файлы окружения для node-тестов не читает. Локально переменные
+ * приходят из .env, в CI — из окружения. DATABASE_URL к этому моменту уже
+ * обязан быть выбран config-ом из проверенного TEST_DATABASE_URL.
  */
 const envFile = resolve(import.meta.dirname, '..', '.env');
 
@@ -14,8 +16,4 @@ if (existsSync(envFile)) {
   process.loadEnvFile(envFile);
 }
 
-if (process.env.DATABASE_URL === undefined) {
-  throw new Error(
-    'Интеграционные тесты требуют живой базы. Выполни: pnpm db:up && pnpm db:migrate',
-  );
-}
+assertSelectedTestDatabase();
