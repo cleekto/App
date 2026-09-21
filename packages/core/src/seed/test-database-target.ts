@@ -120,9 +120,7 @@ export function validateTestDatabaseTarget(
  * Validates the dedicated test target before replacing DATABASE_URL.
  * Existing application/deployment URLs are treated as forbidden targets.
  */
-export function selectTestDatabase(
-  env: NodeJS.ProcessEnv = process.env,
-): TestDatabaseTarget {
+export function selectTestDatabase(env: NodeJS.ProcessEnv = process.env): TestDatabaseTarget {
   const validated = validateTestDatabaseTarget({
     testDatabaseUrl: env.TEST_DATABASE_URL,
     testDatabaseTarget: env.TEST_DATABASE_TARGET,
@@ -145,9 +143,7 @@ export function selectTestDatabase(
  * The selected DATABASE_URL must be the exact validated TEST_DATABASE_URL,
  * not merely another URL that happens to resolve to the same host/database.
  */
-export function assertSelectedTestDatabase(
-  env: NodeJS.ProcessEnv = process.env,
-): TestDatabaseTarget {
+export function assertSelectedTestDatabase(env: NodeJS.ProcessEnv = process.env): TestDatabaseTarget {
   if (env.NODE_ENV === 'production') {
     throw new Error('Destructive seed запрещён при NODE_ENV=production.');
   }
