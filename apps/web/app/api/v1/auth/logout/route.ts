@@ -22,7 +22,9 @@ export async function POST(request: Request) {
       // Logout остаётся best-effort: даже битое тело не должно помешать
       // очистить cookie. parseBody при этом всё равно обрывает чтение на
       // лимите, поэтому прежнего unbounded request.json здесь больше нет.
-      const body = await parseBody(request, schema, { allowEmpty: true }).catch(() => ({}));
+      const body = await parseBody(request, schema, { allowEmpty: true }).catch(
+        (): { refreshToken?: string } => ({}),
+      );
       const token = fromCookie ?? body.refreshToken ?? null;
 
       if (token !== null) await logout(token);
