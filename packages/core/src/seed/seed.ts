@@ -201,4 +201,3 @@ export async function seed(): Promise<SeedResult> {
 
   return { companies: result, password: SEED_PASSWORD };
 }
-
