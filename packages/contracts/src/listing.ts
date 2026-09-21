@@ -22,7 +22,9 @@ const SOURCE_HOSTS: Readonly<Record<SourceId, readonly string[]>> = {
  * Exact host matching is intentional: suffix checks such as
  * `host.endsWith('ss.ge')` accept attacker-controlled lookalikes.
  */
-export function sourceUrlMatchesSource(source: SourceId, value: string): boolean {
+export function sourceUrlMatchesSource(source: string, value: string): boolean {
+  if (source !== 'SS_GE' && source !== 'MYHOME_GE') return false;
+
   let url: URL;
   try {
     url = new URL(value);
