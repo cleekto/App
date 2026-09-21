@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { HTTP_STATUS_BY_ERROR, errorEnvelope } from '@kleekto/contracts';
-import { UnauthenticatedError, contextFromAccessToken, isDomainError } from '@kleekto/core';
+import {
+  UnauthenticatedError,
+  ValidationError,
+  contextFromAccessToken,
+  isDomainError,
+} from '@kleekto/core';
 import type { AuthContext } from '@kleekto/core';
 
 import { ACCESS_COOKIE, REFRESH_COOKIE } from './cookie-names';
@@ -130,16 +135,119 @@ export function failureResponse(error: unknown): NextResponse {
   });
 }
 
-/** Разбор тела запроса по схеме. Невалидное тело даёт 400, а не 500. */
+/** Обычный JSON API не должен принимать мегабайты произвольных данных. */
+export const DEFAULT_JSON_BODY_MAX_BYTES = 1024 * 1024;
+
+interface ParseBodyOptions {
+  maxBytes?: number;
+  /** Нужен auth-маршрутам, где веб передаёт токен cookie и тело отсутствует. */
+  allowEmpty?: boolean;
+}
+
+function bodyTooLarge(): ValidationError {
+  return new ValidationError('Тело запроса превышает допустимый размер');
+}
+
+/**
+ * Читает тело ПОТОКОМ и останавливается сразу после превышения лимита.
+ *
+ * Одного Content-Length недостаточно: заголовок можно не прислать или соврать.
+ * Поэтому он используется только как быстрый отказ, а фактическое число байт
+ * всё равно считается при чтении. Это общая ingress-граница для JSON и
+ * multipart — маршруты не должны читать request body напрямую.
+ */
+async function readBodyBytes(request: Request, maxBytes: number): Promise<Uint8Array> {
+  const declaredRaw = request.headers.get('content-length');
+  if (declaredRaw !== null) {
+    const declared = Number.parseInt(declaredRaw, 10);
+    if (Number.isFinite(declared) && declared > maxBytes) throw bodyTooLarge();
+  }
+
+  if (request.body === null) return new Uint8Array();
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw bodyTooLarge();
+      }
+
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
+function invalidBody(message: string): z.ZodError {
+  return new z.ZodError([{ code: 'custom', path: [], message }]);
+}
+
+/**
+ * Разбор JSON по схеме с жёстким пределом размера.
+ *
+ * Невалидное тело остаётся обычной VALIDATION_ERROR из публичного контракта:
+ * новый transport-specific error code ради одного лимита не вводится.
+ */
 export async function parseBody<S extends z.ZodTypeAny>(
   request: Request,
   schema: S,
+  options: ParseBodyOptions = {},
 ): Promise<z.infer<S>> {
+  const bytes = await readBodyBytes(request, options.maxBytes ?? DEFAULT_JSON_BODY_MAX_BYTES);
+
+  if (bytes.byteLength === 0) {
+    if (options.allowEmpty === true) return schema.parse({});
+    throw invalidBody('Тело запроса не является JSON');
+  }
+
   let raw: unknown;
   try {
-    raw = await request.json();
+    raw = JSON.parse(new TextDecoder().decode(bytes)) as unknown;
   } catch {
-    throw new z.ZodError([{ code: 'custom', path: [], message: 'Тело запроса не является JSON' }]);
+    throw invalidBody('Тело запроса не является JSON');
   }
+
   return schema.parse(raw);
+}
+
+/**
+ * Multipart тоже сначала проходит bounded reader.
+ *
+ * Прямой вызов formData прочитал бы всё тело в память ДО проверки размера
+ * File. Для миграции это превращало проверку 20 МБ в декоративную: сотни
+ * мегабайт уже были бы приняты сервером к моменту отказа.
+ */
+export async function parseFormData(request: Request, maxBytes: number): Promise<FormData> {
+  const contentType = request.headers.get('content-type');
+  if (contentType === null || !contentType.toLowerCase().startsWith('multipart/form-data')) {
+    throw invalidBody('Ожидается multipart/form-data');
+  }
+
+  const bytes = await readBodyBytes(request, maxBytes);
+
+  try {
+    return await new Response(bytes, {
+      headers: { 'content-type': contentType },
+    }).formData();
+  } catch {
+    throw invalidBody('Тело multipart не прошло проверку');
+  }
 }
