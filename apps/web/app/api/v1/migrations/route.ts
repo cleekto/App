@@ -1,11 +1,13 @@
 import { ValidationError, uploadMigrationFile } from '@kleekto/core';
 
-import { handle, requireAuth } from '../../_lib/handler';
+import { handle, parseFormData, requireAuth } from '../../_lib/handler';
 
 export const dynamic = 'force-dynamic';
 
 /** Файл агентства бывает на тысячи строк, но не на сотни мегабайт. */
 const MAX_FILE_BYTES = 20 * 1024 * 1024;
+/** Поля и multipart-границы получают максимум ещё 1 МБ поверх самого файла. */
+const MAX_MULTIPART_BYTES = MAX_FILE_BYTES + 1024 * 1024;
 
 /**
  * POST /api/v1/migrations — загрузка файла как есть.
@@ -18,7 +20,7 @@ export async function POST(request: Request) {
     async () => {
       const ctx = await requireAuth(request);
 
-      const form = await request.formData();
+      const form = await parseFormData(request, MAX_MULTIPART_BYTES);
       const file = form.get('file');
       const teamId = form.get('teamId');
       const sheetName = form.get('sheetName');
