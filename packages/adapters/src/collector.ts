@@ -78,6 +78,7 @@ async function fetchCollectorUrl(
 
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     if (!sourceUrlMatchesSource(source, current)) return null;
+    if (new URL(current).hostname.toLowerCase() !== 'home.ss.ge') return null;
 
     const response = await fetchImpl(current, {
       signal,
