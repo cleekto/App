@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import type { RoleCode } from '@kleekto/db';
 import { SignJWT, jwtVerify } from 'jose';
@@ -44,6 +44,7 @@ export async function issueAccessToken(claims: AccessClaims): Promise<IssuedAcce
     .setProtectedHeader({ alg: ALGORITHM })
     .setSubject(claims.sub)
     .setIssuer(ISSUER)
+    .setJti(randomUUID())
     .setIssuedAt()
     .setExpirationTime(`${config.accessTtlSeconds}s`)
     .sign(config.jwtSecret);
