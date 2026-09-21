@@ -93,8 +93,7 @@ describe('test database target validation', () => {
   it('rejects using the normal DATABASE_URL as the destructive test database', () => {
     expect(() =>
       selectTestDatabase({
-        DATABASE_URL:
-          'postgresql://dev-user:dev-password@localhost:5432/kleekto?schema=public',
+        DATABASE_URL: 'postgresql://dev-user:dev-password@localhost:5432/kleekto?schema=public',
         TEST_DATABASE_URL:
           'postgresql://other-user:other-password@localhost:5432/kleekto?schema=test',
         TEST_DATABASE_TARGET: 'localhost:5432/kleekto',
@@ -107,8 +106,7 @@ describe('test database target validation', () => {
       selectTestDatabase({
         DIRECT_URL:
           'postgresql://owner:production-secret@db.example.com:5432/kleekto?sslmode=require',
-        TEST_DATABASE_URL:
-          'postgresql://test-user:test-secret@db.example.com/kleekto?schema=test',
+        TEST_DATABASE_URL: 'postgresql://test-user:test-secret@db.example.com/kleekto?schema=test',
         TEST_DATABASE_TARGET: 'db.example.com:5432/kleekto',
       }),
     ).toThrow('обычную application/deployment DB');
@@ -148,8 +146,7 @@ describe('test database target validation', () => {
     let message = '';
     try {
       validateTestDatabaseTarget({
-        testDatabaseUrl:
-          `postgresql://${username}:${password}@db.example.com/kleekto_test?sslpassword=${querySecret}`,
+        testDatabaseUrl: `postgresql://${username}:${password}@db.example.com/kleekto_test?sslpassword=${querySecret}`,
         testDatabaseTarget: 'wrong.example.com:5432/wrong',
       });
     } catch (error) {
@@ -165,10 +162,7 @@ describe('test database target validation', () => {
   it('runs the destructive seed guard before the first deleteMany', async () => {
     vi.stubEnv('TEST_DATABASE_URL', LOCAL_TEST_URL);
     vi.stubEnv('TEST_DATABASE_TARGET', LOCAL_TEST_TARGET);
-    vi.stubEnv(
-      'DATABASE_URL',
-      'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public',
-    );
+    vi.stubEnv('DATABASE_URL', 'postgresql://kleekto:dev@localhost:5432/kleekto?schema=public');
 
     await expect(seed()).rejects.toThrow(
       'DATABASE_URL не был выбран из проверенного TEST_DATABASE_URL',
