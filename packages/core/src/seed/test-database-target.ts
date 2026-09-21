@@ -143,7 +143,9 @@ export function selectTestDatabase(env: NodeJS.ProcessEnv = process.env): TestDa
  * The selected DATABASE_URL must be the exact validated TEST_DATABASE_URL,
  * not merely another URL that happens to resolve to the same host/database.
  */
-export function assertSelectedTestDatabase(env: NodeJS.ProcessEnv = process.env): TestDatabaseTarget {
+export function assertSelectedTestDatabase(
+  env: NodeJS.ProcessEnv = process.env,
+): TestDatabaseTarget {
   if (env.NODE_ENV === 'production') {
     throw new Error('Destructive seed запрещён при NODE_ENV=production.');
   }
