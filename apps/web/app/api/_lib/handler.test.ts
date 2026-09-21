@@ -79,8 +79,6 @@ describe('bounded API request bodies', () => {
       body: form,
     });
 
-    await expect(parseFormData(request, 64)).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-    });
+    await expect(parseFormData(request, 64)).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
   });
 });
