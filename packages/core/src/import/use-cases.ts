@@ -7,6 +7,7 @@ import {
   type TransactionType,
   prisma,
 } from '@kleekto/db';
+import { sourceUrlMatchesSource } from '@kleekto/contracts';
 
 import { ACTIVITY, ENTITY } from '../activity/actions';
 import { writeActivity } from '../activity/write';
@@ -148,6 +149,12 @@ export interface ImportResult {
 export async function importListing(ctx: AuthContext, input: ImportInput): Promise<ImportResult> {
   if (ctx.teamId === null) {
     throw new ForbiddenError('Импорт доступен только участнику команды');
+  }
+
+  // Источник и адрес — один контракт. Иначе в индекс можно записать URL
+  // чужого домена, а фоновый сборщик позже превратит его в server-side egress.
+  if (!sourceUrlMatchesSource(input.source, input.sourceUrl)) {
+    throw new ValidationError('Адрес объявления не соответствует источнику');
   }
 
   // ПРАВИЛО 11, вторая линия. В норме сюда не доходит: расширение блокирует
