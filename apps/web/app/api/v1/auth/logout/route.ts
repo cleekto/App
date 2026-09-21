@@ -1,7 +1,11 @@
+import { z } from 'zod';
+
 import { logout } from '@kleekto/core';
 
-import { handle } from '../../../_lib/handler';
+import { handle, parseBody } from '../../../_lib/handler';
 import { clearSessionCookies, refreshTokenFromCookie } from '../../../_lib/session-cookies';
+
+const schema = z.object({ refreshToken: z.string().min(1).optional() }).strict();
 
 /**
  * Выход.
@@ -14,7 +18,13 @@ export async function POST(request: Request) {
   return handle(
     async () => {
       const fromCookie = refreshTokenFromCookie(request);
-      const body = (await request.json().catch(() => ({}))) as { refreshToken?: string };
+
+      // Logout остаётся best-effort: даже битое тело не должно помешать
+      // очистить cookie. parseBody при этом всё равно обрывает чтение на
+      // лимите, поэтому прежнего unbounded request.json здесь больше нет.
+      const body = await parseBody(request, schema, { allowEmpty: true }).catch(
+        (): { refreshToken?: string } => ({}),
+      );
       const token = fromCookie ?? body.refreshToken ?? null;
 
       if (token !== null) await logout(token);
